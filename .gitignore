@@ -1,0 +1,8 @@
+*~
+.SyncID
+.SyncIgnore
+.svn*
+*.pyc
+*.swp
+*.swo
+.DS_Store
