@@ -1,0 +1,143 @@
+xenomai 3 
+===========
+
+installations
+------------
+
+ - pi1 
+     http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi
+       linux kernel version: 3.18.12 
+       ipipe:  ipipe-core-3.18.12-arm-1.patch
+       xenomai version : v3.0-rc4
+       
+       bcm patch : https://drive.google.com/file/d/0B6GwSked9fL9RnU3b3pSajFZbUk/view
+       
+        => does gpio tests with oscilloscoop(see below)
+       
+ - pi2 
+      https://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/
+       linux kernel version: rpi-4.1.y  
+       ipipe:  pipe-core-4.1.18-arm-4.patch
+       xenomai version : v3.0.2
+       
+       bcm patch : patch-xenomai-3-on-bcm-2709.patch    
+               
+    
+       => only does test : latency       
+       
+        ==> however he claims works also with  GPIO  in his rpi3 story page (see below)    
+                
+ - pi3    
+     http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3 
+       linux kernel version: rpi-4.1.y  
+       ipipe:  pipe-core-4.1.18-arm-4.patch
+       xenomai version : v3.0.2
+       
+       bcm patch : patch-xenomai-3-on-bcm-2709.patch     => same patched used by  blaess  for rpi2!!
+       
+       => does gpio tests, but I think not for rpi3 (see below)
+       
+       
+       
+     http://artteknika.hatenablog.com/entry/2016/08/23/143400         
+       linux kernel version: rpi-4.1.y  
+       ipipe:  pipe-core-4.1.18-arm-4.patch
+       xenomai version : v3.0.2
+       
+       bcm patch : patch-xenomai-3-on-bcm-2709.patch => same patched used by  blaess  for rpi2!!
+       
+       note:
+         When installing the created modules, Wifi module has been deleted. Since it is supposed to be 
+         installed systematically, delete it once and install it again.
+
+          $ sudo apt-get autoremove firmware-brcm80211
+          $ sudo apt-get install firmware-brcm80211
+       
+       
+       => only does test : latency
+       
+       
+     https://www.blaess.fr/christophe/2017/03/20/xenomai-sur-raspberry-pi-3-bilan-mitige/
+     
+       => triggered by work http://artteknika.hatenablog.com/entry/2016/08/23/143400
+     
+       linux kernel version: rpi-4.1.y  
+       ipipe: ipipe-core-4.1.18-arm-8.patch which is patched with
+                 https://www.blaess.fr/christophe/files/article-2017-03-20/001-adapt-4.1.18-patch-to-rpi-4.1.21-kernel.patch
+          
+                   diff -urN a/kernel/cobalt/arch/arm/patches/ipipe-core-4.1.18-arm-8.patch b/kernel/cobalt/arch/arm/patches/ipipe-core-4.1.18-arm-8.patch
+                   --- a/kernel/cobalt/arch/arm/patches/ipipe-core-4.1.18-arm-8.patch	2016-09-09 19:34:44.000000000 +0200
+                   +++ b/kernel/cobalt/arch/arm/patches/ipipe-core-4.1.18-arm-8.patch	2017-03-18 06:43:42.062011519 +0100
+                   @@ -63,7 +63,7 @@
+                    @@ -1718,6 +1731,7 @@ config ALIGNMENT_TRAP
+                     config UACCESS_WITH_MEMCPY
+                     	bool "Use kernel mem{cpy,set}() for {copy_to,clear}_user()"
+                   - 	depends on MMU
+                   + 	depends on MMU && !CPU_SW_DOMAIN_PAN
+                    +	depends on !IPIPE
+                     	default y if CPU_FEROCEON
+                     	help
+                        
+               =>NOTE:   ipipe-core-4.1.18-arm-9.patch              already includes above patch for ipipe-core-4.1.18-arm-8.patch 
+                         `-> use this instead
+                         
+                         
+       xenomai version : v3.0.3
+       
+       bcm patch : patch-xenomai-3-on-bcm-2709.patch     => same patched used by  blaess  for rpi2!!   
+       
+       
+          => only does test : latency
+             because :
+             
+               The result is a bit mixed: Xenomai works perfectly with good stability, 
+               except for the management of GPIO interrupts which is not supported yet. 
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                          
+            Conclusion
+
+                Xenomai 3.0.3 installs well on a Raspberry Pi 3. Timer management is accurate and has few latencies,
+                even under heavy system load and interrupt.
+
+                However, there is one very disappointing point: I have not managed to manage (with the RTDM API) the
+                GPIO interrupt handlers . I guess the patch ipipe has not yet been adjusted for the Raspberry Pi 3. We
+                will have to wait a little longer, I will continue to use Raspberry Pi 2 for the examples of my
+                trainings on real time .                                  ^^^^^^^^^^^^^^
+                                                                             `-> blaess claims  gpio with rtdm works for pi2!
+                                                                                 => asked him for  rtdm gpio example which works!
+                                                                             
+                          
+           http://pipeline.lbl.gov/code/3rd_party/licenses.win/util-linux-2.14.1/AUTHORS     
+               Christophe Blaess <Christophe@Blaess.fr>   
+
+              https://www.blaess.fr/=>  https://www.blaess.fr/christophe/
+
+
+       
+gpio experiments :
+     http://wiki.csie.ncku.edu.tw/embedded/xenomai
+      => http://wiki.csie.ncku.edu.tw/embedded/xenomai#%E7%A4%BA%E6%B3%A2%E5%99%A8-%E5%AF%A6%E9%A9%97
+
+
+            Source code
+
+                https://github.com/jacky6016/GPIO-test
+
+                https://github.com/erickitten/GPIO_test_xenomai3_2
+
+            reslut      
+                Driver model 	max latency(µs)
+
+                rpi xenomai-2 RTDM        4.71
+
+                beaglebone xenomai-2 RTDM 7.46
+
+                rpi xenomai-3 RTDM        7.022
+
+                rpi xenomai-2 linux native   10.92
+
+                rpi xenomai-2 user-level(python)     244
+
+
+                => seems uses only rpi 1 for gpio experiments  => no rpi3 in list!
+
