@@ -24,6 +24,7 @@ RTIME MSEC = 1000000llu;
 RTIME USEC = 1000llu;
 
 RT_TASK blink_task, hello_task, startTasks;
+RT_TASK isr_task;
 
  
  
@@ -87,6 +88,78 @@ static int GPIOReadInit(int pin) {
     return fd;
 }
 
+static int GPIOInterruptInit(int pin) {
+	int fd=0;
+	int do_select = 0;
+    int trigger = GPIO_TRIGGER_LEVEL_LOW;
+	//int	trigger = GPIO_TRIGGER_EDGE_FALLING;
+/*
+	} trigger_types[] = {
+		{ .name = "edge", .flag = GPIO_TRIGGER_EDGE_RISING },
+		{ .name = "edge-rising", .flag = GPIO_TRIGGER_EDGE_RISING },
+		{ .name = "edge-falling", .flag = GPIO_TRIGGER_EDGE_FALLING },
+		{ .name = "edge-both", .flag = GPIO_TRIGGER_EDGE_FALLING|GPIO_TRIGGER_EDGE_RISING },
+		{ .name = "level", .flag = GPIO_TRIGGER_LEVEL_LOW },
+		{ .name = "level-low", .flag = GPIO_TRIGGER_LEVEL_LOW },
+		{ .name = "level-high", .flag = GPIO_TRIGGER_LEVEL_HIGH },
+  */
+   
+	char path[VALUE_MAX];
+    snprintf(path, VALUE_MAX, "/dev/rtdm/pinctrl-bcm2835/gpio%d", pin);
+	rt_printf("open device rdwr for interrupt: %s   ---\n",path );
+	fd = open(path, O_RDWR);
+	if (-1 == fd) {
+        int errsv = errno;
+        rt_printf("Failed to open  gpio pin %d , return %d errno %d [%s]\n", pin,fd,errsv,symerror(-errsv));
+//				rt_printf("failed listening to gpio pin %d [%s]\n", pin, symerror(ret));
+		return(-1);
+	}
+    rt_printf("Succes to open pin %d \n", pin);
+
+	int ret = ioctl(fd, GPIO_RTIOC_IRQEN, &trigger);
+    if (ret) {
+		//ret = -errno;
+		//warning("GPIO_RTIOC_IRQEN failed on %s [%s]", device, symerror(ret));
+        int errsv = errno;
+        rt_printf("GPIO_RTIOC_IRQEN failed on  gpio pin %d , return %d errno %d\n", pin,fd,errsv);
+		return ret;
+	}
+
+    int  value;	
+	fd_set set;
+
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
+
+    do_select=0;
+	for (;;) {
+		if (do_select) {
+			ret = select(fd + 1, &set, NULL, NULL, NULL);
+			if (ret < 0) {
+				ret = -errno;
+				rt_printf("failed listening to gpio pin %d [%s]\n", pin, symerror(ret));
+				return ret;
+			}
+		}
+		ret = read(fd, &value, sizeof(value));
+		if (ret < 0) {
+			ret = -errno;
+			rt_printf("failed reading from gpio pin %d [%s]\n", pin, symerror(ret));
+			return ret;
+		}
+		rt_printf("received irq, GPIO state=%d\n", value);
+        //rt_timer_spin(500000000);
+        rt_timer_spin(2000000000);
+	}
+
+	//close(fd);
+
+
+
+
+
+    return fd;
+}
 
 static int GPIOWrite(int fd, int pin, int value) {
 
@@ -174,8 +247,23 @@ int run() {
 	rt_task_create(&startTasks, "StartTask", 0, 99, 0);
 	rt_task_start(&startTasks, &runStartTasks, NULL);
 }
- 
+
+
+void runIsr(void *args) {
+    // NOTE: initialization code is within linux : none-realtime  => should be done in advance
+	fd_in=GPIOInterruptInit(PIN); 
+}
+
 int main(int argc, char *argv[]) {
+	 	
+    rt_task_create(&isr_task, "IsrTask", 0, 40, 0);
+	rt_task_start(&isr_task, &runIsr, NULL);
+ 	getchar();
+ 	
+	return(0);
+}
+
+int main1(int argc, char *argv[]) {
 	 	
  	run();
     close(fd_in);

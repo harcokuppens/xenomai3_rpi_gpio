@@ -63,6 +63,8 @@ int main (void)
     fprintf (stderr, "Unable to setup wiringPi with GPIO: %s\n", strerror (errno)) ;
     return 1 ;
   }
+  
+  pinMode (LED_GPIO_PIN, OUTPUT) ;
   pinMode (BUTTON_GPIO_PIN, INPUT) ;  // returns void
   //pullUpDnControl (BUTTON_GPIO_PIN, PUD_UP) ; // returns void
 
