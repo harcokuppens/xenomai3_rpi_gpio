@@ -16,7 +16,7 @@ EXTRA :=
 #CC := $(shell $(XENO_CONFIG) --cc)
 CC :=arm-linux-gnueabihf-gcc   
 
-EXECUTABLE := blink
+EXECUTABLE := output_driven_irq
 
 all: $(EXECUTABLE)
 

@@ -19,3 +19,7 @@ all: $(EXECUTABLE)
 
 %: %.c
 	$(CC) -o $@ $< $(CFLAGS) $(LDFLAGS) $(EXTRA)
+
+clean:
+	rm $(EXECUTABLE)
+
