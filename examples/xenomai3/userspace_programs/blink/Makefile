@@ -5,12 +5,16 @@ XENO_CONFIG := /usr/xenomai/bin/xeno-config
 #LDFLAGS := $(shell $(XENO_CONFIG) --alchemy --cobalt --ldflags)
 
 
-CFLAGS := $(shell $(XENO_CONFIG)   --posix --alchemy  --cflags)
-LDFLAGS := $(shell $(XENO_CONFIG)  --posix --alchemy --ldflags)
+CFLAGS := -marm $(shell $(XENO_CONFIG)   --posix --alchemy  --cflags)
+LDFLAGS := -marm $(shell $(XENO_CONFIG)  --posix --alchemy --ldflags)
+
+#CFLAGS := $(shell $(XENO_CONFIG)   --alchemy  --cflags)
+#LDFLAGS := $(shell $(XENO_CONFIG)  --alchemy --ldflags)
 
 
 EXTRA :=
-CC := $(shell $(XENO_CONFIG) --cc)
+#CC := $(shell $(XENO_CONFIG) --cc)
+CC :=arm-linux-gnueabihf-gcc   
 
 EXECUTABLE := blink
 

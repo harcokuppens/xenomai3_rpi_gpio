@@ -10,7 +10,8 @@ LDFLAGS := $(shell $(XENO_CONFIG)  --posix --alchemy --ldflags)
 
 
 EXTRA :=
-CC := $(shell $(XENO_CONFIG) --cc)
+#CC := $(shell $(XENO_CONFIG) --cc)
+CC :=arm-linux-gnueabihf-gcc   
 
 EXECUTABLE := isr
 
