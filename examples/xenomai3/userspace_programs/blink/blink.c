@@ -143,7 +143,7 @@ void runBlink(void *arg) {
 /* dummy task with higher prio */
 void runHello(void *args) {
 	int count = 5;
-	int waitTime = *(int*)args;
+	//int waitTime = *(int*)args;
 	rt_printf("Starting hello world task... should be printed after blinking done!!\n");
 	do {
 		rt_printf("Hello world!\n");
@@ -155,8 +155,9 @@ void runHello(void *args) {
 // task to start tasks
 void runStartTasks(void *args) {
 	int period = 100;
+//	rt_task_start(&hello_task, &runHello, &period);
+	rt_task_start(&hello_task, &runHello, NULL);
 	rt_task_start(&blink_task, &runBlink, NULL);
-	rt_task_start(&hello_task, &runHello, &period);
 }
 
 int run() {

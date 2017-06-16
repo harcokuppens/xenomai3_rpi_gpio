@@ -23,6 +23,8 @@ RTIME SEC = 1000000000llu;
 RTIME MSEC = 1000000llu;
 RTIME USEC = 1000llu;
 
+RTIME initialSleepToReadOutTaskList; 
+
 RT_TASK blink_task, hello_task, startTasks;
 RT_TASK isr_task;
 
@@ -102,8 +104,9 @@ void runIsr(void *args) {
         now =rt_timer_read();
         if ( now > lasttime + 300000000) {
             // new interrupt (no bounce)  
-    		rt_printf("bounce time=%llu\n",lastbounce-lasttime);
+    		if ( lasttime != 0 ) rt_printf("bounce time=%llu\n",lastbounce-lasttime);
             lasttime =now;
+            lastbounce=now;
          
             // on new interrupt we assume switch is triggered and we toggle output 
     		rt_printf("\nINTERRUPT: received irq, GPIO state=%d count=%d\n", value,count);
@@ -213,9 +216,10 @@ void blink( int repeat, int timeout) {
 }
 
 
-
 void runBlink(void *arg) {
 	rt_printf("Starting blink...\n");
+	rt_printf("sleep blink task first %llu nanoseconds\n",initialSleepToReadOutTaskList);
+    rt_task_sleep(initialSleepToReadOutTaskList);
     // loop 10 times to toggle between 0 and 1 value  => 5 blinks
     // period:  1 second   => duration light on or off
 	blink( 10, 1);
@@ -226,6 +230,8 @@ void runHello(void *args) {
 	int count = 5;
 	int waitTime = *(int*)args;
 	rt_printf("Starting hello world task... should be printed after blinking done!!\n");
+	rt_printf("sleep hello task  first %llu nanoseconds\n",initialSleepToReadOutTaskList);
+    rt_task_sleep(initialSleepToReadOutTaskList);
 	do {
 		rt_printf("Hello world!\n");
         rt_task_sleep(500000000);
@@ -241,7 +247,26 @@ void runStartTasks(void *args) {
 	rt_task_start(&hello_task, &runHello, &period);
 }
 
+void set_affinity_cpu(RT_TASK *task, int cpu) {
+    cpu_set_t cpus;
+    CPU_ZERO(&cpus);          
+    CPU_SET(cpu,&cpus);          
+    rt_task_set_affinity(task,&cpus);  
+}
+void set_affinity_all(RT_TASK *task) {
+    cpu_set_t cpus;
+    CPU_ZERO(&cpus);          
+    CPU_SET(0,&cpus);          
+    CPU_SET(1,&cpus);          
+    CPU_SET(2,&cpus);          
+    CPU_SET(3,&cpus);          
+    rt_task_set_affinity(task,&cpus);  
+}
+
 int run() {
+    initialSleepToReadOutTaskList= 5 * SEC; 
+    printf("all realtime tasks initially start with sleep so that you have the time to lookup priority and cpu and irq at :  /proc/xenomai/sched/rt/threads  /proc/xenomai/irq"); 
+
     // NOTE: initialization code is within linux : none-realtime  => should be done in advance
 	fd_in=GPIOInterruptInit(PIN); 
     // configure for single pin both an input as output file handle
@@ -251,8 +276,19 @@ int run() {
 
     rt_task_create(&isr_task, "IsrTask", 0, 60, 0);
 	rt_task_create(&blink_task, "BlinkTask", 0, 50, 0);
-	rt_task_create(&hello_task, "Task", 0, 40, 0);
-        
+	rt_task_create(&hello_task, "HelloTask", 0, 40, 0);
+
+
+  // set_affinity_cpu(&hello_task,1);  // ok, makes hello world run in parallel
+
+  // problem: cannot change cpu affinity of blink or isr task without something going wrong, unclear why
+//            probably has to do with irq => If not fixed, I noticed isr_task and blink_task get same cpu ( both same, but cpu number can differ)
+    //set_affinity_cpu(&isr_task,3);
+    //set_affinity_cpu(&blink_task,0);  
+
+   // note: default affinity is all cpu's, but I notice that all task's still get the same cpu, however per run the cpu number can change, but per run
+  //        all tasks have same cpu number
+
         // task to start tasks
 	rt_task_create(&startTasks, "StartTask", 0, 99, 0);
 	rt_task_start(&startTasks, &runStartTasks, NULL);

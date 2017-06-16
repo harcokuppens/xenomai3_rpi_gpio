@@ -21,5 +21,12 @@ all: $(EXECUTABLE)
 	$(CC) -o $@ $< $(CFLAGS) $(LDFLAGS) $(EXTRA)
 
 clean:
-	rm $(EXECUTABLE)
+	rm -f $(EXECUTABLE)
 
+
+run: $(EXECUTABLE)
+	bash run.sh
+
+freshrun: 
+	make clean
+	make run
