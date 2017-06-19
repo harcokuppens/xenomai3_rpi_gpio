@@ -32,6 +32,6 @@ clean:
 
 else
     # called from kernel build system: just declare what our modules are
-    obj-m := xeno_gpio_irq.o
-    xeno_gpio_irq-y :=  irq-gpio-rtdm.o 
+    obj-m := button_toggles_led.o
+    button_toggles_led-y :=  irq-gpio-rtdm.o 
 endif
