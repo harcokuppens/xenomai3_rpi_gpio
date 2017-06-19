@@ -26,7 +26,7 @@
 #DEBUG	= -g -O0
 DEBUG	= -O3
 CC	= gcc
-INCLUDE	= -I/usr/local/include
+INCLUDE	= -I/usr/local/include 
 CFLAGS	= $(DEBUG) -Wall $(INCLUDE) -Winline -pipe
 
 LDFLAGS	= -L/usr/local/lib
@@ -37,6 +37,7 @@ LDLIBS    = -lwiringPi -lpthread -lm
 
 SRC	=	blink.c \
         isr.c \
+        output_driven_irq.c \
         button_toggles_led.c
 
 OBJ	=	$(SRC:.c=.o)
@@ -49,78 +50,6 @@ all: $(BINS)
 	@echo ""
 
 really-all:	$(BINS)
-
-blink:	blink.o
-	@echo [link]
-	@$(CC) -o $@ blink.o $(LDFLAGS) $(LDLIBS)
-
-test1:	test1.o
-	@echo [link]
-	@$(CC) -o $@ test1.o $(LDFLAGS) $(LDLIBS)
-	
-test2:	test2.o
-	@echo [link]
-	@$(CC) -o $@ test2.o $(LDFLAGS) $(LDLIBS)
-
-speed:	speed.o
-	@echo [link]
-	@$(CC) -o $@ speed.o $(LDFLAGS) $(LDLIBS)
-
-lcd:	lcd.o
-	@echo [link]
-	@$(CC) -o $@ lcd.o $(LDFLAGS) $(LDLIBS)
-
-wfi:	wfi.o
-	@echo [link]
-	@$(CC) -o $@ wfi.o $(LDFLAGS) $(LDLIBS)
-
-isr:	isr.o
-	@echo [link]
-	@$(CC) -o $@ isr.o $(LDFLAGS) $(LDLIBS)
-
-isr-osc:	isr-osc.o
-	@echo [link]
-	@$(CC) -o $@ isr-osc.o $(LDFLAGS) $(LDLIBS)
-
-piface:	piface.o
-	@echo [link]
-	@$(CC) -o $@ piface.o $(LDFLAGS) $(LDLIBS)
-
-gertboard:	gertboard.o
-	@echo [link]
-	@$(CC) -o $@ gertboard.o $(LDFLAGS) $(LDLIBS)
-
-nes:	nes.o
-	@echo [link]
-	@$(CC) -o $@ nes.o $(LDFLAGS) $(LDLIBS) 
-
-pwm:	pwm.o
-	@echo [link]
-	@$(CC) -o $@ pwm.o $(LDFLAGS) $(LDLIBS)
-
-delayTest:	delayTest.o
-	@echo [link]
-	@$(CC) -o $@ delayTest.o $(LDFLAGS) $(LDLIBS)
-
-serialRead:	serialRead.o
-	@echo [link]
-	@$(CC) -o $@ serialRead.o $(LDFLAGS) $(LDLIBS)
-
-serialTest:	serialTest.o
-	@echo [link]
-	@$(CC) -o $@ serialTest.o $(LDFLAGS) $(LDLIBS)
-
-okLed:	okLed.o
-	@echo [link]
-	@$(CC) -o $@ okLed.o $(LDFLAGS) $(LDLIBS)
-
-tone:	tone.o
-	@echo [link]
-	@$(CC) -o $@ tone.o $(LDFLAGS) $(LDLIBS)
-
-servo:	servo.o
-	@echo [link]
-	@$(CC) -o $@ servo.o $(LDFLAGS) $(LDLIBS)
 
 
 .c.o:
