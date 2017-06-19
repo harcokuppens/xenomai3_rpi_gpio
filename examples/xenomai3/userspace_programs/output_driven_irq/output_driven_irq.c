@@ -17,7 +17,7 @@
 #define HIGH 1
  
 #define POUT 22  
-#define PIN  23  
+#define PIN  24  
 
 RTIME SEC = 1000000000llu;
 RTIME MSEC = 1000000llu;
