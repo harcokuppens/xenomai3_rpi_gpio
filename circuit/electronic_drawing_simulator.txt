@@ -1,0 +1,101 @@
+
+==========================================================================================================
+           Electronic drawing and simulator tools
+==========================================================================================================
+
+Fritzing circuit drawing and pcb design (free)
+==============================================
+
+http://fritzing.org
+
+
+  Fritzing is an open-source hardware initiative that makes electronics accessible as a creative material for anyone.
+  We offer a software tool, a community website and services in the spirit of Processing and Arduino, fostering a
+  creative ecosystem that allows users to document their prototypes, share them with others, teach electronics in a
+  classroom, and layout and manufacture professional pcbs.
+
+
+ => great tool to draw a realistic circuit on a raspberry pi
+
+falstad free circuit similator (free)
+===============================
+
+  src: http://www.falstad.com/circuit/
+  
+  
+  When you're quite new to electronics, maybe a software simulator to simulate what the electronics would be doing is a
+  good idea. Like user @user2813274 said, its about:
+
+     - the maximum amount of current flowing
+     - the voltage levels involved
+
+  I found a nice website, where you can fiddle around with electric components and measure the voltage and current
+  going through the leds and switches etc. It even visually shows the voltage and current flow.
+
+  This site has a free opensource download. it's a zip file which contains a java program. if you unzip it and
+  doubleclick the .jar file, the simulator apears. Pretty advanced electronics can be simulated as well. This is the
+  site: http://www.falstad.com/circuit/
+
+  i'm not sure how much you're into electronics. How a LED works for example; it only allows current to flow in one
+  direction(that direction in which it lights up), but there's a minimum voltage required to get the current flowing.
+  some are 1.7V but there's even LEDS with to 3 Volts. Since the current flowing is dependant on the voltage applied,
+  you could let it conduct so much that the flowing current is essentially a short-circuit(i.e. infinite current).
+  That's why there's resistors involved in switches and LED's.
+
+  Have fun
+  
+  
+multiple versions available :
+ http://www.circuit-diagram.org/      => csharp , windows version 
+ http://editor.circuit-diagram.org/   => online version
+ http://www.falstad.com/circuit-java/ => java version, cross platform
+ 
+    
+
+iCircuit similator (commercial, but cheap)
+=================
+
+http://icircuitapp.com/
+
+ iCircuit is the easy to use electronic circuit simulator and designer - the perfect tool for students, hobbyists, and engineers.
+ 
+ Available for :
+	iPad, iPhone, and iPod Touch
+	Mac OS X
+	Windows 8 Store
+	Windows Phone 	  Windows Phone
+	Android app on Google Play 	  
+    Android Phones and Tablets
+    
+Its advanced simulation engine can handle both analog and digital circuits and features realtime always-on analysis. It
+is the perfect companion to students, hobbyists, and engineers.
+
+You use it as you would any CAD program: you add elements, connect them together, and set their properties.
+
+But iCircuit is unlike other CAD programs because it is always simulating. It's just like working with the real
+circuit. You do not stop to take a measurement or spend a lot of time configuring reports. Instead, you just play with
+the circuit as you normally would, with the power on!
+
+There are over 30 elements you can use to build your circuits. The app has everything from simple resistors, to
+switches, to MOSFETs, to digital gates.
+
+The app features a multimeter that you use to probe around the circuit to instantly read voltages and currents. If you
+want to see how a value changes over time, then you can add values to the built-in oscilloscope. The scope can
+simultaneously track many signals over time and features a touch interface to control the total time displayed and
+stacked and unstacked modes to easily compare signals.
+
+Supported elements include:
+
+    Signal generators, Voltage sources, Current sources, and Dependent sources
+    Speakers, Microphones, Buzzers, DC Motors, and LEDs
+    ADCs, and DACs
+    Logic gates: AND, OR, NAND, NOR, XOR
+    JK and D Flip-flops
+    38 7400 series digital parts
+    7-segment display and driver
+    Antenna with simulated AM and FM signals
+
+You can also create sub circuits to introduce new elements and componentize your designs.
+No matter your skill set, you'll be playing with circuits in no time with iCircuit.
+    
+    

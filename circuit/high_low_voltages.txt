@@ -1,0 +1,19 @@
+   for switch   http://elinux.org/RPi_Tutorial_EGHS:Switch_Input says 
+   
+       For the GPIO pin to determine if an input level is HIGH or LOW it has to detect that the voltage on the pin is
+       above or below a set level, you should aim to set the pin to 10% of the logic voltage (HIGH for the RPi this is
+       3.3V - so
+       
+            HIGH:   2.97V to 3.3V, 
+            LOW:    0V to 0.33V
+
+       If the pin voltage is somewhere between 2.97V and 0.33V then the system may not reliably determine if a HIGH or
+       LOW value is set (particularly as you get closer to 1.65V (halfway)).
+       
+update:
+   https://books.google.nl/books?id=AE2sCQAAQBAJ&pg=PA340&lpg=PA340&dq=pi+raspberry+pi+high+voltage+3.0&source=bl&ots=FUxWOmJpPG&sig=tFI3no-LDR8DrRaGeTGzX_mDUc0&hl=en&sa=X&ved=0ahUKEwjzy-K94MbUAhUFIVAKHbdlDMcQ6AEIOzAD#v=onepage&q=pi%20raspberry%20pi%20high%20voltage%203.0&f=false
+
+       input low :   0-0.8V
+       input high :  2.2-3.3V
+       output low : 0-0.6 V
+       output high: 2.4-3.3V

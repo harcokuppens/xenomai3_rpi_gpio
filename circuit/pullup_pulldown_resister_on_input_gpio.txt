@@ -1,0 +1,346 @@
+IMPORTANT:
+   you can programmatically activate/disactivate a pull-up or pull-down resistor in a gpio on a rpi!!
+
+    => very clear in diagram in specification : see Page 89 in BCM2835Datasheet.pdf
+              or gpio_block_diagram_raspberry_pi__from_spec_page89.pdf
+              
+IMPORTANT: 
+
+    use wiringpi c library because gpiolib doesn't support setting internal pull-up/down resistor in GPIO pin
+
+
+pull up/down resistor for  INPUT line
+=====================================
+
+
+
+https://learn.sparkfun.com/tutorials/pull-up-resistors
+
+        Vcc
+        |         rasperry pi
+      [ R1 ]   |------------------|
+        |      |  input pin       |
+        |-----------[ R2 ]--.     |
+        |      |            |     |
+switch /       |----------- |-----|
+        |                   |
+       ---                 ---
+        -                   -
+        
+        
+IMPORTANT:
+   An input pin on a microcontroller has an impedance (R2) that can vary from 100k-1MΩ.    
+   
+targeted functionally : 
+   1. When the button is not pressed, the input pin is pulled high. 
+   2. When the button is pressed, the input pin is pulled low. 
+       
+
+The value of the pull-up resistor needs to be chosen to satisfy two conditions:
+
+
+   1. When the button is not pressed, the input pin is pulled high. 
+   
+        The value of the pull-up resistor controls the voltage on the input pin 
+        together with the internal impedance of the pi by the voltage divider circuit of the two resistors R1 and R2.
+        
+          V1= I*R1 
+          V2= I*R2
+          Vcc = I*R1 + I*R2     => I = Vcc / (R1+R2)  \
+          Power = Vcc*I = Vcc^2 / (R1+R2)             /  => current and power usage limited by big internal R2
+         
+       The general rule for condition 1 is to use a pull-up resistor (R1) that is an order of magnitude (1/10th) less than
+       the input impedance (R2) of the input pin. An input pin on a microcontroller has an impedance that can vary from
+       100k-1MΩ. 
+            => note: if on a pi we use  +3.3 input volt with 10k resistor into input, we measure a voltage drop over the resistor
+                     of around 0.55V (to value 2.70V)  which is arround 17% of the total voltage  => internal R ~ 60k 
+                                                `-> still seen has high value for pi 
+                                                   see: high_low_voltages.txt which says everything above 2.2 V os high, and below 0.6  V is low
+                                                         input low :   0-0.8V
+                                                         input high :  2.2-3.3V
+                                                         output low : 0-0.6 V
+                                                         output high: 2.4-3.3V
+                                            => we could use a smaller resistor then 10k to make the drop smaller,
+                                               however the drop is still recognized high, and a higher resistor
+                                               makes smaller current and energy loss. If the switch is closed 
+                                               then the energy loss is even better!!  => so stick to 10k!!             
+                                                
+       For this discussion, impedance is just a fancy way of saying resistance and is represented by R2 in the
+       picture above. So, when the button is not pressed, a very small amount of current flows from VCC through R1 and into
+       the input pin. The pull-up resistor R1 and input pin impedance R2 divides the voltage, and this voltage needs to be
+       high enough for the input pin to read a high state.
+       
+       Voltage after R1 must be still high to read high state so we demand :
+        
+            V1 <= V2/10 
+            
+        which gives :
+           
+            R1 <= R2/10     
+            
+
+   2. When the button is pressed, the input pin is pulled low. 
+    
+       The value of resistor R1 controls how much current you
+       want to flow from VCC, through the button, and then to ground.
+ 
+       For condition 2, you don’t want the resistor’s value too low. 
+       The lower the resistance, the more power will be used when the button is hit. 
+       You generally want a large resistor value (10kΩ), but you don’t want it too large as to
+       conflict with condition 1.
+       
+           because internal resistor R2 is very large  R2/10 is still very large
+           so just take maximum R1 from condition  1 :
+           
+            R1 = R2/10
+            
+            
+    => so if R2 =~ 100k  =>  R1 = 10k        
+  
+  
+  Final note:
+
+      Another thing to point out is that the larger the resistance for the pull-up, the slower the pin is to respond to
+      voltage changes. This is because the system that feeds the input pin is essentially a capacitor coupled with the
+      pull-up resistor, thus forming a RC filter, and RC filters take some time to charge and discharge. If you have a
+      really fast changing signal (like USB), a high value pull-up resistor can limit the speed at which the pin can
+      reliably change state. This is why you will often see 1k to 4.7KΩ resistors on USB signal lines.
+
+  All of these factors play into the decision on what value pull-up resistor to use.
+
+
+
+  Since pull-up resistors are so commonly needed, many MCUs, like the ATmega328 microcontroller on the Arduino
+  platform, have internal pull-ups that can be enabled and disabled. To enable internal pull-ups on an Arduino, you can
+  use the following line of code in your setup() function:
+
+     pinMode(5, INPUT_PULLUP); // Enable internal pull-up resistor on pin 5
+
+
+Because you really must set the internal pull resistor programmatically, and to be on the safe side we 
+rather use an external pull resistor.
+
+We use the pull down circuit described in http://raspi.tv/2013/rpi-gpio-basics-4-setting-up-rpi-gpio-numbering-systems-and-inputs
+
+
+        Vcc
+        |         rasperry pi (measuring device)
+      [ R1 ]   |------------------|
+        |      |  input pin       |
+        |-----------[ R2 ]--.     |
+        |      |            |     |
+switch /       |----------- |-----|
+        |                   |
+        |                   |
+     [ R3 ]                 |
+        |                   |
+       ---                 ---
+        -                   -
+        
+       R1= 10k            when switch closed gets 3,0V    (when switch open gets only 0.55 because of big R2 ->see above)
+       R3= 1 k           when switch closed gets  0.3V
+       
+ => R3 is REDUNDANT, it makes an extra voltage divider with R1 and R3, which takes over when the switch is closed.
+ 
+    I think we have R3 :
+     - mainly because we regard input as measuring device 
+       Note: measuring devices (or inputs) are always designed to have high impedance  to not influence the original 
+            circuit as less as possible
+            
+       without the pi measuring device (input) 
+       then the voltage divider already describes the wanted switch circuit behavior 
+          closed =>  high input
+          open   => low input
+          
+
+     - an extra advantage of R3:
+            the risk of short circuiting less likely because we have extra safety resistor R3
+    
+ 
+
+
+
+good example pull up:
+   https://www.element14.com/community/docs/DOC-78315/l/raspberry-pi-gpio-explained
+   => also says pi input has high impedance
+
+http://www.wikiwand.com/en/Pull-up_resistor
+
+pull up
+
+               Vcc
+               |
+               R
+               |___|>-- Vinput
+             \ 
+  switch      \ 
+               |
+               ground
+               
+        note: you could see the switch connected to the ground as the device connected to the input!!       
+
+In electronic logic circuits, a pull-up resistor is a resistor connected between a signal conductor and a positive
+power supply voltage to ensure that the signal will be a valid logic level if external devices are disconnected or
+high-impedance is introduced.
+
+
+
+A pull-up resistor pulls the voltage of the signal it is connected to towards its voltage source level. 
+
+device inactive: (eg. switch open)
+  When the other components associated with the signal are inactive, the voltage supplied by the pull up prevails 
+  and brings the signal up to a logical high level. 
+
+device active: (eg. switch closed)
+  When another component on the line goes active, it overrides the pull-up resistor. 
+  harcok comment: Because of high pull up R a low current will flow!
+
+The pull-up resistor ensures that the wire is at a defined logic level even if no active devices are connected to it.
+
+A pull-down resistor works in the same way but is connected to ground. It holds the logic signal at a low logic level
+when no other active device is connected.
+
+
+
+Note: parallel port interrupt input keeps it voltage high, to generate interupt short it shortly with ground!  ( uses pullup)
+
+Note: gpio can use both pull-up (high not connected) or pull-down (low=ground when not connected) for interupt input          port.
+      
+
+
+http://stratifylabs.co/embedded%20design%20tips/2013/10/21/Tips-Understanding-Microcontroller-Pin-Input-Output-Modes/
+flags  FLAG_OPEN_DRAIN FLAG_OPEN_SOURCE  are only used for  outputs!!  (not input)
+
+
+General purpose input/output (GPIO) pins on microcontrollers have various modes for both input and output. 
+
+Input modes 
+   may include pull-up or pull-down resistors, hysteresis, or some combination. 
+
+Output modes can be 
+   push-pull, 
+   high-drive 
+   or open-drain.
+ 
+ 
+
+
+===========================================================
+wiringpi c library to setup  pull-up or pull-down resistor
+===========================================================
+
+
+IMPORTANT:  use wiringpi c library because gpiolib doesn't support setting internal pull-up/down resistor in GPIO pin
+ 
+
+https://projects.drogon.net/raspberry-pi/wiringpi/functions/
+or   
+http://wiringpi.com/reference/core-functions/
+
+  
+  void pullUpDnControl (int pin, int pud) ;
+  
+      This sets the pull-up or pull-down resistor mode on the given pin, which should be set as an input. Unlike the
+      Arduino, the BCM2835 has both pull-up an down internal resistors. The parameter pud should be; PUD_OFF, (no pull
+      up/down), PUD_DOWN (pull to ground) or PUD_UP (pull to 3.3v) The internal pull up/down resistors have a value of
+      approximately 50KΩ on the Raspberry Pi.
+
+      This function has no effect on the Raspberry Pi’s GPIO pins when in Sys mode. If you need to activate a
+      pull-up/pull-down, then you can do it with the gpio program in a script before you start your program.
+  
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?f=72&t=41456
+
+    Q: If you set a GPIO pin to input with pull up resistor e.g. using the wiringPi C library
+
+          pullUpDnControl( <pin>, PUD_UP )
+
+       call, does anybody know what the resistance of the internal pull up resistor used in the Pi is ?
+
+
+    A1: Of the order of 50K ohm from memory. Not sure where it's specified.
+
+    A2: The internal pull-up resistor is fairly high I BELIEVE of the order of 30 to 100k.
+
+        So suscepatble to interfrerence. normally 10k or slightly lower is sufficient. The lower the resistance the more
+        current used and I would not go below 1k for switch or similar pullups.
+    
+http://raspberrypi.stackexchange.com/questions/39313/do-all-gpio-pins-have-a-internal-pull-up-pull-down-resistors
+
+    Yes, all of the B+'s GPIO pins have internal pull-up or pull-down resistors that can be controlled from your code.
+
+      Pull-up is 50K min – 65K max. Pull-down is 50K min – 60K max.
+
+    More info on the GPIO can be found:.
+
+
+  http://www.raspberry-projects.com/pi/pi-hardware/raspberry-pi-model-b-plus/model-b-plus-io-pins
+
+
+     3.3V Output
+
+      External circuitry may draw up to a total of 50mA max current from the 3.3V Out pins (true for Model B so
+      presumably true for Model B+ but not confirmed as full schematic not yet available).
+
+       Is maximum current from 3.3V pin really 50mA?
+         https://www.element14.com/community/thread/19550
+
+    IO Pins
+
+      All IO pins are 3.3V, not 1.8V.  Pins are not 5V tolerant. 
+
+
+        http://elinux.org/RPi_Low-level_peripherals
+
+        => very good!!
+
+   Pull-Up & Pull-Down resistors
+
+        The GPIO ports include the ability to enable and disable internal pull-up or pull-down resistors from code.
+
+        Pull-up is 50K min – 65K max.
+         see: http://www.wikiwand.com/en/Pull-up_resistor
+
+        Pull-down is 50K min – 60K max. 
+
+
+
+
+
+===========================================================================================================
+NICE example demonstration  internal pull up  resister in electronic circuit using python library PRI.GPIO
+===========================================================================================================
+
+
+http://raspi.tv/2013/rpi-gpio-basics-6-using-inputs-and-outputs-together-with-rpi-gpio-pull-ups-and-pull-downs
+   
+   python RPI.GPIO
+   
+   
+   
+   If you have no pull-up or pull-down resistors attached to an input port, its status is not clearly defined. It is
+   “floating”. It is susceptible to random electromagnetic radiation or static from you, from any devices near or far
+   and from the environment. Any wires attached to the GPIO ports act as antennae for this radiation (it’s mostly radio
+   waves).
+   
+
+   In our button circuit, we used resistors to pull down the voltage. This was to demonstrate the idea.
+
+   But, in fact, the Raspberry Pi has built-in pull-up and pull-down resistors which can be enabled in software. This
+   means we can eliminate our pull-down resistors for the button – as long as we enable the internal ones.
+
+   How do you do that? RPi.GPIO to the rescue.
+
+   
+       You enable these internal pull-ups/pull-downs at the time of setting up the port for input or output, by adding
+       an extra, optional, argument to the GPIO.setup() function call.
+
+       We’re using pull-down, so it’s pull_up_down=GPIO.PUD_DOWN. If you want/need pull-up you can change the PUD_DOWN
+       for PUD_UP. (It depends on how you’ve wired your circuit.)
+
+           GPIO.setup(port_or_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    
+  
+  
+  

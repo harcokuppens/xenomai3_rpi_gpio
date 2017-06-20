@@ -1,0 +1,160 @@
+safety when connecting electronic circuits to the raspberry pi
+==============================================================
+
+
+
+
+NOTE: safety its about:
+
+     - the maximum amount of current flowing
+     - the voltage levels involved
+  
+ => to see them for your circuit you could use an electronic simulator
+    see :  electronic_simulator_online.txt
+
+
+http://raspberrypi.stackexchange.com/questions/23967/precautions-to-be-taken-while-using-the-gpio-pins
+
+answer 1
+
+  It is reasonably safe if you are sensible. The MOST IMPORTANT thing is NOT to connect anything >3.3V to a pin. Make
+  sure you don't connect the 5V!
+           ^^^^^^^^^^^^^^^^^^^^^
+           
+  In general you should avoid making connections with the Pi running (at least until you get more experience).
+
+  You should  
+   - run a LED through a resistor - say 470Ω. 
+   - Connecting push buttons is pretty safe (using a 1KΩ series resistor is a good idea).
+  
+  
+ 
+ 
+ 
+answer 2
+
+ To further elaborate on the why not for some of the things:
+
+     don't plug in an electric motor directly: controlling one is fine, but if it is connected directly, the Pi has
+     nowhere near enough power to run it, and can be destroyed if the motor is spun and acts like a generator, sending
+     power into the pi.
+
+     don't plug stuff in while the pi is running - while this can be done, the reasons to avoid this are to make sure
+     you know the state of the GPIOs before connecting stuff to them. It also gives you time to spot mistakes before
+     sending power and potentially breaking stuff.
+
+     Don't plug anything with a high (or negative) voltage - the GPIOs are binary and consider 3.3 as "on" - any higher
+     and you will damage the pi. They also take 0 as "off" - any lower and you can damage the Pi again.
+
+     power sources - the Pi is not meant to be powered via GPIO, and you bypass the protection polyfuse if you do this
+     - a signal (reduced via a resistor) would be OK.
+
+ what you CAN plug in:
+
+     control electronics such as transistors (that get their power from elsewhere)
+
+     Diodes (low power displays) + a resistor to limit the current
+
+     switches + a resistor to limit the current and pull it up/down
+
+ if you want to use:
+
+     a lightbulb, motor, etc. use a transistor to drive it - for a higher power one, use a transistor to drive a relay
+     to power it.
+
+     an analogue input - use an analogue to digital converter (or build one)
+
+ 
+ 
+  
+http://raspberrypi.stackexchange.com/questions/2190/does-short-circuiting-gpio-pins-damage-the-raspberry
+
+
+Connecting the power and ground pins simultaneously, or the correct combination of GPIO and power or ground pins can
+fry not only the pin but the entire PI (GPIO voltage levels are 3.3 V and are not 5 V tolerant. There is no
+over-voltage protection on the board) . You may want to check out this article from the elinux wiki regarding
+protecting the GPIO Pins
+  -> http://elinux.org/RPi_Tutorial_EGHS%3aGPIO_Protection_Circuits
+
+ 
+   for switch   http://elinux.org/RPi_Tutorial_EGHS:Switch_Input says 
+   
+       For the GPIO pin to determine if an input level is HIGH or LOW it has to detect that the voltage on the pin is
+       above or below a set level, you should aim to set the pin to 10% of the logic voltage (HIGH for the RPi this is
+       3.3V - so
+       
+            HIGH:   2.97V to 3.3V, 
+            LOW:    0V to 0.33V
+
+       If the pin voltage is somewhere between 2.97V and 0.33V then the system may not reliably determine if a HIGH or
+       LOW value is set (particularly as you get closer to 1.65V (halfway)).
+       
+       update:
+           https://books.google.nl/books?id=AE2sCQAAQBAJ&pg=PA340&lpg=PA340&dq=pi+raspberry+pi+high+voltage+3.0&source=bl&ots=FUxWOmJpPG&sig=tFI3no-LDR8DrRaGeTGzX_mDUc0&hl=en&sa=X&ved=0ahUKEwjzy-K94MbUAhUFIVAKHbdlDMcQ6AEIOzAD#v=onepage&q=pi%20raspberry%20pi%20high%20voltage%203.0&f=false
+       
+               input low :   0-0.8V
+               input high :  2.2-3.3V
+               output low : 0-0.6 V
+               output high: 2.4-3.3V
+
+       If you drive voltages over 3.3V or negative voltages then you will risk damaging the internal GPIO circuits
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+        and perhaps even killing the RPi (which is why using extra components to protect and buffer inputs is recommended).
+    
+    
+    => says OVER  so  shortcutting with +3.3V should still be FINE
+       however it is ALWAYS better to put an extra resistor in between as said above :
+       
+           Connecting push buttons is pretty safe (using a 1KΩ series resistor is a good idea).
+                                      -----------         -----------             -----------
+                                       `-> without resistor       |
+                                                                  \/
+                                                                  probably internal resistor of an input is much higher
+                                                                  such that it still stays high enough after the voltage
+                                                                  drop over the 1k to still be higher then 2.5V => HIGH input!
+                                                                 
+                                                                   note: internal uses minimal ~ 2.5V  , 1k uses maximal 0.8 V
+                                                                      => internal  > 10 k !!
+
+                                                                   update: pullup_pulldown_resister_on_input_gpio.txt
+                                                                           says that internal impedance is arround ~100k-~1M
+
+  when nothing is connected to irq input it is floating
+  however you can fix it with a pull up or pull down electronic circuit
+    => see raspi.tv.. pdf document for example
+                                                                          
+
+  question: Is an input different from an irq ??   
+  answer:  no, is input with automated   changed detection
+       
+        => very clear from schematic
+              gpio_block_diagram_raspberry_pi__from_spec_page89.pdf
+           
+           also from gpio api: 
+       
+               http://raspi.tv/2013/how-to-use-interrupts-with-python-on-the-raspberry-pi-and-rpi-gpio
+               
+               
+
+                                                                      
+  question:    is it safe to connect/shortcut an irq input to 
+       0V?
+       3.3V?
+  answer:       
+       yes, but it is better to add a 1K resistor!!   -> see above
+       however I prefer to have pull down circuit where its voltage source is the data output ( output +3,3 is like switch closed, output 0 is like switch open (pull down is default))
+    
+       
+       NOTE:  
+
+        see raspi.tv pdf document to see how to make an interrupt circuit
+        also see : 
+       
+         https://grantwinney.com/using-pullup-and-pulldown-resistors-on-the-raspberry-pi/
+           by default grounds it,
+           when switch turned on it  shortcuts it  using a RESISTOR to +3.3V
+         
+         http://maxembedded.com/2014/07/using-raspberry-pi-gpio-using-python/
+           =>seems save to  shortcut   gpio input pin (not interrupt) to  ground 0V    
+       
+       
