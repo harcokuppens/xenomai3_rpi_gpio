@@ -1,4 +1,5 @@
 network_prefix="131.174"
+dyndns_url="http://www.cs.ru.nl/lab/dyndns/"
 
 get_mac_for_interface() 
 {
@@ -13,7 +14,7 @@ get_ip_for_interface()
 
 getipfrommac ()
 {
-    curl "http://www.cs.ru.nl/lab/dyndns/?mac=$1&cmdline=1" 2>/dev/null
+    curl "$dyndns_url?mac=$1&cmdline=1" 2>/dev/null
 }
 
 # only allow setting ip within network which starts with network_prefix set
@@ -21,7 +22,7 @@ setmac2ip ()
 {
     if [[ "$2" =~ ^$network_prefix ]]  
     then
-         curl "http://www.cs.ru.nl/lab/dyndns/?mac=$1&ip=$2&cmdline=1" 2>/dev/null
+         curl "$dyndns_url?mac=$1&ip=$2&cmdline=1" 2>/dev/null
     fi 
 }
 

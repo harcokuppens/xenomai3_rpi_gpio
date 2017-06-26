@@ -21,15 +21,21 @@ You can set the limit in both client as server scripts.
 installation
 -------------
 
- 1. on some webserver install at some webdir   index.php
+ 1. on some webserver install at some webdir the php script:  index.php
+
        => at beginning of script  edit
              $network_prefix="131.174";
           to you own local domain. Or change it into ""; then it is accesible from the whole world.
           note: disables ip updates for ip addresses not within the network.
 
+
  2. copy etc_profile.d_dyndns.sh to  /etc/profile.d/dyndsn.sh on the raspberry pi
+
        => at beginning of script  edit
              network_prefix="131.174"
           to you own local domain. Or change it into ""; then it is accesible from the whole world.
           note: disables ip updates for ip addresses not within the network.
       
+       => and at beginning of script edit 
+             dyndns_url="http://www.cs.ru.nl/lab/dyndns/"
+          to the url location of the webserver script
