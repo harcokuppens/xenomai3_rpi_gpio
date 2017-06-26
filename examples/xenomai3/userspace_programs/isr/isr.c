@@ -101,7 +101,8 @@ void runIsr(void *args) {
      
         // handle interrupt
         now =rt_timer_read();
-        if ( now > lasttime + 300000000) {
+       // if ( now > lasttime + 300000000) {
+        if ( now > lasttime ) {
             // new interrupt (no bounce)  
     		rt_printf("bounce time=%llu\n",lastbounce-lasttime);
             lasttime =now;
