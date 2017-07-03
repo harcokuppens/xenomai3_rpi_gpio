@@ -1,4 +1,4 @@
-# xenomai3_rpi2_gpio
+# xenomai3_rpi_gpio
 
 
 
