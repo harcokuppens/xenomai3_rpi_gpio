@@ -1,0 +1,19 @@
+
+usb power => need external power supply
+--------------------------------------
+
+
+http://www.wikiwand.com/en/USB#/POWER
+
+Specification                   Current 	Voltage 	Power
+Low-power device 	            100 mA 	    5 V 	    0.50 W
+Low-power SuperSpeed device 	150 mA 	    5 V 	    0.75 W
+High-power device 	            500 mA[a] 	5 V 	    2.5 W
+High-power SuperSpeed device 	900 mA[b] 	5 V 	    4.5 W
+
+
+https://www.raspberrypi.org/documentation/hardware/raspberrypi/power/README.md
+   model B uses between 700-1000mA
+
+=> need external power supply,  maybe not safe to draw power from laptop
+
