@@ -34,4 +34,11 @@ dyndns/ folder
 
 
 
- 
+__INSTALL_FAILURES__
+----------------------
+  => not really interesting,
+     I just describe here all installations I tried with fail, 
+     just to remember I already tried this, and to see what went wrong!
+     
+     
+      

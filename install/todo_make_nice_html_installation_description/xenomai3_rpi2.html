@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+  <title>Xenomai 3 on Raspberry pi 2 with realtime GPIO support</title>
+  <link href="mystyle.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+
+<h1> Xenomai 3 on Raspberry pi 2 with realtime GPIO support</h1>
+
+
+
+<h3> references </h3>
+<p>
+These instructions are based on instructions I found on the internet
+<ul>
+    <li> <a href="http://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/">Christophe Blaess instructions for xenomai 3 on raspberry pi2 </a> </li>
+    <li><a href="http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3"> National Cheng Kung University - Information Engineering - Xenomai</a> </li>
+</ul>
+and I added my own modifications to get gpio to work on rpi2.
+</p>
+
+
+<h2> Ubuntu 14.04 used as host to cross build</h2>
+
+<p>
+The standard installation of Ubuntu 14.04 misses some of the tools we need. So we first need to install some. <br/> <br/>
+Cross compiler : <a href="https://www.debian.org/ports/arm/"> ARM hard-float (armhf) compiler</a>
+<pre>$ <strong> sudo apt-get install gcc-arm-linux-gnueabihf cpp-arm-linux-gnueabihf </strong></pre>
+</p>
+
+
+<h2> Download required source </h2>
+
+
+<p></p>
+<pre>$ <strong>ls  sfsd sdf</strong>
+  sfd
+sdf</pre>
+</body>
+</html>
