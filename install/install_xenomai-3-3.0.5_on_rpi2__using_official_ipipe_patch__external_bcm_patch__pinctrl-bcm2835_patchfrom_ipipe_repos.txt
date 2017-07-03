@@ -1,25 +1,34 @@
 
+
 credits :
 --------
+ documentation how to build kernel for raspbian:
+    https://www.raspberrypi.org/documentation/linux/kernel/building.md
+
+
  based on 
   http://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/
   http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3
- and added my modifications to get gpio to work on rpi2 
+ and 
+  - added my modifications to drivers/xenomai/gpio/Kconfig to get gpio to work on rpi2 
+  - added extra a patched version of pinctrl-bcm2835.c from the official ipipe patch
+    for the  rpi1 which uses the same gpio-chip as the rpi2 :
+    
+      wget -O pinctrl-bcm2835.c  http://git.xenomai.org/ipipe.git/plain/drivers/pinctrl/bcm/pinctrl-bcm2835.c?h=vendors/raspberry/ipipe-4.1
 
+    => install/patches_for_pi2+/pinctrl-bcm2835.c in this repository
 
-
-both ipipe patch and xenomai code can be downloaded separately at : http://xenomai.org/downloads/
-note: ipipe patch used to be included in xenomai, but isn't anymore ; see the README:
- # http://git.xenomai.org/xenomai-3.git/tree/kernel/cobalt/arch/arm/README?h=v3.0.5
- #  Get the interrupt pipeline code for the target kernel from
- #  http://xenomai.org/downloads/ipipe/, or                                          <== use this
- #  git://git.xenomai.org/ipipe.git
+ notes: 
+    both ipipe patch and xenomai code can be downloaded separately at : http://xenomai.org/downloads/
+    note: ipipe patch used to be included in xenomai, but isn't anymore ; see the README:
+     # http://git.xenomai.org/xenomai-3.git/tree/kernel/cobalt/arch/arm/README?h=v3.0.5
+     #  Get the interrupt pipeline code for the target kernel from
+     #  http://xenomai.org/downloads/ipipe/, or                                          <== use this
+     #  git://git.xenomai.org/ipipe.git
 
 
 built raspbian linux kernel with xenomai patch
 ==============================================
-
-
 
 
 # 0. prepare 
@@ -42,23 +51,36 @@ cd $BUILDDIR
 git clone https://github.com/raspberrypi/linux.git
 cd  linux/
 git  checkout  rpi-4.1.y
+
+# $ cat include/config/kernel.release
+# 4.1.21-v7+         # full version -> also directory for in /lib/modules/
+
 cd ..
 #
-# 1b. get xenomai source 
+# 1b. get xenomai source (effects only linux kernel)
 wget http://git.xenomai.org/xenomai-3.git/snapshot/xenomai-3-3.0.5.tar.bz2
 tar -xjvf xenomai-3-3.0.5.tar.bz2
 #
-# 1c. get ipipe  patch 
+# 1c. get ipipe  patch  (effects both kernel and some drivers(using interrupts))
 wget http://xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.1.18-arm-9.patch
 # get patched ipipe (small trivial fix)
-wget https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi2_gpio/master/install/ipipe-core-4.1.18-arm-9.fixed.patch
+wget https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi_gpio/master/install/patches_for_pi2+/ipipe-core-4.1.18-arm-9.fixed.patch
 # 
 # 1d. raspberry pi specific patch  to kernel  (patch of Mathieu Rondonneau specific for rpi2 bcm-2709 )
 wget  http://www.blaess.fr/christophe/files/article-2016-05-22/patch-xenomai-3-on-bcm-2709.patch
+# patch applies on files :  (applies purely in kernel, doesn't effect drivers )
+#  arch/arm/Kconfig
+#  arch/arm/mach-bcm2709/armctrl.c
+#  arch/arm/mach-bcm2709/bcm2708_gpio.c
+#  arch/arm/mach-bcm2709/bcm2709.c
+#  arch/arm/mach-bcm2709/include/mach/entry-macro.S
+#
+# 1e. a patched version of pinctrl-bcm2835.c from the official ipipe patch
+#     for the  rpi1 which uses the same gpio-chip as the rpi2 :
+wget -O pinctrl-bcm2835.c  http://git.xenomai.org/ipipe.git/plain/drivers/pinctrl/bcm/pinctrl-bcm2835.c?h=vendors/raspberry/ipipe-4.1
+#         `-> part of kernel (doesn't effect drivers)
 
-
-
-# 2.  apply kernel patches ( xenomai+ipipe, bcm)
+# 2.  apply kernel patches ( xenomai+ipipe, bcm  )
 # ------------------------
 #
 # 2a. apply xenomai (and ipipe) patch to kernel
@@ -90,8 +112,11 @@ patch  -p1  <  ../patch-xenomai-3-on-bcm-2709.patch  --dry-run
 patch  -p1  <  ../patch-xenomai-3-on-bcm-2709.patch  
 cd ..
  
+# 2. apply a patched version of pinctrl-bcm2835.c from the official ipipe patch
+#    for the  rpi1 which uses the same gpio-chip as the rpi2 to the source :
+command cp   pinctrl-bcm2835.c  linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c 
+#   `-> to disable interactive mode and to force overwrite
 
- 
  
 
  
@@ -99,23 +124,19 @@ cd ..
 # ---------------------------------------
 
 
-
-
-
 cd linux
 
-# fix xenomai Kconfig for xenomai gpio
+# fix xenomai Kconfig for xenomai gpio   =>  in xenomai source!!   => report to xenomai!
 vim drivers/xenomai/gpio/Kconfig
 
     config XENO_DRIVERS_GPIO_BCM2835
-        depends on MACH_BCM2708             => for pi1 , pi2 has  MACH_BCM2709
+        depends on MACH_BCM2708             => for pi1 , pi2 (and p3) has  MACH_BCM2709
         
      || change into
      \/
-     
-  config XENO_DRIVERS_GPIO_BCM2835
-      depends on MACH_BCM2709     
-         
+ 
+   config XENO_DRIVERS_GPIO_BCM2835      
+     depends on MACH_BCM2708 || MACH_BCM2709    => xenomai source then applies for both pi1 and p2/p3
 
 # create default config for bcm2709
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
@@ -142,20 +163,19 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
     Xenomai Cobalt --->
          Drivers  --->
                  Real-time GPIO drivers  --->
-                    <M> GPIO controller
-                    [*]   Support for BCM2835 GPIOs
-                    [*]   Enable GPIO core debugging features
+                    <M> GPIO controller                          => with " [*] GPIO controller  " instead it builds directly in kernel, then no need to load module anymore!
+                    [*]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                    [ ]   Enable GPIO core debugging features
 
 
     note: in above  [ ]  means disable,  [X]  means enable
 
-wget 
+
 
 cd ..
         
         
-        
-        
+       
         
 # 4. build kernel and modules in linux dir 
 # ----------------------------------------
@@ -177,9 +197,12 @@ $ ------------------------------
 # sudo apt-get install autoconf
 # sudo apt-get install libtool
 
+
+# configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
+
 cd xenomai-3-3.0.5
-./scripts/bootstrap --with-core=cobalt –enable-debug=partial
-./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp
+./scripts/bootstrap 
+./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt –enable-debug=partial
 
 #
 # note : http://xenomai.org/installing-xenomai-3-x/
@@ -212,7 +235,7 @@ make  DESTDIR="$DESTDIR"  install
             e.g. sudo dd bs=1m if=2014-09-09-wheezy-raspbian.img of=/dev/disk4
             (This will take a few minutes)
             
-            
+           
 
 # 1. mount sdcard
 #  become root otherwise you cannot access sdcard
@@ -235,6 +258,7 @@ cd $BUILDDIR
 cd dist/xenomai
 chown -R root:root *
 cp -a * ${MOUNTPOINT}/
+cd ../..
 
 
 # 3. copy kernel and modules 

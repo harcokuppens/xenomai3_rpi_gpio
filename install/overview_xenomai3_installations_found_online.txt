@@ -37,7 +37,23 @@ installations
        
        => does gpio tests, but I think not for rpi3 (see below)
        
+       Uses : make bcm2709_defconfig
+          make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+         ----> note: no bcm2710_defconfig, instead use bcm2709_defconfig same as for rpi2
        
+       note: configures xenomai build as :
+               
+        $ ./scripts/bootstrap --with-core=cobalt –enable-debug=partial
+        $ ./configure CFLAGS="-march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --target=arm-linux-gnueabihf --enable-smp
+
+       however 
+          - cmdline options have no effect on ./scripts/bootstrap, they only apply for ./configure
+          - but the options supply above to bootstrap   "--with-core=cobalt –enable-debug=partial" just happen 
+            to set the options to their default values anyway, so they can be left out on ./configure
+          - for ./configure options see
+             * ./configure --help
+             * http://xenomai.org/installing-xenomai-3-x/#_configuring
+                   
        
      http://artteknika.hatenablog.com/entry/2016/08/23/143400         
        linux kernel version: rpi-4.1.y  
@@ -55,6 +71,12 @@ installations
        
        
        => only does test : latency
+       
+       
+       note: configures xenomai build as :
+        
+          $ ./scripts/bootstrap
+          $ ./configure CFLAGS="-march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ffast-math" --enable-smp --with-core=cobalt
        
        
      https://www.blaess.fr/christophe/2017/03/20/xenomai-sur-raspberry-pi-3-bilan-mitige/

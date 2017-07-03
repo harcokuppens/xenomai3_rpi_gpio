@@ -1,0 +1,82 @@
+
+ 
+view config of current running kernel
+=======================================
+
+short:
+ * raspbian : use /proc/config.gz
+ * ubuntu  : uses /boot 
+ 
+http://serverfault.com/questions/429315/centos-kernel-config-file-where-can-i-find-it
+
+    Kernel config of current system can be shown in /proc/config.gz
+    View it as: 
+    
+      zcat  /proc/config.gz | less
+     
+    However this only works if you are running a kernel which has enabled the following config options:
+     
+        CONFIG_IKCONFIG 
+        CONFIG_IKCONFIG_PROC   "Enable access to .config through /proc/config.gz" 
+  
+    Most linux distributions put the kernel config next to the kernel in /boot  (also ubuntu)
+    On those systems do:
+      
+      cat  /boot/config-$(uname -r)
+  
+  
+ 
+https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=113979
+ 
+  to get  /proc/config.gz in raspberry pi :
+  
+   sudo modprobe configs
+ 
+ example :
+ 
+     pi@raspberrypi:~ $ ls /proc/con*
+     /proc/consoles
+     pi@raspberrypi:~ $ sudo modprobe configs
+     pi@raspberrypi:~ $ ls /proc/con*
+     /proc/config.gz  /proc/consoles
+
+ 
+ => this doesn't work on linux
+
+  
+  
+http://www.linuxquestions.org/questions/linux-newbie-8/can't-find-proc-config-gz-687097/
+ 
+   Ubuntu  ships the config in /boot
+ 
+ 
+ You can view the config of the current running kernel with :
+ 
+    less /boot/config-$(uname -r)
+
+ Note: you can see that for ubuntu CONFIG_IKCONFIG is not set:
+ 
+     $ cat /boot/config-$(uname -r) |grep CONFIG_IKCONFIG
+     # CONFIG_IKCONFIG is not set
+
+         
+
+
+
+
+
+https://www.kernel.org/doc/Documentation/kbuild/kbuild.txt
+
+modules.order
+--------------------------------------------------
+This file records the order in which modules appear in Makefiles. This
+is used by modprobe to deterministically resolve aliases that match
+multiple modules.
+
+modules.builtin
+--------------------------------------------------
+This file lists all modules that are built into the kernel. This is used
+by modprobe to not fail when trying to load something builtin.
+
+
+
