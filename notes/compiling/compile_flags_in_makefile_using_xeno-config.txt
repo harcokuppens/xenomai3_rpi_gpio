@@ -1,0 +1,233 @@
+
+ see also ../xenomai_program_apis__and_xenoconfig.txt
+
+
+
+https://xenomai.org//2015/05/application-setup-and-init/#_how_to_build_an_application
+
+How to build an application
+
+   The most important rule of thumb is to always retrieve the compilation and link flags from a call to xeno-config
+   --cflags and xeno-config --ldflags respectively, mentioning the list of Xenomai APIs your application uses. The
+   complete usage of the xeno-config script can be found at this URL.
+
+    Invoking xeno-config from a Makefile
+
+        CFLAGS := $(shell xeno-config --posix --cflags)                   => builds with only POSIX API
+        LDFLAGS := $(shell xeno-config --posix --ldflags)
+
+
+        CFLAGS := $(shell xeno-config --posix --alchemy --cflags)                   => builds with both  POSIX and alchemy API
+        LDFLAGS := $(shell xeno-config --posix --alchemy --ldflags)
+
+
+
+example makefile  (posix and alchemy api)
+----------------
+
+
+# cat Makefile            
+XENO_CONFIG := /usr/xenomai/bin/xeno-config
+
+CFLAGS := -marm $(shell $(XENO_CONFIG)   --posix --alchemy  --cflags)
+LDFLAGS := -marm $(shell $(XENO_CONFIG)  --posix --alchemy --ldflags)
+
+EXTRA :=
+CC := $(shell $(XENO_CONFIG) --cc)
+
+EXECUTABLE := blink
+
+all: $(EXECUTABLE)
+
+%: %.c
+	$(CC) -o $@ $< $(CFLAGS) $(LDFLAGS) $(EXTRA)
+
+clean:
+	rm -f $(EXECUTABLE)
+
+run: $(EXECUTABLE)
+	bash run.sh
+
+freshrun:
+	make clean
+	make run
+    
+    
+
+EXPLANATION 
+-----------
+  
+   
+from xenomai mailinglist 
+    short:
+
+       a pure POSIX app only needs libcobalt, while non-POSIX APIs need
+       libcopperplate to mediate between them and the Cobalt core (posix api) in kernel space.
+
+         libcobalt(posix) <- libcopperplate <- lib{alchemy, psos, vxworks}
+     
+
+    long:
+
+        With Xenomai 3, all non-POSIX APIs are built over the POSIX one, on top
+        of the copperplate library which provides the RTOS abstractions and
+        building blocks they need, i.e.
+
+          libcobalt(posix) <- libcopperplate <- lib{alchemy, psos, vxworks}
+
+            So, a pure POSIX app only needs libcobalt, while non-POSIX APIs need
+            libcopperplate to mediate between them and the Cobalt core in kernel space.
+
+        This additional indirection allows building richer APIs than POSIX,
+        converting proprietary RTOS "window-dressings" to POSIX seamlessly, and
+        making the dual-kernel / native Linux issue transparent, but it also
+        induces the overhead you are observing. This indirection did not exist
+        with Xenomai 2, where each API had its own set of system calls directly
+        interfaced to the kernel (at the expense of significant maintenance issues).
+
+        Generally speaking, although Alchemy will be maintained in Xenomai 3, I
+        would recommend to go for the POSIX API for new developments, unless one
+        wants to port legacy VxWorks/pSOS code of course.
+
+        The reasoning behind is that building a dedicated service library which
+        provides richer abstractions directly on top of POSIX - such as the
+        RT_EVENT logic - makes more sense than implementing a full-fledged API
+        for this.
+
+        -- 
+        Philippe.
+   
+
+ALSO SEE: xenomai3_presentation_jan_kiszka.pdf page 13 :
+      
+        Dispatching problem
+        • Both libCobalt and libc provide POSIX implementations
+        • How do RT application pick the right one?
+        
+            => RT application should call into libcobalt
+              none-RT application should call into libc
+        
+        Solution: symbol wrapping  ( wrapping active when using --posix flag, wrapping not active when using --cobalt flag )
+        • Example pthread_mutex_lock → __wrap_pthread_mutex_lock
+        • libcobalt provides __wrap_*, forwards unhandled invocations to libc • No source code changes to POSIX applications required
+        • Some additional services available (*_np)
+        
+
+THUS
+-----
+
+    - both xenomai with cobalt kernel and libc implement posix library
+    - when linking both libc and libcobalt are in link path. To distinguish posix api methods in libcobalt
+      from the posix api methods in libc the posix api methods in libcobalt all get a __WRAP_ prefix.
+    - To link a program with posix api calls against cobalt kernel instead of libc xenomai
+      we use a linker trick :
+        using the --wrap  flag of the linker instructs the linker to link posix method X in the c source 
+        against __WRAP_X in the libraries instead of the method __X    
+    - when using xenoconfig with --posix flag then the linker uses above wrapper trick to link the POSIX api
+      against libcobalt  ( wrapped linking )
+    - when using   xenoconfig with --cobalt flag the the linker doesn't uses this wrapper trick, and our source
+      code must explicitly contain  __WRAP_X  for each posix X method. (none-wrapped linking to libcobalt)
+    - all other none-POSIX api's such as alchemy,vxworks or psos  are implemented with the help of the copperplate
+      interface on top of libcobalt's posix library. These are unique API's which don't need wrapping. 
+    - The none-POSIX api's are none-posix and therefore can be combined with the libcobalt posix api. 
+      Thus we can have just --posix, but we can also have  --posix --alchemy  combined!!
+       => see  http://xenomai.org/start-here/
+
+
+    
+
+ --cobalt mistake
+-----------------
+
+ 
+ 
+  If you get in the /var/log/messages :
+  
+
+     Aug 13 15:26:10 raspberrypi kernel: [ 2645.479609] [Xenomai] BlinkTask[1000] called regular ioctl() on
+                                          /dev/rtdm/gpio17
+  
+  You by accident have specified the --cobalt flag on compiling a xenomai users space program. 
+  The flag --cobalt may only be used when you link against the cobalt library directly. (means no wrapping applied!)
+ 
+  
+    # below is wrong =>  must not use --cobalt flag => need wrapping
+    # see: https://xenomai.org/documentation/xenomai-3/html/man1/xeno-config/index.html
+    #FLAGS := $(shell $(XENO_CONFIG)    --cobalt --alchemy  --cflags)
+    #LDFLAGS := $(shell $(XENO_CONFIG)  --cobalt --alchemy--ldflags)
+
+    # correct: must use --posix which enables wrapping to use libcobalt instead of libc :
+    CFLAGS := $(shell $(XENO_CONFIG)   --posix --alchemy  --cflags)
+    LDFLAGS := $(shell $(XENO_CONFIG)  --posix --alchemy --ldflags)
+    
+    
+    source: https://xenomai.org/documentation/xenomai-3/html/man1/xeno-config/index.html 
+    
+     Caution:     
+      	Over Cobalt, only xeno-config --posix --ldflags (or --rtdm as an alias) returns the proper linker flags to
+      	cause POSIX routines invoked by the application to be wrapped to their respective Xenomai implementation. 
+      	No other API will imply such wrapping. For this reason, --cobalt --ldflags should be used for linking exclusively
+      	against the Cobalt library (i.e. libcobalt.so) without symbol wrapping. 
+        
+        Conversely, mentioning --posix along with other API switches with --ldflags will cause POSIX symbol wrapping to
+        take place, e.g. use --posix --alchemy --ldflags for mixed API support with POSIX symbol wrapping.
+         
+
+
+https://xenomai.org/documentation/xenomai-3/html/man1/xeno-config/index.html
+
+   xeno-config - Retrieve Xenomai build flags and configuration 
+                 
+                 
+
+
+  --[skin=]{posix, alchemy, rtdm, psos, vxworks, smokey, cobalt}
+
+     Select the API/skin for which xeno-config should print the information required. The skin= prefix is optional and
+     may be omitted, e.g. --posix is equivalent to --skin=posix, selecting the POSIX API.
+
+
+ 
+ Caution 
+      ,-> when using cobalt (not mercury)
+    -----------
+    Over Cobalt, only xeno-config --posix --ldflags (or --rtdm as an alias) returns the proper linker flags to
+    cause POSIX routines invoked by the application to be wrapped to their respective Xenomai implementation. No other API
+    will imply such WRAPPING.              `-> in user space
+    
+    For this reason, --cobalt --ldflags should be used for linking exclusively against the Cobalt
+    library (i.e. libcobalt.so) without symbol WRAPPING. 
+                     `-> see http://xenomai.org/start-here/#cobalt    libcobalt.so is user-space library which does syscall to cobalt kernel
+               
+    Conversely, mentioning --posix along with other API switches with  --ldflags will cause POSIX symbol WRAPPING to take place, 
+    e.g. use --posix --alchemy --ldflags for mixed API support with POSIX symbol WRAPPING.
+    
+ 
+                                ==>  how this WRAPPING works with ld in detail see :  
+       
+                                          explanation_how_standard_posix_program_can_be_linked_against_libcobalt_with_-__wrap_posix-_methods.txt
+
+
+
+ Note 
+ 
+     --native and --skin=native are accepted for backward compatibility purpose. They are stricly equivalent as passing
+    --alchemy --compat. Likewise, passing --rtdm or --skin=rtdm is stricly equivalent as passing --posix, enabling POSIX
+    I/O routines to be wrapped to their respective Xenomai implementation.
+ 
+ 
+
+
+--native : alias for --alchemy --compat
+--rtdm : alias for  --posix 
+
+--posix  --ldflags     =>  linking with  POSIX symbol wrapping to take place
+--cobalt --ldflags     => linking against cobalt library (no symbol wrapping)
+
+
+ --compat
+
+    Enable the Xenomai 2.x compatibility mode for the API/skin selected. This switch affects the Alchemy and POSIX
+    APIs, turning on a set of source-level compatibility wrappers when present.
+
+

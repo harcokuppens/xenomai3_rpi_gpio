@@ -1,0 +1,481 @@
+
+
+
+===============================================
+Xenomai realtime either on cobalt  or mercury
+===============================================
+
+
+toc:
+* Intro 
+* Installing
+   - cobalt
+   - mercury (possible using RT_PREEMPT)
+
+* RT_PREEMPT   
+  - RT_PREEMPT improves mercury's realtime behavior   
+  - RT_PREEMPT is closing into xenomai cobalt core , maybe even in future replacing cobalt core (even xenomai itself considers this by offering migration using mercury)
+
+   
+* Tricky but possible  : combining  interrupt pipeline and preempt-rt kernel patch => both cobalt and mercury in one system    
+
+* A xenomai program using RTDM drivers should work on both cobalt as mercury 
+  -> problem: RTDM implementation for mercury not yet implemented  
+              => just matter of time!
+     note: for cobalt and mercury you need different RTDM implementation because
+           for cobalt your driver links with the cobalt kernel, 
+           and for mercury the driver links with your linux kernel (though both use insmod command) 
+           But remember both implement the same API and therefor you can seamesly transfer 
+           the xenomai application from cobalt to mercury and vica versa!!
+  
+* difference cobalt & mercury  : different userspace implementation  & performance
+    
+
+
+intro
+=====
+
+https://xenomai.org/installing-xenomai-3-x/
+
+Xenomai 3 is the new architecture of the Xenomai real-time framework, which can run
+
+ - seamlessly side-by-side Linux as a co-kernel system,  => cobalt
+ - or natively over mainline Linux kernels.              => mercury
+
+
+
+for architecture pictures see :
+   https://xenomai.org/start-here/
+which also says : 
+
+    How does Xenomai deliver real-time?
+
+        There are two options:
+
+            cobalt 
+
+                By supplementing Linux with a real-time co-kernel running side-by-side with it. This small extension named Cobalt
+                is built into the Linux kernel, dealing with all time-critical activities, such as handling interrupts, and
+                scheduling real-time threads. The Cobalt core has higher priority over the native kernel activities.
+
+                In this dual kernel configuration, all the RTOS APIs Xenomai provides interface with the Cobalt core, and only
+                those APIs are deemed real-time capable, including the subset of POSIX 1003.1c services implemented by Xenomai (aka
+                libcobalt).
+
+
+            mercury 
+                By relying on the real-time capabilities of the native Linux kernel, forming the Mercury core.
+                Often, applications will require the PREEMPT-RT extension to be enabled in the target kernel,
+                for delivering real-time services.
+
+                However, this is not mandatory, it depends on the application requirements with respect to 
+                                 ^^^^^^^^^^^^^
+                                  `-> can also use normal linux without PREEMPT-RT 
+                                      with lesser realtime performance ofcourse
+                                       
+                responsiveness and maximum jitter; some may even tolerate a certain percentage of deadline misses.
+
+
+Installing
+==========
+
+
+Cobalt
+------
+
+https://xenomai.org/installing-xenomai-3-x/#Installing_the_Cobalt_core
+
+  Xenomai/cobalt provides a real-time extension kernel seamlessly integrated to Linux, therefore the first step is to
+  build it as part of the target kernel.
+  
+  You need to do :
+    1. patch the kernel with ipipe
+    2. for special hardware you may use extra ipipe patches
+       for the hardware which is not in the standard kernel
+        eg. for  the raspberry pi we needed to add 
+            - extra ipipe patch for bcm2708 arm chip (within bcm2835)
+            - extra ipipe patch speciall for gpio chip (within bcm2835)
+        
+    => IMPORTANT: ipipe is TOTALLY INDEPENDENT of xenomai, it just
+                  brings linux within the ipipe pipeline, so that 
+                  you can add other os's such as xenomai.    
+            
+    3. patch the kernel with xenomai cobalt source (works on top ipipe)
+    4. build the kernel and modules  
+    5. build xenomai's user space libraries and tools  
+    6. install kernel/modules and xenomai-tools/libs 
+    
+ =>     
+    
+Mercury       => linux or linux with PREEMPT_RT kernel patch
+--------           |                   `-> soft realtime   => basicly POSIX api within PREEMPT_RT linux  => need to install PREEMPT_RT patches
+                   |
+                   `-> ALSO works, but even bad soft-realtime properties => basicly POSIX API within linux !!
+                   
+
+IMPORTANT:
+  if you need to do work to install PREEMPT_RT patches,
+  then you can better invest the work for the cobalt patches => gives better realtime
+  however:
+   - in future PREEMPT_RT  may be just be standard in the kernel!
+   - for cobalt you still may need extra special patches for the special hardware you need!!                    
+                   
+                   
+src: https://xenomai.org/installing-xenomai-3-x/#mercury-core-install
+
+
+Installing the Mercury core
+
+  For Mercury, you need no Xenomai-specific kernel support so far, beyond what your host Linux kernel already provides.
+  Your kernel should at least provide:
+  
+    * high resolution timer support (CONFIG_HIGH_RES_TIMERS), 
+    * and likely complete  preemption (PREEMPT_RT)                => see  below : PREEMPT_RT kernel patch
+
+  if your application requires short and bounded latencies.
+
+  Kernels with no real-time support can be used too, likely for basic debugging tasks, and/or running applications
+  which do not have strict response time requirements.
+
+  Therefore, unlike with Cobalt, there is no additional steps for preparing and/or configuring the kernel for Mercury.
+
+
+RT_PREEMPT 
+===========
+
+RT_PREEMPT improves mercury's realtime behavior   
+-----------------------------------------------
+
+https://rt.wiki.kernel.org/index.php/RT_PREEMPT_HOWTO
+
+
+The standard Linux kernel only meets soft real-time requirements: it provides basic POSIX operations for userspace time handling but has no guarantees for hard timing deadlines. With Ingo Molnar's Realtime Preemption patch (referenced to as RT-Preempt in this document) and Thomas Gleixner's generic clock event layer with high resolution support, the kernel gains hard realtime capabilities.
+
+The RT-Preempt patch has raised quite some interest throughout the industry. Its clean design and consequent aim towards mainline integration makes it an interesting option for hard and firm realtime applications, reaching from professional audio to industrial control.
+
+As the patch becomes more and more usable and significant parts are leaking into the Linux kernel, we see the urgent need for more documentation. This paper tries to fill this gap and provide a condensed overview about the RT-Preempt kernel and its usage.
+
+The RT-Preempt patch converts Linux into a fully preemptible kernel. The magic is done with:
+
+    Making in-kernel locking-primitives (using spinlocks) preemptible though reimplementation with rtmutexes:
+    
+    Critical sections protected by i.e. spinlock_t and rwlock_t are now preemptible. The creation of non-preemptible
+    sections (in kernel) is still possible with raw_spinlock_t (same APIs like spinlock_t)
+    
+    Implementing priority inheritance for in-kernel mutexes, spinlocks and rw_semaphores. For more information on
+    priority inversion and priority inheritance please consult Introduction to Priority Inversion
+    
+    Converting interrupt handlers into preemptible kernel threads: The RT-Preempt patch treats soft interrupt handlers
+    in kernel thread context, which is represented by a task_struct like a common userspace process. However it is also
+    possible to register an IRQ in kernel context.
+    
+    Converting the old Linux timer API into separate infrastructures for high resolution kernel timers plus one for
+    timeouts, leading to userspace POSIX timers with high resolution.
+
+
+RT_PREEMPT is closing into xenomai cobalt core , maybe even in future replacing cobalt core (even xenomai itself considers this by offering migration using mercury)
+-------------------------------------------------------------------------------------------------------------------
+
+http://blog.machinekit.io/2015/11/and-winner-is-rt-preempt.html
+
+
+  the performance edge xenomai's cobalt  has over RT-PREEMPT is shrinking.
+
+  With RT-PREEMPT very likely to go mainline, it is likely efforts are made by hardware vendors to support this rather
+  than other options(eg. xenomai), meaning both range of supported hardware will widen, as well as functionality 
+  and performance improvements to show up here first. It will take a while until this "sinks in" with all involved, but the direction
+  is clear.
+     
+     about going mainline :
+      the Linux Foundation announced that it will adopt the RT-PREEMPT project with the goal of bringing it into the
+      mainline kernel (note list of sponsors!). This assures the funding of the remaining work, and IMO it is
+      reasonable to expect that in a few years - probably more than one, but certainly less than five - obtaining a
+      RT-PREEMPT kernel will be just a build option of the mainline kernel. Already now building kernels is much, much
+      simpler than any of the other options - and once that effort goes mainline and manufacturers actually support
+      that kernel, it will be much simpler to obtain RT kernels for any platform, not just a few select ones.
+        
+   Is interesting to note that the Xenomai3 effort provides a common API over both the hypervisor-style and RT-PREEMPT
+   kernels. Since Xenomai seems to enjoy a healthy industrial user base, it is important to offer a migration path to
+   its users towards what - probably not only I - consider the winner of the RT kernels competition. (=RT-PREEMPT kernel)
+   
+
+
+Tricky but possible  : combining  interrupt pipeline and preempt-rt kernel patch => both cobalt and mercury in one system
+=========================================================================================================================
+
+  note: cobalt doesn't benefit from preempt-rt 
+        because cobalt is independent of linux
+        and preempt-rt only improves realtime behavior of linux
+        
+        preempt-rt  only the improve realtime behavior of tasks
+        on linux  
+          => makes it possible to make system with single kernel 
+             for which we can choose to run a xenomai task
+             either with cobalt or mercury  
+             where each uses it own user space xenomai library and tools dedicated to the specific enviroment
+             
+          note: normally you deploy either on cobalt (only ipipe needed)
+                or mercury  ( only preempt-rt needed )      
+                but by enforcing both patches on kernel we can using a single kernel
+                easily and seamesly switch between cobalt and mercury
+                and direcly test performance for each!!
+                
+                
+
+
+
+https://xenomai.org/pipermail/xenomai/2016-August/036683.html
+
+    On 08/31/2016 07:14 AM, liufei at empower.cn wrote:
+    > Dear all:
+    >   Recently,i prepared to using Xenomai 3 in our zedboard considering to port a RT-PREEMT  embedded application.There are two questions that i am not sure about.
+    > 
+    >   First,The Xenomai 3 architecture says that Xenomai 3 can run natively over mainline Linux kernels.If like that,the mainline kernel can be supplemented by the RT-PRERMPT patch.I want to know whether this means that Xenomai 3 can be patched to a RT-PREEMPT kernels.If yes,is there a version limit in PT-PREEMPT?If no,how to install Xenomai 3 to make that?If it solves, can the PT-PREEMT embedded application work normally?
+
+    The RTOS _APIs_ Xenomai provides can run indifferently over a dual
+    kernel or native system, as stated here:
+    http://xenomai.org/start-here/#What_is_Xenomai_about
+
+    Whether you may want to consider using a dual kernel or native system is
+    explained here:
+    http://xenomai.org/start-here/#Preparation_checklist
+
+    Some projects even combine a dual kernel system with preempt-rt, by
+    merging the interrupt pipeline and preempt-rt kernel patches.
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     `-> this merging can be tricky I think !!
+ 
+    A dependency on a particular kernel release exists when one uses
+    Xenomai's dual kernel support which is named "Cobalt" (alone, or side by
+    side with preempt-rt). The interrupt pipeline (I-pipe) patch is
+    logically part of such support, although it is maintained in a separate
+    GIT tree.
+
+    With Xenomai 3, all non-POSIX RTOS APIs are implemented in user-space,
+    so there is no particular dependency on a kernel release starting from
+    (kernel.org) v3.10 onward, which is the earliest version officially supported by
+    Xenomai 3.
+
+
+  
+  
+
+A xenomai program using RTDM drivers should work on both cobalt as mercury  
+===========================================================================
+  
+ yes this is true, however there is a small  
+  
+ Problem:   unfortunately the RTDM support for mercury is not finished(implemented) yet 
+  
+  
+     note: for cobalt and mercury you need different RTDM implementation because
+           for cobalt your driver links with the cobalt kernel, 
+           and for mercury the driver links with your linux kernel (though both use insmod command) 
+           But remember both implement the same API and therefor you can seamesly transfer 
+           the xenomai application from cobalt to mercury and vica versa!!
+  
+  
+ sources:  which explain this :   source from 2014 and more recentt 2016!
+ 
+  
+    http://xenomai.org/pipermail/xenomai/2014-August/031547.html   
+
+    Philippe Gerum rpm at xenomai.org
+    Thu Aug 28 15:05:50 CEST 2014
+    
+    
+        > From the introduction on the web site (
+        > http://xenomai.org/introducing-xenomai-3/ ), it sounds like I should be
+        > able to use RTDM drivers with the standard linux kernel through the
+        > Mercury core.  How does this work?  Figure 3 shows a "native RTDM"
+        > block.  Is this block a kernel module that translates RTDM-specific
+        > calls into standard linux calls?
+
+        Yes, basically.
+
+        > Does the translation happen at compile
+        > time or run-time?
+
+        Compile-time.    
+    
+
+        >  Is there documentation on how I can write an RTDM
+        > driver that will work with both the Cobalt and Mercury cores?
+
+        Not yet, but the rule of thumb is to avoid the legacy
+        RTDM_EXECUTE_ATOMICALLY() construct (or the newest
+        cobalt_atomic_enter/leave the same way) to keep compatibility.
+
+        rtdm_waitqueues have been introduced to support the patterns where
+        RTDM_EXECUTE_ATOMICALLY() was usually involved in.
+        This is discussed at
+           http://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#Driver_API
+
+
+  
+        Regarding RTDM over Mercury, Wolfgang (Grandegger) published a
+        proof-of-concept implementation which dates back to 2008 or so, but
+        since we never received any feedback, I'm assuming that the current user
+        base of this code is either small, reserved or terribly shy.
+
+        In any case, it has not been reworked over Xenomai 3 yet, at the very
+        least for supporting the latest RTDM API changes/features. However, this
+        is certainly high on the todo list now, as we direly need this component
+        to close the loop.
+
+        -- 
+        Philippe.
+
+
+   https://www.mail-archive.com/xenomai@xenomai.org/msg11606.html
+      
+       Philippe Gerum Tue, 22 Nov 2016 08:37:43 -0800 
+      
+        Since your application runs over a single kernel configuration, you can just 
+        use the regular POSIX interface from the glibc to interface with native Linux 
+        drivers, you don't need RTDM unless you want to create drivers which you could 
+        build and run over a single or dual kernel configuration seamlessly. 
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   `-> !!         
+        But Mercury is lacking an implementation of RTDM services in kernel space, so this 
+        would not be useful at the moment anyway.
+
+        In general, there is no such RTDM user API in 3.x. One should use the regular 
+        POSIX I/O or socket interfaces. The older rt_dev API from 2.x is obsolete, and 
+        only provided as wrappers over the POSIX calls (see include/trank/rtdm).
+
+        https://www.mail-archive.com/xenomai@xenomai.org/msg11613.html
+
+        One more 
+        > question I have is if there is a Standalone RTDM patch available. Or, if it's 
+        > possible to apply RTDM changes alone from the Xenomai-Cobalt kernel patch.
+
+
+        There is a prototype implementation of a native RTDM interface at
+        http://git.xenomai.org/rtdm-native.git/, (author Wolfgang Grandegger) which dates back to 2007
+        (Xenomai 2.2 timeframe). This code was neither maintained nor ported to
+        any later Xenomai release.
+
+        You cannot use the Cobalt incarnation of RTDM over Mercury. This
+        implementation is specific to a dual kernel configuration, based on the
+        Xenomai kernel API.
+
+        -- 
+        Philippe.
+
+
+              extra info:  about old linux RTDM implementation :
+
+                  http://git.xenomai.org/rtdm-native.git/tree/README.rtdm-native 
+ 
+                   0. Introduction
+                   ---------------
+
+                   This is a first version of RTDM-native, a port of RTDM [1,2] over native
+                   Linux with the real-time preemption and high-resolution timer patch [3,4].
+                   RTDM, the Real-Time Driver Model, is an approach to unify the interfaces
+                   for developing device drivers and associated applications under real-time
+                   Linux. It is currently available for the dual-kernel hard real-time Linux
+                   extensions Xenomai [5] and RTAI [6]. This port permits to use RTDM drivers
+                   like RTserial, RT-Socket-CAN and soon RTnet under Linux-rt as well.
+   
+                   RTDM-native is on the road map [7] of Xenomai 3 aiming at support for
+                   native preemption.
+   
+
+                    [7] http://www.xenomai.org/index.php/Xenomai:Roadmap
+
+
+
+
+difference cobalt & mercury  : different userspace implementation  & performance
+================================================================================
+
+
+xenomai user space commands and libraries are either build for cobalt or for mercury in mind!
+ => when build for the one of the other the  cflags and ldflags of xeno-config adapt to the
+    specific environment!
+    
+    
+
+cobalt
+
+  => xenomai user space commands and libraries  build with  option  --core=cobalt  (default)
+     which causes different user space commands and libraries then for mercury !!
+     
+        # xeno-config --cflags --posix
+        -I/usr/xenomai/include/cobalt -I/usr/xenomai/include -march=armv7-a -mfloat-abi=hard -mfpu=neon -ffast-math -D_GNU_SOURCE -D_REENTRANT -D__COBALT__ -D__COBALT_WRAP__
+        # xeno-config --ldflags --posix
+        -Wl,--no-as-needed -Wl,@/usr/xenomai/lib/cobalt.wrappers -Wl,@/usr/xenomai/lib/modechk.wrappers  /usr/xenomai/lib/xenomai/bootstrap.o -Wl,--wrap=main -Wl,--dynamic-list=/usr/xenomai/lib/dynlist.ld -L/usr/xenomai/lib -lcobalt -lmodechk -lpthread -lrt
+
+
+mercury 
+   => just use standard kernel or RT_PREEMPT patch kernel
+   => xenomai user space commands and libraries  build with  option  --core=mercury  (default)
+      which causes different user space commands and libraries then for cobalt!!
+      
+        # xeno-config  --cflags
+        -I/usr/xenomai/include/mercury -I/usr/xenomai/include -march=armv7-a -mfloat-abi=hard -mfpu=neon -ffast-math -D_GNU_SOURCE -D_REENTRANT -D__MERCURY__
+        # xeno-config  --ldflags
+        -Wl,--no-as-needed   /usr/xenomai/lib/xenomai/bootstrap.o -Wl,--wrap=main -Wl,--dynamic-list=/usr/xenomai/lib/dynlist.ld -L/usr/xenomai/lib -lmercury -lpthread -lrt
+
+    => doesn't include gpio.h
+
+
+
+cobalt latency 
+
+    root@raspberrypi:/usr # latency
+    == Sampling period: 1000 us
+    == Test mode: periodic user-mode task
+    == All results in microseconds
+    warming up...
+    RTT|  00:00:01  (periodic user-mode task, 1000 us period, priority 99)
+    RTH|----lat min|----lat avg|----lat max|-overrun|---msw|---lat best|--lat worst
+    RTD|      1.510|      2.305|      6.249|       0|     0|      1.510|      6.249
+    RTD|      1.509|      2.520|      7.864|       0|     0|      1.509|      7.864
+    RTD|      1.509|      2.542|      5.884|       0|     0|      1.509|      7.864
+    RTD|      1.509|      2.564|      5.936|       0|     0|      1.509|      7.864
+    RTD|      1.456|      2.416|      6.560|       0|     0|      1.456|      7.864
+    RTD|      1.508|      2.319|      6.248|       0|     0|      1.456|      7.864
+    RTD|      1.507|      2.307|      5.883|       0|     0|      1.456|      7.864
+    RTD|      1.507|      2.289|      6.194|       0|     0|      1.456|      7.864
+    RTD|      1.507|      2.326|      6.403|       0|     0|      1.456|      7.864
+    RTD|      1.506|      2.594|      7.392|       0|     0|      1.456|      7.864
+    RTD|      1.558|      2.603|      7.704|       0|     0|      1.456|      7.864
+    RTD|      1.505|      2.523|      6.141|       0|     0|      1.456|      7.864
+    RTD|      1.505|      2.296|      6.245|       0|     0|      1.456|      7.864
+    RTD|      1.505|      2.342|      6.661|       0|     0|      1.456|      7.864
+    ^C---|-----------|-----------|-----------|--------|------|-------------------------
+    RTS|      1.456|      2.424|      7.864|       0|     0|    00:00:14/00:00:14
+
+
+mercury latency  (just linux - no preempt_rt)
+
+    root@raspberrypi:/usr # ln -sfT xenomai_pi2_mercury xenomai
+    root@raspberrypi:/usr # latency
+    == Sampling period: 1000 us
+    == Test mode: periodic user-mode task
+    == All results in microseconds
+    warming up...
+    RTT|  00:00:01  (periodic user-mode task, 1000 us period, priority 99)
+    RTH|----lat min|----lat avg|----lat max|-overrun|---msw|---lat best|--lat worst
+    RTD|     36.641|     49.085|     78.143|       0|     0|     36.641|     78.143
+    RTD|     36.644|     50.247|     86.486|       0|     0|     36.641|     86.486
+    RTD|     36.832|     52.208|    159.123|       0|     0|     36.641|    159.123
+    RTD|     36.532|     49.418|    134.635|       0|     0|     36.532|    159.123
+    RTD|     36.690|     49.466|    119.356|       0|     0|     36.532|    159.123
+    RTD|     36.721|     48.159|     91.393|       0|     0|     36.532|    159.123
+    RTD|     36.613|     50.128|    144.595|       0|     0|     36.532|    159.123
+    RTD|     36.635|     52.172|     97.432|       0|     0|     36.532|    159.123
+    RTD|     36.581|     49.689|    122.930|       0|     0|     36.532|    159.123
+    RTD|     36.736|     50.501|    154.581|       0|     0|     36.532|    159.123
+    RTD|     36.430|     51.235|    126.392|       0|     0|     36.430|    159.123
+    RTD|     36.252|     48.108|    131.710|       0|     0|     36.252|    159.123
+    ^C---|-----------|-----------|-----------|--------|------|-------------------------
+    RTS|     36.252|     50.034|    159.123|       0|     0|    00:00:13/00:00:13
+    root@raspberrypi:/usr # ln -sfT xenomai_pi2 xenomai
+  
+
+
+  

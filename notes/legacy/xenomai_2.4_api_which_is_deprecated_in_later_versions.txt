@@ -1,0 +1,373 @@
+
+SHORT : deprecated after xenomai 2.4
+
+    * mlockall(MCL_CURRENT|MCL_FUTURE)                             => can just be left out
+    * rt_printf()  and  rt_print_auto_init(1)  using rtdk.h        =>  use stdio.h and printf instead 
+                                                                       note: printf is diagnostic tool which preserves mode
+                                                                              - uses linux printf in linux/secondary mode
+                                                                              - uses cobalt printf in realtime primary mode ( wraps rt_printf which should be regarded as hidden implementation method)
+    * for xenomai 3 :  native api  => renamed alchemy api
+    
+       just rename   #include <native/xx.h>  to #include <alchemy/xx.h>
+
+
+mlockall(MCL_CURRENT|MCL_FUTURE)
+=================================
+
+    SHORT: for xenomai 2.4 you needed to call at the beginning of your program
+    
+              mlockall(MCL_CURRENT | MCL_FUTURE);
+              
+           however for later xenomai versions that is not needed anymore!
+           
+                 
+    
+
+    source:  https://xenomai.org/2014/08/porting-a-linux-application-to-xenomai-dual-kernel/#before-2.6.3
+
+        Before version 2.6.3
+
+            Xenomai POSIX library only invoked mlockall if the –enable-posix-auto-mlockall option was passed to the
+            configure script when compiling Xenomai user-space support. So, applications which did not want to depend on
+            this configuration had to call mlockall by themselves, before using any Xenomai service, by using:
+
+                   mlockall(MCL_CURRENT | MCL_FUTURE);
+
+                       
+
+     
+
+            => because it says "Before" version 2.6.3 than it won't be needed anymore for newer versions
+
+
+            note: for xenomai-3.0.5 mlockall is called by the initialization code for cobalt 
+            
+                    /lib/cobalt/init.c:123:	if (mlockall(MCL_CURRENT | MCL_FUTURE))
+
+
+
+ 
+The rdtk real-time printing library  :  rt_printf using a ring buffer 
+=======================================================================
+
+
+SHORT:  
+
+  rt_printf is replace by a the printf POSIX implementation within the POSIX api of the realtime kernel.
+  
+  Note: the printf POSIX implementation within  the realtime kernel is also rt-safe implemented using a buffer
+        to make printf not affect the realtime behavior.                    ^^^^^^^
+        
+  However for xenomai3 rt_printf is still supported!!
+  I looked at xenomai3 source code and I found :
+          - rt_printf still supported, but now within stdio.h
+            rt_printf will force a mode switch to primary mode when in secondary mode
+          - printf does in :
+              primary mode :  rt_printf 
+              secondary mode : standard posix printf from linux    
+          - thus printf implemented in cobalt core's posix api  PRESERVES mode
+            This is the only POSIX  method which preserves it.
+            Reason: 
+               print is only diagnostic tool for humans,
+               for all other calls you know that it is realtime or not.
+               You don't want to force mode switch for a diagnostic tool  
+
+   => thus:
+   
+        1. printf preferred above rt_printf !!
+        2. just regard rt_printf as legacy which you shouldn't use directly!
+
+               
+release news
+------------
+       
+https://xenomai.org/release-news/
+   
+   
+ 2011-11-05 Xenomai 2.6.0
+    
+     move of the rtdk library to the common “libxenomai” library, 
+     allowing to have printf being rt-safe when using the posix skin;                       <===================
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                   ^^^^^^^
+ 
+ 2007-12-08 Xenomai 2.4.0
+ 
+   rtdk: introduce a collection of utilities aimed at forming a Real-Time Development Kit for userland usage. Starts
+   with a set of non-intrusive (latency-wise) *printf() services.
+   
+  
+porting linux app to xenomai doc
+--------------------------------
+  
+https://xenomai.org/2014/08/porting-a-linux-application-to-xenomai-dual-kernel/  
+
+says:
+
+                      
+    Before version 2.6.0
+
+        The calls to stdio functions, such as printf were not wrapped by Xenomai libraries, instead the rtdk
+        library had to be used, with stdio functions prefixed with rt_. For instance, the primary mode printf was
+        called rt_printf. Also, the rtdk library had to be initialized with rt_print_auto_init(1), or
+        rt_print_init() had to be called for each thread who wanted to use the rtdk library. For even earlier
+        versions, see Before version 2.4.0.
+
+   
+      => thus since 2.6 we can use  the standard stdio printf functions (POSIX) which are wrapped inside
+         the realtime xenomai libraries  instead of the rt_printf  function.
+         
+         
+ note: voor het lab 
+            
+      Op de oude pc's hadden we xenomai versie is 2.4.3, en dus we hadden deze rt_printf functions nog nodig, 
+      als we eerder waren overgestapt naar 2.6 dan hadden we eerder van rt_printf af kunnen stappen!!
+
+
+
+
+
+search for rtdk  : trank support
+---------------------------------
+ 
+ For rt_printf() I couldn't find a rdtk library / librdtk in the xenomai api, 
+ but I could find a rtdk.h header file :
+ 
+     https://xenomai.org/documentation/xenomai-3/html/xeno3prm/rtdk_8h_source.html
+       include/trank/rtdk.h
+         
+         static inline void rt_print_auto_init(int enable)
+          {
+                  /* stdio support is automatically enabled by libcobalt. */
+          }
+
+          static inline void rt_print_cleanup(void) { }
+          
+
+     include/trank/rtdk.h   => "trank" means it is transition code for kernel
+                               meaning : old api functions implemented using newer api functions 
+                                         to let old source code still compile!
+                                         
+                                         
+     the remark: "stdio support is automatically enabled by libcobalt"   
+          points out that you can use the printf  POSIX function instead of rt_printf
+          because the cobalt kernel implements it also in a safe way (using a buffer)                                
+ 
+
+
+rt_printf still supported in xenomai3
+-------------------------------------
+ SHORT:
+    posix api implementated  using  rt_printf api (in realtime/primary mode)  or standard posix printf api (in none-realtime/linux/secondary mode)
+    thus : rt_printf API still exists and implements the realtime safe printing API
+           the posix printf API function can change its behavior between
+              standard posix implementation   :  during none-realtime/linux/secondary mode
+              cobalt posix implementation     :  during realtime/cobalt/primary mode
+           so the printf call preserve the current mode!!
+           note: printf is the only posix call which preserves the current mode!
+                  -> explanation: cobalt_is_relaxed only called in ./lib/cobalt/printf.c
+                 
+                 this is logicall because print is only diagnostic tool for humans,
+                 for all other calls you know that it is realtime or not.
+                 
+                 
+                                 
+   note: when in realtime mode and you call printf you stay in realtime,
+         however the xenomai api allows you with a call "xnthread_relax()" to set a thread from primary mode to 
+         secondary mode. With the call "xnthread_harden()" you can do the reverse!!
+         
+         So I  printf does preserves mode. But if you would call rt_printf in linux mode, then 
+         the task will be forced to switch to primary mode.
+         
+         That printf doesn't make  this mode switch is logicall because print is only diagnostic tool for humans,
+         for all other calls you know that it is realtime or not.
+         You don't want to force mode switch for a diagnostic tool.
+         
+         
+       
+         
+         xnthread_relax() - Switch a shadow thread back to the Linux domain. 
+                            This service yields the control of the running shadow back to Linux. 
+                            This is obtained by suspending the shadow and scheduling a wake up call 
+                            for the mated user task inside the Linux domain. 
+                            
+         xnthread_harden() - Migrate a Linux task to the Xenomai domain.
+                             This service causes the transition of "current" from the Linux domain to Xenomai. 
+                             The shadow will resume in the Xenomai domain as returning from schedule().
+
+         xnthread_map()  - Create a shadow thread context over a kernel task.
+                           This call maps a Cobalt core thread to the "current" Linux task running in kernel space. 
+                           The priority and scheduling class of the underlying Linux task are not affected; it is
+                           assumed that the caller did set them appropriately before issuing the shadow mapping request.
+                           This call immediately moves the calling kernel thread to the Xenomai domain.
+   
+   
+         => interpret "shadow" as small realtime extension to linux thread so that it can also
+            be scheduled realtime =>  see xenomai_realtime_shadow.txt 
+   
+   
+   
+   
+ searching for rt_printf  we found it in the in cobalt posix api :
+   
+     http://www.cs.ru.nl/lab/xenomai/api3/stdio_8h_source.html
+       -> include/cobalt/stdio.h for cobalt  within xenomai 3  => posix implementation for cobalt kernel
+  
+      this still implements rt_printf :
+  
+        int rt_printf(const char *format, ...);
+   
+   
+ grep xenomai3 source  
+    
+     $ fw rt_printf |grep -v html
+     ./lib/cobalt/printf.c:280:int rt_printf(const char *format, ...)             => implements printf safe with buffer  => replaces rtdk library!!
+     ./include/cobalt/stdio.h:103:int rt_printf(const char *format, ...);
+ 
+ 
+ 
+  ./lib/cobalt/printf.c
+
+
+      /* *** rt_print API *** */
+      
+         int rt_printf(const char *format, ...)
+         {
+             va_list args;
+             int n;
+
+             va_start(args, format);
+             n = rt_vfprintf(stdout, format, args);       => print into buffer
+             va_end(args);
+
+             return n;
+         }
+         
+         int rt_vfprintf(FILE *stream, const char *format, va_list args)
+         {
+             return vprint_to_buffer(stream, 0, 0,                        => print into buffer
+                         RT_PRINT_MODE_FORMAT, 0, format, args);
+         }
+ 
+ 
+    posix api implementated  using  rt_printf api (in realtime/primary mode)  or standard posix printf api (in none-realtime/secondary mode)
+ 
+ 
+        COBALT_IMPL(int, printf, (const char *fmt, ...))       -> makes  both  __wrap_printf and __cobalt_printf  (both being the realtime cobalt implementation)
+        {
+            va_list args;
+            int rc;
+
+            va_start(args, fmt);
+            rc = __COBALT(vfprintf(stdout, fmt, args));        -> calls __cobalt_vfprintf
+            va_end(args);
+
+            return rc;
+        }
+        
+        
+        COBALT_IMPL(int, vfprintf, (FILE *stream, const char *fmt, va_list args))        -> makes  both  __wrap_ and __cobalt_ version
+        {
+            if (!cobalt_is_relaxed())                             -> cobalt is relaxed when in secondary mode! (note realtime)
+                return rt_vfprintf(stream, fmt, args);           => not relaxed => print into buffer
+            else {
+                rt_print_flush_buffers();                          => flush buffers when relaxed!!
+                return __STD(vfprintf(stream, fmt, args));          -> calls original POSIX implementation to directly print string
+            }
+        }
+        
+     ./lib/cobalt/internal.h   
+     
+        static inline int cobalt_is_relaxed(void)
+        {
+            return cobalt_get_current_mode() & XNRELAX;
+        }
+        
+    ./lib/cobalt/current.h    
+        static inline int cobalt_get_current_mode(void)
+        {
+            return cobalt_current_window ? cobalt_current_window->state : XNRELAX;
+        }
+        
+        
+    http://www.cs.ru.nl/lab/xenomai/api3/group__cobalt__core__thread__states.html#gadf5508cd88c2678ae01dfaf5570c661c
+        
+        #define 	XNRELAX   0x00000080
+         	Relaxed shadow thread (blocking bit)    
+        
+    
+    http://www.cs.ru.nl/lab/xenomai/api3/group__cobalt__core__thread.html#gafb78d40c8065b8569fafe7e24960742e    
+        xnthread_relax()
+        
+        void xnthread_relax 	( 	int  	notify,
+        		int  	reason 
+        	) 		
+
+        Switch a shadow thread back to the Linux domain.
+        
+        
+        
+    http://xenomai.org/pipermail/xenomai-git/2016-March/006395.html        
+        
+     
+       Author: Philippe Gerum <rpm at xenomai.org>
+       Date:   Fri Mar 18 12:00:55 2016 +0100
+
+       lib/cobalt: simplify checks for secondary mode
+
+       Whether a current thread is currently running in primary/secondary
+       mode can be checked by inspecting the status of the XNRELAX bit in the
+       thread's u_window. The lack of u_window denotes a non-Xenomai, regular
+       thread which for which the current mode is always relaxed.
+       
+        => if XNRELAX bit in status then in secondary mode, else in primary mode !!
+        
+        
+        
+        
+        
+        
+        
+      => SAME realtime cobalt implementation for realtime(cobalt) compilation!!
+                                  `-> uses  __wrap_printf !! 
+             
+             
+  
+  background info for  COBALT_IMPL and   __COBALT   macros :
+                                  
+     COBALT_IMPL is needed to make several wrapper definition of the same function
+             -> makes  both 
+                 * __cobalt_foo() => Cobalt implementation.
+                 * __wrap_foo()   => Weak alias to __cobalt_foo(), may be overriden.
+                 
+     source: from ./include/cobalt/wrappers.h
+      
+        #define __WRAP(call)        __wrap_ ## call
+        #define __STD(call)     __real_ ## call            -> calls original POSIX implementation
+        #define __COBALT(call)      __cobalt_ ## call
+      
+        /*
+         *
+         * Each "foo" Cobalt routine shadowing a POSIX service may be
+         * overriden by an external library (see --with-cobalt-override
+         * option), in which case we generate the following symbols:
+         *
+         * __real_foo() => Original POSIX implementation.
+         * __cobalt_foo() => Cobalt implementation.
+         * __wrap_foo() => Weak alias to __cobalt_foo(), may be
+         * overriden.
+         *
+         * In the latter case, the external library shall provide its own
+         * implementation of __wrap_foo(), overriding Cobalt's foo()
+         * version. The original Cobalt implementation can still be
+         * referenced as __COBALT(foo).
+         */
+        #define COBALT_IMPL(T, I, A)                                \
+        __typeof__(T) __wrap_ ## I A __attribute__((alias("__cobalt_" __stringify(I)), weak));  \
+        __typeof__(T) __cobalt_ ## I A      
+
+
+
+ 
+
+

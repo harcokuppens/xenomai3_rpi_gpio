@@ -1,0 +1,90 @@
+
+see linux_scheduling_schemes___nothing_about_multicore_load_balancing.txt
+
+
+
+
+posix  scheduling API
+------------------------
+
+
+source: http://pubs.opengroup.org/onlinepubs/000095399/functions/pthread_setschedparam.html  
+
+
+functions to get or set scheduling policy 
+
+    int pthread_getschedparam(
+           pthread_t thread, 
+           int *restrict policy,
+           struct sched_param *restrict param);
+       
+    int pthread_setschedparam(pthread_t thread, 
+        int policy,
+           const struct sched_param *param);
+
+
+The policy parameter may have the value 
+
+          SCHED_OTHER, SCHED_FIFO, or SCHED_RR. 
+        
+
+
+
+xenomai3 API
+------------
+
+ https://xenomai.org/documentation/xenomai-3/html/xeno3prm/group__cobalt__api__sched.html#ga14f50e1f5d815c90f1f4225eca5d3a8c
+
+   standard posix api to set or get scheduling policy
+   
+      pthread_getschedparam()
+      pthread_setschedparam()
+      
+    => see also linux_scheduling_schemes___nothing_about_multicore_load_balancing
+    
+    
+   xenomai extends the standard linux scheduling policies with extended functions :
+      
+      pthread_getschedparam_ex()
+      pthread_setschedparam_ex()
+    
+      => these also supports Cobalt-specific policies, 
+         not available with the host Linux environment.
+
+         The scheduling policies for cobalt are :
+
+           SCHED_WEAK, SCHED_FIFO, SCHED_COBALT, SCHED_RR, SCHED_SPORADIC, 
+           SCHED_TP, SCHED_QUOTA or SCHED_NORMAL;
+
+      THUS: for xenomai's realtime cobalt kernel extra scheduling algorithms!!
+      
+      
+      
+alchemy API
+-----------
+
+note:  you need the POSIX api to change the scheduling algorithm
+       however below documentation is to show which is the 
+       default scheduling when creating a task with the alchemy API.
+       (SCHED_FIFO or SCHED_OTHER)
+
+http://www.cs.ru.nl/lab/xenomai/api3/group__alchemy__task.html
+
+
+int rt_task_create 	( 	RT_TASK *  	task,
+		const char *  	name,
+		int  	stksize,
+		int  	prio,
+		int  	mode 
+	) 		
+
+
+This service creates a task with access to the full set of Alchemy services. 
+
+If prio is non-zero, the new task belongs to Xenomai's real-time FIFO scheduling class, aka SCHED_FIFO. 
+If prio is zero, the task belongs to the regular SCHED_OTHER class.
+
+
+
+
+

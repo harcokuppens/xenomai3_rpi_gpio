@@ -1,0 +1,254 @@
+internet connection sharing (ICS) 
+===============================
+  
+  http://www.wikiwand.com/en/Internet_Connection_Sharing
+    ICS makes use of DHCP,
+    
+  
+   internet connection sharing automates for you the process of 
+     - starting a  dhcp server running on your machine which gives the connected machine the ip
+     - routing the eth port interface to the outside network
+
+   =>  ip in  192.168.  range
+
+      examples :   
+         1) http://www.instructables.com/id/Direct-Network-Connection-between-Windows-PC-and-R/  
+            => runs manually  DHCP Server  on pc ethernet port which gets fixed to 192.168.2.1
+  
+         2) http://www.instructables.com/id/How-to-connect-raspberry-pi-to-laptop-display/?ALLSTEPS
+            => use windows "internet connection sharing (ICS)"
+                              `-> sets up dhpc server and stuff for you automatically ( is 1) automatic )
+   
+       
+
+example
+-------
+
+internet sharing  university ethernet ( on usb-ethernet adapter ) to my display-port ethernet adapter
+ 
+en4: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500
+	options=10b<RXCSUM,TXCSUM,VLAN_HWTAGGING,AV>
+	ether ac:87:a3:28:76:0c
+	nd6 options=1<PERFORMNUD>
+	media: autoselect (none)
+	status: inactive
+bridge100: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	options=3<RXCSUM,TXCSUM>
+	ether 9a:e0:d9:19:de:64
+	inet 192.168.2.1 netmask 0xffffff00 broadcast 192.168.2.255
+	inet6 fe80::98e0:d9ff:fe19:de64%bridge100 prefixlen 64 scopeid 0xa
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 100 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x2
+	member: en4 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 11 priority 0 path cost 0
+	nd6 options=1<PERFORMNUD>
+	media: <unknown type>
+	status: inactive
+    
+    
+   => creates bridge with ip 192.168.2.1 
+
+  -> SO does NOT use a link-local address!!
+  
+  
+  
+problem : internet sharing of wifi to usb-ethernet doesn't work on os x
+-----------------------------------------------------------------------
+
+
+problem:
+
+   sharing wifi via  os x "preferences" gives error:
+         Your Internet connection cannot be shared because it is protected by 802.1X.
+  
+  
+    http://apple.stackexchange.com/questions/92007/mac-os-x-mountain-lion-cannot-share-internet-connection-because-of-802-1x-protec  
+  
+      802.1X is is generally used in networks where security is important, and sharing your connection weakens the network's security. 
+  
+      The 802.1X security measures are in place for a reason.
+  
+
+
+      comments: 
+             https://www.youtube.com/watch?v=vjae7mE7bzk
+               his means that it' can't be shared because the router on the other end checks client certificates for 
+               security reasons (eg. eduroam and other wpa2-enterprise solutions) If you control the other end, you 
+               could switch from wpa2-enterprise to normal wpa2. But I'm guessing you don't or you would probably know 
+               that this is the case.
+               
+             https://www.securew2.com/blog/without-server-certificate-validation-wpa2-enterprise-isnt-secure/
+               Configuring your device with a certificate that must authenticate to the RADIUS server ensures prevents 
+               potential hackers from gaining access to your organization’s wireless network.
+               
+               question: What’s the danger in NOT correctly enabling server certificate validation? 
+               answer: 
+                Through a man-in-the-middle attack (MITM), an attacker with malicious intent can easily set up a 
+                rogue network and mimic the SSID in order to steal personally identifiable information such as 
+                passwords and banking information.               
+                Server certificate validation is similar to a handshake between the server and the device, 
+                making it significantly more difficult to to execute a MITM attack during the authentication phase.
+               
+            https://www.reddit.com/r/mac/comments/2jfdbe/bypass_8021x_to_enable_internet_sharing/
+              
+              The authentication protocols your university has set up are there for a reason - to authenticate who is 
+              using their network. 
+              They most likely have very specific rules on this and usually severe penalties for violating them.
+
+              802.1x won't let you share an Internet connection for obvious reasons.
+                   
+
+     note: for windows this however seems to work :
+            see http://www.ciscopress.com/articles/article.asp?p=1750205&seqNum=5
+                  ICS  stands for internet connection sharing
+             windows internet sharing
+              http://www.dummies.com/how-to/content/how-to-share-an-internet-connection-in-windows-7.html
+   
+                  
+              => maybe on newer windows they disable this option  => like as on mac
+
+
+
+solution :  instead use link-local connection and use  NAT ip forwarding to give connected computer access to outside world
+--------
+
+    do NAT ip forwarding with nat on the ethernet port who wants to lift along on to the
+    laptops network interface (wifi in this case!)
+
+    however rfc says: 
+    
+
+         https://tools.ietf.org/html/rfc3927#section-7
+           7.  Router Considerations
+
+              A router MUST NOT forward a packet with an IPv4 Link-Local source or
+              destination address, irrespective of the router's default route
+              configuration or routes obtained from dynamic routing protocols.
+
+              A router which receives a packet with an IPv4 Link-Local source or
+              destination address MUST NOT forward the packet.  This prevents
+              forwarding of packets back onto the network segment from which they
+              originated, or to any other segment.
+  
+      => though my computer is not a router ; instead we have local connected computer which we hide after mine computer
+           we only a single computer connected to my computer using direct link connection
+           then we want to allow this incoming traffic also to be able to connect outside 
+           my computer as my computer  => NAT ip forwarding
+ 
+ NAT ip forwarding
+ =================
+ 
+  
+ solution pc side : ip forwarding with nat
+ -----------------------------------------
+
+  - old implementation with  natd and ipfw 
+
+         https://discussions.apple.com/thread/537453?tstart=0
+ 
+
+  
+         So there is definately a bug because I can setup the nat by hand (with the following commands) and it seems to work just fine:
+
+             sudo /usr/sbin/sysctl -w net.inet.ip.forwarding=1
+             sudo /usr/sbin/natd -interface en1 -dynamic
+             sudo /sbin/ipfw add divert natd all from any to any via en1
+
+         Note: I don't think the ipfw divert is 100% correct, but it works as a proof of concept.
+
+         I've only been using this for a couple minutes, so it has by no means been thoroughly tested.
+
+         If it works for people here, I would be more than happy to write a prettier wrapper...
+
+
+           => problem natd and ipfw not installed anymore on newer os x versions 
+           => instead use newer pfctl
+
+
+  - new implementation with  pfctl 
+
+             https://roelant.net/2015/share-your-vpn-mac-el-capitan.html
+              or  https://linux-master.ro/operating-systems/nat-mac-osx-yosemite/
+  
+  
+               In short, to get it working:
+
+               Enable forwarding on your mac, this is unchanged:
+
+               sudo sysctl -w net.inet.ip.forwarding=1
+               sudo sysctl -w net.inet.ip.fw.enable=1
+
+               Create a file with the one rule allowing for NAT. The pftcl-command doesn't allow passing this rule directly afaik.
+
+                    nat on utun1 from en0:network to any -> (utun1)
+
+               Replace en0 with the local interface you wish to share your VPN with and utun1 with the interface of your VPN.
+
+               Stop/clear pf if you have to...
+  
+                   sudo pfctl -d
+
+               ... and start it with the file you just created:
+  
+                   sudo pfctl -f ./nat-rules -e
+
+               Obviously, if you have a prior setup using PF, you can add this to your existing config and setup. If not: you're good to go. The rest of the routine is the same as before: use the Mac's internal IP as gateway on your other devices that aren't able to connect to the VPN themselves.
+  
+  
+    thus for my macbook air 
+  
+         on my macbook air:   
+           en0     (wifi)            => shareSource
+           en6      (usb-ethernet)   => shareWith
+   
+  
+  
+         Replace en0 with the local interface you wish to share your VPN with and utun1 with the interface of your VPN.
+          en0 ->  shareWith    en6    
+          utun1/VPN  -> shareSource
+
+
+         on mac: 
+           shareSource=en0
+           shareWith=en6
+           printf "nat on $shareSource from $shareWith:network to any -> ($shareSource)\n" > ./nat-rules
+
+           sudo sysctl -w net.inet.ip.forwarding=1
+           sudo sysctl -w net.inet.ip.fw.enable=1
+           sudo pfctl -d
+           sudo pfctl -F all
+           sudo pfctl -f ./nat-rules -e
+
+
+     list current settings for nat :
+
+         $ sudo pfctl -s nat
+         No ALTQ support in kernel
+         ALTQ related functions disabled
+         nat on en0 inet from 169.254.0.0/16 to any -> (en0) round-robin
+
+
+
+
+ solution rpi side : rpi is not automatically configured to use  pc as gateway to the internet
+ -------------------------------------------------------------------------------------
+
+
+ on rpi :  fix network settings   -> geen dhcp on mac, so no gateway and dns set
+                                    if no fixed ip is set on rpi, then one is choosen in  169.254 range!
+
+   - add gateway : 
+ 
+        GATEWAY=169.254.0.1         
+        sudo /sbin/route add default gw ${GATEWAY} metric 1
+   
+   - add dns server(s) :
+    
+        sudo printf "nameserver 131.174.117.20\n" >> /etc/resolv.conf
+   
+   
+
+  

@@ -1,0 +1,179 @@
+
+
+
+xenomai smokey test : task's cpu affinity
+=========================================
+
+description
+------------
+
+   The test requires one none-realtime cpu set with boot options!
+   However in xenomai by default all cpu's are set realtime.
+   To run the test we have to configure xenomai to not set all
+   cpu's to realtime. We can do this by setting kernel boot option :
+   
+       xenomai.supported_cpus=<byte_specifying_realtime_cpus>
+       
+       
+    note: 
+     - on raspberry pi add boot paramters in /boot/cmdline.txt
+     - default: xenomai.supported_cpus=0xf for pi2   =>  1111  => all 4 cpu's are realtime
+               -> not pi1 offcourse, because that has only 1 cpu :))
+     - to turn cpu0 and cpu1 realtime and cpu2 and cpu3 not  
+       set bit0 and bit1 to 1 and others to zero   =>    0011  => 0x3
+  
+   The test starts with switching the main none-realtime thread to a  none-realtime cpu,
+   then it starts a realtime task,  normally the realtime task would inherit its cpu from its parent,
+   but because the parent is not realtime the realtime task should migrate to a different cpu which is realtime.  
+    => this behavior is tested first, and to test it we need at least one none-realtime cpu!!!
+  
+   Then the test migrates the realtime task to the other realtime tasks one for one to see if it was succesfull.
+  
+   See source :
+          xenomai-3-3.0.5/testsuite/smokey/cpu-affinity/cpu-affinity.c
+  
+
+how to run test
+---------------
+
+as root: run xeno-test                              => runs multiple tests (one of them is cpu_affinity test)
+  cpu_affinity skipped (no kernel support)
+
+  => FAILED running cpu_affinity test
+
+as root:
+  
+  $ /usr/xenomai/bin/smokey --list 
+  ..
+  #2   cpu_affinity
+  ..
+  
+  $ /usr/xenomai/bin/smokey --run=2  
+  cpu_affinity skipped (no kernel support)
+  
+  $ /usr/xenomai/bin/smokey --run=2 --verbose=2
+  .. CPU0 is available
+  .. CPU1 is available
+  .. CPU2 is available
+  .. CPU3 is available
+  no CPU restriction with xenomai.supported_cpus
+  cpu_affinity skipped (no kernel support)                   => uh?? did we configure something wrong??? NO
+
+
+  => FAILED running cpu_affinity test
+   
+   
+ source 
+  xenomai-3-3.0.5/testsuite/smokey/cpu-affinity/cpu-affinity.c
+
+   => source code looks for  cpu in cpuset which is none-realtime
+      if it cannot find such none-realtime cpu then cpu<0  => all cpu's are realtime           => test requires at least 1 none-realtime cpu!! => how do we set this ? see below
+
+    /*
+     * If there is no CPU restriction on the bootargs
+     * (i.e. xenomai.supported_cpus is absent or does not exclude
+     * any online CPU), pretend that we have no kernel support for
+     * running this test.
+     */
+    if (cpu < 0) {
+        smokey_trace("no CPU restriction with xenomai.supported_cpus");
+        return -ENOSYS;                                                   => Function not implemented.  => smokey translates this into "no kernel support"
+    }                                                                         source: xenomai-3-3.0.5/testsuite/smokey//main.c:35:				
+                                                                                      if (ret == -ENOSYS) {  smokey_note("%s skipped (no kernel support)"
+
+  note: 
+        http://www.xenomai.org/pipermail/xenomai/2015-October/035322.html
+ 
+          with the boot parameter xenomai.supported_cpus=0x1
+          
+          => only make cpu0 realtime  (cpu1,cpu2,cpu3 are not realtime) 
+
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?f=53&t=36028
+
+on raspberry pi add boot paramters in /boot/cmdline.txt
+  
+so added "xenomai.supported_cpus=0x1"  add /boot/cmdline.txt 
+    
+  # smokey --run=2 --verbose=2
+  .. CPU0 is available
+  .. CPU1 is online, non-RT
+  .. CPU2 is online, non-RT
+  .. CPU3 is online, non-RT
+  .. control thread binding to non-RT CPU3
+  .. starting user thread
+  .... user thread starts on CPU0, ok
+  .. RTDM test module not available, skipping
+  cpu_affinity OK
+  
+        => SUCCESFUL runned cpu_affinity test
+  
+  
+  => test just requires one none-realtime cpu set with boot options,
+     by default all cpu's are set realtime (default: xenomai.supported_cpus=0xf for pi2 (not pi1 offcourse :))
+  
+     the test starts with switching the main none-realtime thread to a  none-realtime cpu,
+     then it starts a realtime task,  normally the realtime task would inherit its cpu from its parent,
+     but because the parent is not realtime the realtime task should migrate to a different cpu which is realtime.  
+      => this behavior is tested first, and to test it we need at least one none-realtime cpu!!!
+    Then the test migrates the realtime task to the other realtime tasks one for one to see if it was succesfull.
+  
+      see source :
+          xenomai-3-3.0.5/testsuite/smokey/cpu-affinity/cpu-affinity.c
+  
+
+added "xenomai.supported_cpus=0x3"  add /boot/cmdline.txt 
+  
+  # smokey --run=2 --verbose=2
+  .. CPU0 is available
+  .. CPU1 is available
+  .. CPU2 is online, non-RT
+  .. CPU3 is online, non-RT
+  .. control thread binding to non-RT CPU3
+  .. starting user thread
+  .... user thread starts on CPU0, ok
+  .... user thread moved to CPU1, good
+  .. RTDM test module not available, skipping
+  cpu_affinity OK
+
+      => SUCCESFUL runned cpu_affinity test
+
+added "xenomai.supported_cpus=0x7"  add /boot/cmdline.txt 
+
+    # smokey --run=2 --verbose=2
+    .. CPU0 is available
+    .. CPU1 is available
+    .. CPU2 is available
+    .. CPU3 is online, non-RT
+    .. control thread binding to non-RT CPU3
+    .. starting user thread
+    .... user thread starts on CPU0, ok
+    .... user thread moved to CPU1, good
+    .... user thread moved to CPU2, good
+    .. RTDM test module not available, skipping
+    cpu_affinity OK
+
+      => SUCCESFUL runned cpu_affinity test
+      
+      
+added "xenomai.supported_cpus=0xf"  add /boot/cmdline.txt 
+
+    # smokey --run=2 --verbose=2
+    .. CPU0 is available
+    .. CPU1 is available
+    .. CPU2 is available
+    .. CPU3 is available
+    no CPU restriction with xenomai.supported_cpus
+    cpu_affinity skipped (no kernel support)
+
+        => FAILED running cpu_affinity test
+
+
+
+
+ 
+
+
+
+

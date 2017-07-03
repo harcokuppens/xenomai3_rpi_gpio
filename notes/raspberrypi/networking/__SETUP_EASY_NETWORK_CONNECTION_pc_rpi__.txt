@@ -1,0 +1,30 @@
+PREFER:  "own dns server" solution below
+
+
+
+simplest solution:
+ 
+  direct_connection_between_pc_rpi.txt   
+
+
+alternatives are by using network:
+ * use dynamic dns
+       problem: using external dyndns server requires that each image different
+
+       solution:  "own dns server"
+         however by making my own dns server and some batch scripts I
+         can make each image the same and using its own specific mac address
+         publish its ip address. Which other pc's can easily fetch with
+         other bash scripts
+          => see ../../install/dyndns/
+              implemented a simple dyndns server in php which uses the pi's unique mac-address
+              to register its ip  =>  same image can be used for many pi's !!
+         
+ 
+ * use zeroconf : both pc and rpi are connected to same local network 
+                  then zeroconf lets you access rpi by its hostname
+                  Disadadvantages:
+                   -> each rpi needs different hostname => images should vary!!
+                   -> both need on same local network => so no eduroam connect laptops
+                      note: bringing rpi3 on eduroam requires account!! 
+

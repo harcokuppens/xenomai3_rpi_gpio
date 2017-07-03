@@ -1,0 +1,66 @@
+https://www.raspberrypi.org/documentation/raspbian/updating.md
+
+First, update your system's package list by entering the following command:
+
+   sudo apt-get update
+
+Next, upgrade all your installed packages to their latest versions with the command:
+
+   sudo apt-get dist-upgrade
+
+Generally speaking, doing this regularly will keep your installation up to date, in that it will be equivalent to the
+latest released image available from raspberrypi.org/downloads.
+
+
+Updating the kernel and firmware
+
+   The kernel and firmware are installed as a Debian package, and so will also get updates when using the procedure
+   above. These packages are updated infrequently and after extensive testing.
+
+
+Running out of space
+
+    When running sudo apt-get dist-upgrade, it will show how much data will be downloaded and how much space it will take
+    up on the SD card. It's worth checking with df -h that you have enough free disk space, as unfortunately apt will not
+    do this for you. Also be aware that downloaded package files (.deb files) are kept in /var/cache/apt/archives. You can
+    remove these in order to free up space with 
+
+       sudo apt-get clean. 
+
+
+
+https://www.raspberrypi.org/magpi/introducing-pixel/
+
+Updating to Raspbian with PIXEL
+
+  The PIXEL desktop ships with the new Raspbian image file. Raspbian with PIXEL is available at the Raspberry Pi
+  downloads page. It’s also possible to update a current Raspbian Jessie installation using these commands:
+
+    sudo apt-get update
+    sudo apt-get dist-upgrade
+    sudo apt-get install -y rpi-chromium-mods
+    sudo apt-get install -y python-sense-emu python3-sense-emu python-sense-emu-doc
+
+
+
+
+raspi-config  :  tool to configure pi 
+         
+
+https://raspberrypi.stackexchange.com/questions/4355/do-i-still-need-rpi-update-if-i-am-using-the-latest-version-of-raspbian
+    
+    Firmware: is a small package of code that usually lives on a special chip of a computer that helps 
+               the software know how to talk to the hardware. 
+               However, in the case of the Raspberry Pi, the firmware will live on the first partition of the SD card.
+        => /boot partition
+
+    Raspbian: is an operating system or the core software for your Raspberry Pi. 
+              Software (including the OS) lives on second partition of the SD card and is all the 
+              stuff that gets executed when you use your device.
+        => / partition
+
+  rpi-update: is a tool to upgrade the firmware for your Raspberry Pi.
+  
+  rpi-update not needed anymore: 
+     Meanwhile the kernel is part of the raspberrypi-kernel package in Raspbian.
+     So rpi-update is not needed anymore to update the kernel.

@@ -1,0 +1,249 @@
+
+for deprecated function calls see : xenomai_2.4_api_which_is_deprecated_in_later_versions.txt
+
+Migrate_from_xenomai_2.4_to_xenomai_3.0
+========================================
+
+initializer for this document
+-----------------------------
+
+Sun, 10 Jul 2016 21:54:58 +0200
+From: "Hooman, J.J.M. (Jozef)" <jozef.hooman@tno.nl>
+To: "Harco Kuppens (harco.kuppens@gmail.com)" <harco.kuppens@gmail.com>
+Subject: Xenomai opgave 1
+
+            Hoi Harco,
+
+ 
+            Ik heb de tekst van opgave 1 aangepast (zie bijgaande html file); heb veel info in een apart bestand gezet en de tekst
+            van de opgave zo minimaal mogelijk gehouden. Verder heb ik je image gebruikt om opgave 1 te testen.
+
+            Leverde nog wel wat vragen op (zie ook de html):
+
+              * Ik zag geen foutmelding na weglaten van mlockall(MCL_CURRENT|MCL_FUTURE); - is dat nog nodig?
+              * Voor rt_printf() zag ik geen rdtk library / librdtk, maar zag het wel in stdio.
+              * Error handling leek niet meer te werken als eerder, kreeg nu een segmentation fault bij ex01b.c ; zie bijgevoegd files in de 7z file.
+
+            Heb nog geen tijd gehad rond te zoeken op deze punten, maar misschien heb je al wat antwoorden?
+
+            Lijkt me goed om woensdag ook even te bespreken.
+
+
+            Groeten,
+
+                Jozef
+
+
+migration steps from xenomai 2.4 to xenomai 3 :
+-------------------------------------------------
+
+For details of what of the xenomai 2.4 api is deprecated see : 
+   
+   xenomai_2.4_api_which_is_deprecated_in_later_versions.txt
+
+
+Migration steps :
+
+* migrate native api headers to new alchemy api headers 
+
+  explanation :
+
+      the native API in xenomai 2.4 became alchemy API in xenomai 3.0
+      the POSIX API is now the native API in xenomai 3.0 
+      the alchemy API is built on top of the native POSIX API in xenomai 3.0  (using the libcopperplate library)
+
+  thus replace native api header files with alchemy header files  
+
+     #include <native/task.h>
+     #include <native/timer.h>      
+
+   with 
+      
+     #include <alchemy/task.h>
+     #include <alchemy/timer.h> 
+   
+*  replace rt_printf in rtdk.h (librtdk)  by  printf in stdio.h (libstdio)
+   
+   thus 
+   
+     - replace :
+   
+          #include  <rtdk.h>
+      
+       with :
+   
+           #include <stdio.h>
+
+    - remove :
+    
+          rt_print_auto_init(1);
+          
+      note: initialization of realtime print buffer to garantee realtime-safe printing 
+            is now done in the cobalt kernel itself 
+       
+     - replace :        => OPTIONAL, because rt_print is still supported  in stdio.h
+   
+          rt_printf 
+      
+       with :
+   
+           printf               
+     
+* remove memory locking functionality 
+
+   explanation : 
+      memory locking to avoid memory swapping for realtime program
+      must be done manually with a call to mlockall. However 
+      in xenomai versions >2.4 the 
+      
+   thus :       
+    - remove mlockall call :
+    
+         mlockall(MCL_CURRENT|MCL_FUTURE);
+
+    - remove header which includes mlockall:
+
+         #include <sys/mman.h>    
+            
+
+
+
+minimal changes needed:       =>   NOT RECOMMENDED !!
+
+   
+*  replace native api header files with alchemy header files  
+
+     #include <native/task.h>
+     #include <native/timer.h>      
+
+   with 
+      
+     #include <alchemy/task.h>
+     #include <alchemy/timer.h> 
+
+
+* replace :
+   
+          #include  <rtdk.h>
+      
+       with :
+   
+           #include <trank/rtdk.h>              => supports  dummy function : rt_print_auto_init(1);
+                                                 and rt_printf also supported by stdio.h !!  (which must be included also which normally already is)
+
+note: an extra "mlockall(MCL_CURRENT|MCL_FUTURE)" doesn't hurt!!
+
+
+
+
+xenomai 2.4 version :
+----------------------
+
+
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>   
+#include <sys/mman.h>
+
+#include <native/task.h>
+#include <native/timer.h>
+
+#include  <rtdk.h>
+
+RT_TASK demo_task;
+void demo(void *arg)
+{
+    RT_TASK *curtask;
+    RT_TASK_INFO curtaskinfo;
+    // hello world
+    rt_printf("Hello World!\n");
+    // inquire current task
+    curtask=rt_task_self();
+    rt_task_inquire(curtask,&curtaskinfo);
+    // print task name
+    rt_printf("Task name : %s \n", curtaskinfo.name);
+}
+int main(int argc, char* argv[])
+{
+    char  str[10] ;
+    // Perform auto-init of rt_print buffers if the task doesn't do so
+    rt_print_auto_init(1);
+    // Lock memory : avoid memory swapping for this program
+    mlockall(MCL_CURRENT|MCL_FUTURE);
+    rt_printf("start task\n");
+    /*
+    * Arguments: &task,
+    *            name,
+    *            stack size (0=default),
+    *            priority,
+    *            mode (FPU, start suspended, ...)
+    */
+    sprintf(str,"hello");
+    rt_task_create(&demo_task, str, 0, 50, 0);
+    /*
+    * Arguments: &task,
+    *            task function,
+    *            function argument
+    */
+    rt_task_start(&demo_task, &demo, 0);
+}
+   
+   
+                    
+xenomai 3 version :
+---------------------
+
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+#include <alchemy/task.h>
+#include <alchemy/timer.h> 
+ 
+RT_TASK demo_task;
+
+void demo(void *arg)
+{
+  RT_TASK *curtask;
+  RT_TASK_INFO curtaskinfo;
+
+  // hello world
+  printf("Hello World!\n");
+
+  // inquire current task
+  curtask=rt_task_self();
+  rt_task_inquire(curtask,&curtaskinfo);
+
+  // print task name
+  printf("Task name : %s \n", curtaskinfo.name);
+}
+
+int main(int argc, char* argv[])
+{
+  char  str[10] ;
+
+  printf("start task\n");
+
+  /*
+   * Arguments: &task,
+   *            name,
+   *            stack size (0=default),
+   *            priority,
+   *            mode (FPU, start suspended, ...)
+   */
+  sprintf(str,"hello");
+  rt_task_create(&demo_task, str, 0, 50, 0);
+
+  /*
+   * Arguments: &task,
+   *            task function,
+   *            function argument
+   */
+  rt_task_start(&demo_task, &demo, 0);
+}
+    
+    
+
+
+                
+

@@ -1,0 +1,28 @@
+real time shadow 
+=================
+
+
+real time shadow :  sharing Linux task context between linux and realtime core -> each schedular has access to specifc fields in task context
+
+ src: BuildingEmbeddedLinuxSystems_2ndEdition_oreilly_2008.pdf  book
+ 
+    The Real-Time Shadow
+    
+        Xenomai derives its own real-time threads from regular Linux tasks created through the standard POSIX API.
+        Therefore, Xenomai threads inherit Linux tasks’ ability to invoke regular Linux services when operating in
+        non-time-critical mode.
+    
+        When promoted to the real-time application domain, a Linux task is attached to a Xenomai-specific extension
+        called the real-time shadow. A real-time shadow allows the mated Linux task to be scheduled by the Xenomai
+        co-kernel when running in real-time mode. Figure 13-3 illustrates how the Linux and Xenomai schedulers share a
+        Linux task context. Each scheduler uses its own data structures to denote tasks, but has access to particular
+        fields in the other scheduler’s data structure.
+    
+ thus:
+           
+   real-time shadow : thread which task context between linux and xenomai schedular which both may schedule it (xenomai has priority!!)
+   
+   => still only one thread  
+   => interpret "shadow" as small extension to the same thing!!  (add realtime fields to task context so that it can also be scheduled by realtime schedular)
+   
+   

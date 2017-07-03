@@ -1,0 +1,72 @@
+
+discouraged propagation of interrupt from xenomai to linux
+===========================================================
+
+http://www.xenomai.org/pipermail/xenomai/2015-April/033900.html
+
+question: 
+    I am trying to propagate an interrupt from the real time kernel to the
+    linux domain.
+    
+    It is still possible to control propagation of interrupts in xenomai 3.x?
+    
+
+http://www.xenomai.org/pipermail/xenomai/2015-April/033941.html
+
+Answer is yes: 
+
+  thus:
+  
+    install both IRQs as shared handlers:
+
+        RT domain:
+          ret = rtdm_irq_request(&intr, IRQ, irq_handler, RTDM_IRQTYPE_SHARED, name,NULL);
+                                              `-> return XN_ISR_PROPAGATE  to propagate to linux
+                                              
+        Linux domain:       
+          ret = request_irq(RTCIRQ, rtc_interrupt, 0, name, NULL));
+                 `-> only in kernel space (include/linux/interrupt.h)
+                  
+    and return from the RT ISR:
+        
+         XN_ISR_PROPAGATE
+         
+         
+         
+  
+  More precisely, Xenomai 3 enforces handling of interrupt top-halves from
+  kernel space, which still allows to process bottom-halves from
+  user-space. The UDD driver (kernel/drivers/udd) provides for the
+  boilerplate support needed, just like UIO does for the regular kernel.
+    => https://www.kernel.org/doc/htmldocs/uio-howto/about.html
+  
+ 
+ short:  
+     Sharing IRQs between xenomai and linux discouraged 
+     because IRQ line must be kept  masked  until linux is done
+     which leads to priority inversion problem
+ 
+ explanation : 
+   
+  Sharing IRQs between the rt domain and linux leads to a basic priority
+  inversion problem with level type interrupts, since one would have to
+  keep the IRQ line masked until the linux handler eventually had a chance
+  to process the same event. This would obviously delay the next interrupt
+  from the same device for the rt domain.
+
+  For this reason, their is no API for implementing such sharing
+  explicitly anymore, since it is discouraged. However, the mechanism is
+  still in place for the (rare) desperate cases when there would be no
+  other option, and the application could cope with the incurred delay.
+  
+  This hack is enabled when a RTDM interrupt handler returns
+  XN_ISR_PROPAGATE, in which case the interrupt line is not unmasked upon
+  return from the handler, and the event is posted to the linux domain.
+
+  -- 
+  Philippe.
+  
+  
+
+         
+          

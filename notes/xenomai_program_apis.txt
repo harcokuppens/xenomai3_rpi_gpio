@@ -1,0 +1,167 @@
+
+from xenomai mailinglist 
+    short:
+
+       a pure POSIX app only needs libcobalt, while non-POSIX APIs need
+       libcopperplate to mediate between them and the Cobalt core (posix api) in kernel space.
+
+         libcobalt(posix) <- libcopperplate <- lib{alchemy, psos, vxworks}
+     
+
+    long:
+
+        With Xenomai 3, all non-POSIX APIs are built over the POSIX one, on top
+        of the copperplate library which provides the RTOS abstractions and
+        building blocks they need, i.e.
+
+          libcobalt(posix) <- libcopperplate <- lib{alchemy, psos, vxworks}
+
+            So, a pure POSIX app only needs libcobalt, while non-POSIX APIs need
+            libcopperplate to mediate between them and the Cobalt core in kernel space.
+
+        This additional indirection allows building richer APIs than POSIX,
+        converting proprietary RTOS "window-dressings" to POSIX seamlessly, and
+        making the dual-kernel / native Linux issue transparent, but it also
+        induces the overhead you are observing. This indirection did not exist
+        with Xenomai 2, where each API had its own set of system calls directly
+        interfaced to the kernel (at the expense of significant maintenance issues).
+
+        Generally speaking, although Alchemy will be maintained in Xenomai 3, I
+        would recommend to go for the POSIX API for new developments, unless one
+        wants to port legacy VxWorks/pSOS code of course.
+
+        The reasoning behind is that building a dedicated service library which
+        provides richer abstractions directly on top of POSIX - such as the
+        RT_EVENT logic - makes more sense than implementing a full-fledged API
+        for this.
+
+        -- 
+        Philippe.
+
+
+http://xenomai.org/running-applications-with-xenomai-3-x/
+
+
+Standard realtime api
+
+  Posix 
+  
+    => is realtime because run in realtime thread (in cobalt/mercury)
+    
+    http://xenomai.org/2015/05/application-setup-and-init/#Standard_Xenomai_command_line_options
+     default :
+      nvoking xeno-config from a Makefile
+
+      CFLAGS := $(shell xeno-config --posix --cflags)
+      LDFLAGS := $(shell xeno-config --posix --ldflags)
+     
+     => use --posix  api!! 
+
+Other available real-time APIs
+  
+   Alchemy 	
+      This is a re-implementation from scratch of Xenomai’s 2.x native API, fully rebased on the new RTOS abstraction interface.
+   
+   pSOS 	
+       pSOS ™ is a registered trademark of Wind River Systems, Inc.
+   
+   VxWorks 	
+       VxWorks ™ is a registered trademark of Wind River Systems, Inc.
+
+
+
+
+
+https://xenomai.org/running-applications-with-xenomai-3-x/
+
+For Cobalt, you will need the real-time core built into the target Linux kernel as described in this document: 
+   https://xenomai.org/running-applications-with-xenomai-3-x/installing-xenomai-3-x
+   
+
+Available real-time APIs
+
+    Alchemy 	
+
+       This is a re-implementation from scratch of Xenomai’s 2.x native API, fully rebased on the new RTOS abstraction interface.
+
+    pSOS 	
+
+      pSOS ™ is a registered trademark of Wind River Systems, Inc.
+
+      see: http://www.wikiwand.com/en/PSOS_(real-time_operating_system)
+      
+           pSOS (Portable Software On Silicon) is a real time operating system (RTOS), created in about 1982 by Alfred
+           Chao, and developed/marketed for the first part of its life by his company Software Components Group (SCG).
+
+           In 1999 Integrated Systems Inc. was acquired by Wind River Systems, the originators of rival RTOS VxWorks.
+           Despite initial reports that pSOS support would continue, development was halted. Wind River announced plans
+           for a 'convergence' version of VxWorks which will support pSOS system calls, and that no further releases of
+           pSOS itself will be made.
+           
+
+    VxWorks 	
+
+      VxWorks ™ is a registered trademark of Wind River Systems, Inc. 
+
+      see: http://www.wikiwand.com/en/VxWorks
+      
+        VxWorks is a real-time operating system (RTOS) developed as proprietary software by Wind River of Alameda, California, US. First released in 1987.
+        
+        VxWorks key milestones are:[14][not in citation given]
+
+            1980s: VxWorks adds support for 32-bit processors.
+            1990s: VxWorks 5 becomes the first RTOS with a networking stack.
+            2000s: VxWorks 6 supports SMP and adds derivative industry-specific platforms.
+            2010s: VxWorks adds support for 64-bit processing[6] and introduces VxWorks 7 for IoT in 2016.[15]
+        
+
+     http://www.wikiwand.com/en/Wind_River_Systems
+     
+        Among the company's products are
+         - the VxWorks real-time operating system, 
+               VxWorks began as an add-on to the VRTX operating system in the early 1980s. 
+         - the Wind River Linux operating system,
+               Wind River Workbench superseded the previous Tornado environment.
+         - and the Eclipse-based Wind River Workbench IDE. 
+        
+        
+        http://www.wikiwand.com/en/Wind_River_Systems#/Wind_River_Linux
+
+         Wind River Linux
+
+           Wind River's Linux product is source code and a build system that generate runtime images suitable for
+           embedded devices. It supports a variety of architectures, including ARM, MIPS, PowerPC, IA32 and SPARC.
+
+           history
+           
+              In 2004, Wind River announced a partnership with Red Hat to create a new Linux-based distribution for
+              embedded devices.[30] Wind River has since ended its partnership with Red Hat and now ships its own Linux
+              distribution optimized for embedded Linux development.
+              
+              Wind River released the first version of its embedded Linux distribution, Platform for Network Equipment
+              - Linux Edition (PNE-LE) 1.0 in 2005.[31] It was registered against the Carrier Grade Linux 2.0
+              specification and supported IA32 and PPC architectures.
+              
+         
+              RTLinux: Wind River Systems acquired FSMLabs embedded technology in February 2007[33] and made a version available
+              as Wind River Real-Time Core for Wind River Linux. As of August 2011, Wind River has discontinued the
+              Wind River Real-Time Core product line, effectively ending commercial support for the RTLinux product.
+              
+              In 2008, Wind River announced cooperation with BMW, Intel and Magneti Marelli for development of a
+              Linux-based open-source platform to control in-car electronics,[34] which was extended in the GENIVI
+              Alliance in 2009.[35]
+
+              In 2012, Wind River introduced a new version of Wind River Linux that was developed from the Yocto   
+              Project™ open source development infrastructure and has achieved Yocto Project Compatible registration.
+
+
+
+
+
+
+
+
+
+
+
+

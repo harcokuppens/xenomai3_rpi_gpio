@@ -1,0 +1,270 @@
+
+see also: smp__and__load_balancing.txt
+           `-> says: Xenomai does not make any load balancing, because a migration introduces
+                     a huge latency (which is not wanted for realtime processes which want to have deterministic behavior!)
+
+cpu_affinity__soft_is_natural_cpu_scheduling___and_hard_is_manual_setting_affinity.txt
+========================================================================================
+
+
+    http://www.linuxjournal.com/article/6799
+
+
+      Other operating systems, such as Windows NT, have long provided a system call to set the CPU affinity for a
+      process. Consequently, demand for such a system call in Linux has been high. Finally, the 2.5 kernel introduced a
+      set of system calls for setting and retrieving the CPU affinity of a process.
+      
+       
+
+       There are two types of CPU affinity:
+         
+          * Soft affinity, also called natural affinity, 
+             
+               is the tendency of a scheduler to try to keep processes on the same CPU as long as possible. It is
+               merely an attempt; if it is ever infeasible, the processes certainly will migrate to another processor.
+               The new O(1) scheduler in 2.5 exhibits excellent natural affinity. 
+                 => goes automatically, no system calls needed to tune anything
+       
+          * Hard affinity,    
+          
+                on the other hand, is what a CPU affinity system call provides. It is a requirement, and processes must
+                adhere to a specified hard affinity. If a processor is bound to CPU zero, for example, then it can run
+                only on CPU zero.
+                => uses new system calls introduced in 2.5 kernel to set affinity
+          
+
+      Why One Needs CPU Affinity
+
+         The first benefit of CPU affinity is optimizing cache performance. I said the O(1) scheduler tries hard to
+         keep tasks on the same processor, and it does. But in some performance-critical situations—perhaps a large
+         database or a highly threaded Java server—it makes sense to enforce the affinity as a hard requirement.
+         Multiprocessing computers go through a lot of trouble to keep the processor caches valid. Data can be kept in
+         only one processor's cache at a time. Otherwise, the processor's cache may grow out of sync, leading to the
+         question, who has the data that is the most up-to-date copy of the main memory? Consequently, whenever a
+         processor adds a line of data to its local cache, all the other processors in the system also caching it must
+         invalidate that data. This invalidation is costly and unpleasant. But the real problem comes into play when
+         processes bounce between processors: they constantly cause cache invalidations, and the data they want is
+         never in the cache when they need it. Thus, cache miss rates grow very large. CPU affinity protects against
+         this and improves cache performance.
+           => improve cache performance by fixing a task to dedicated cpu
+
+          A second benefit of CPU affinity is a corollary to the first. If multiple threads are accessing the same
+          data, it might make sense to bind them all to the same processor. Doing so guarantees that the threads do not
+          contend over data and cause cache misses. This does diminish the performance gained from multithreading on
+          SMP. If the threads are inherently serialized, however, the improved cache hit rate may be worth it.
+             => 2 tasks sharing same cache data => put on same cpu
+
+          The third and final benefit is found in real-time or otherwise time-sensitive applications. In this approach,
+          all the system processes are bound to a subset of the processors on the system. The specialized application
+          then is bound to the remaining processors. Commonly, in a dual-processor system, the specialized application
+          is bound to one processor, and all other processes are bound to the other. This ensures that the specialized
+          application receives the full attention of the processor.
+             => give a task good performance by giving it a dedicated cpu, so that it cannot be bothered by other tasks!
+             
+             
+
+
+https://technolinchpin.wordpress.com/2015/11/06/linux-smp-cpu-affinity-settings/
+
+ discusses both
+   * Process Affinity
+   
+   
+       The main objective of setting the Processor affinity is to enable a mapping or binding the running threads or
+       tasks to specific core in multi-core systems. This is needed
+
+       1) To reduce cache problems and optimize the cache performance, by resisting the migration of processes between the processors
+       2) Proper balancing of available cores through proper load distribution, allocating specific amount of work or task to each core, to improve computational time,
+       3) To utilize the time quantum in a multi-threaded application,
+       
+       
+   
+   * Interrupt Affinity
+   
+       The affinity settings of Interrupts need more care and thought as ,
+       1. SoC having ARM Multi core architectures have the interrupts assigned by default to Core 0.
+       2. The Linux kernel later version beyond 2.6 doesn’t support any in-kernel Interrupt load balancing schemes for the multicore architecture.
+       3. Thus for the interrupts hardware and Soft IRQs (something that is very Linux specific) the irq rebalance to be performed explicit interrupt affinity settings.
+       
+   Thus to manage the affinity of Process and Interrupts in Linux
+
+       Processes:  
+           You can use taskset to specify which CPUs a process can run on
+       Interrupt Handlers:
+           The interrupt map can be found in /proc/interrupts, 
+           and the affinity for each interrupt can be set in the file smp_affinity in the directory 
+           for each interrupt under /proc/irq/  (see below)
+         
+
+
+http://www.wikiwand.com/en/Processor_affinity
+
+   Processor affinity, or CPU pinning, enables the binding and unbinding of a process or a thread to a central
+   processing unit (CPU) or a range of CPUs, so that the process or thread will execute only on the designated CPU or
+   CPUs rather than any CPU.
+   
+   This can be viewed as a modification of the native central queue scheduling algorithm in a symmetric multiprocessing
+   operating system.
+   
+   
+   Processor affinity takes advantage of the fact that remnants of a process that was run on a given processor may
+   remain in that processor's state (for example, data in the cache memory) after another process was run on that
+   processor. 
+   Scheduling that process to execute on the same processor improves its performance by reducing                     => explicit set affinity several process => hard affinity (see below)
+   performance-degrading events such as cache misses. 
+   
+   A practical example of processor affinity is executing multiple
+   instances of a non-threaded application, such as some graphics-rendering software.                     
+
+   Scheduling-algorithm implementations vary in adherence to processor affinity. Under certain circumstances, some        => soft affinity (see below)
+   implementations will allow a task to change to another processor if it results in higher efficiency. For example,
+   when two processor-intensive tasks (A and B) have affinity to one processor while another processor remains unused,
+   many schedulers will shift task B to the second processor in order to maximize processor use. Task B will then
+   acquire affinity with the second processor, while task A will continue to have affinity with the original processor.
+   
+   
+ usage:   
+   On Linux, 
+   
+     the CPU affinity of a process can be altered with the taskset(1) program[2] and the sched_setaffinity(2) system
+     call. The affinity of a thread can be altered with one of the library functions: pthread_setaffinity_np(3) or
+     pthread_attr_setaffinity_np(3).
+   
+
+
+
+
+API for hard cpu affinity:
+--------------------------
+
+https://www.gnu.org/software/libc/manual/html_node/CPU-Affinity.html  
+    
+On a multi-processor system the operating system usually distributes the different processes which are runnable on all
+available CPUs in a way which allows the system to work most efficiently. Which processes and threads run can be to
+some extend be control with the scheduling functionality described in the last sections. But which CPU finally executes
+which process or thread is not covered.
+
+There are a number of reasons why a program might want to have control over this aspect of the system as well:
+
+    One thread or process is responsible for absolutely critical work which under no circumstances must be interrupted
+    or hindered from making progress by other processes or threads using CPU resources. In this case the special
+    process would be confined to a CPU which no other process or thread is allowed to use.
+    
+    The access to certain resources (RAM, I/O ports) has different costs from different CPUs. This is the case in NUMA
+    (Non-Uniform Memory Architecture) machines. Preferably memory should be accessed locally but this requirement is
+    usually not visible to the scheduler. Therefore forcing a process or thread to the CPUs which have local access to
+    the most-used memory helps to significantly boost the performance.
+    
+    In controlled runtimes resource allocation and book-keeping work (for instance garbage collection) is performance
+    local to processors. This can help to reduce locking costs if the resources do not have to be protected from
+    concurrent accesses from different processors.
+
+The POSIX standard up to this date is of not much help to solve this problem. The Linux kernel provides a set of
+interfaces to allow specifying affinity sets for a process. The scheduler will schedule the thread or process on CPUs
+specified by the affinity masks. The interfaces which the GNU C Library define follow to some extent the Linux kernel
+interface.
+
+Data Type: cpu_set_t
+
+    This data set is a bitset where each bit represents a CPU. How the system’s CPUs are mapped to bits in the bitset
+    is system dependent. The data type has a fixed size; in the unlikely case that the number of bits are not
+    sufficient to describe the CPUs of the system a different interface has to be used.
+
+    This type is a GNU extension and is defined in sched.h. 
+
+To manipulate the bitset, to set and reset bits, a number of macros are defined. Some of the macros take a CPU number as a parameter.
+ Here it is important to never exceed the size of the bitset. The following macro specifies the number of bits in the cpu_set_t bitset. 
+
+            Macro: int CPU_SETSIZE
+
+                The value of this macro is the maximum number of CPUs which can be handled with a cpu_set_t object. 
+
+            The type cpu_set_t should be considered opaque; all manipulation should happen via the next four macros.
+
+            Macro: void CPU_ZERO (cpu_set_t *set)
+
+                Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+                This macro initializes the CPU set set to be the empty set.
+
+                This macro is a GNU extension and is defined in sched.h. 
+
+            Macro: void CPU_SET (int cpu, cpu_set_t *set)
+
+                Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+                This macro adds cpu to the CPU set set.
+
+                The cpu parameter must not have side effects since it is evaluated more than once.
+
+                This macro is a GNU extension and is defined in sched.h. 
+
+            Macro: void CPU_CLR (int cpu, cpu_set_t *set)
+
+                Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+                This macro removes cpu from the CPU set set.
+
+                The cpu parameter must not have side effects since it is evaluated more than once.
+
+                This macro is a GNU extension and is defined in sched.h. 
+
+            Macro: int CPU_ISSET (int cpu, const cpu_set_t *set)
+
+                Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+                This macro returns a nonzero value (true) if cpu is a member of the CPU set set, and zero (false) otherwise.
+
+                The cpu parameter must not have side effects since it is evaluated more than once.
+
+                This macro is a GNU extension and is defined in sched.h. 
+
+
+
+     posix functions to get and set spu affinnity of thread :
+     
+     
+ 
+         Function: int sched_getaffinity (pid_t pid, size_t cpusetsize, cpu_set_t *cpuset)
+
+             Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+             This function stores the CPU affinity mask for the process or thread with the ID pid in the cpusetsize bytes long bitmap pointed to by cpuset. If successful, the function always initializes all bits in the cpu_set_t object and returns zero.
+
+             If pid does not correspond to a process or thread on the system the or the function fails for some other reason, it returns -1 and errno is set to represent the error condition.
+
+             ESRCH
+
+                 No process or thread with the given ID found.
+             EFAULT
+
+                 The pointer cpuset does not point to a valid object. 
+
+             This function is a GNU extension and is declared in sched.h. 
+
+         Note that it is not portably possible to use this information to retrieve the information for different POSIX threads. A separate interface must be provided for that.
+
+         Function: int sched_setaffinity (pid_t pid, size_t cpusetsize, const cpu_set_t *cpuset)
+
+             Preliminary: | MT-Safe | AS-Safe | AC-Safe | See POSIX Safety Concepts.
+
+             This function installs the cpusetsize bytes long affinity mask pointed to by cpuset for the process or thread with the ID pid. If successful the function returns zero and the scheduler will in the future take the affinity information into account.
+
+             If the function fails it will return -1 and errno is set to the error code:
+
+             ESRCH
+
+                 No process or thread with the given ID found.
+             EFAULT
+
+                 The pointer cpuset does not point to a valid object.
+             EINVAL
+
+                 The bitset is not valid. This might mean that the affinity set might not leave a processor for the process or thread to run on. 
+
+             This function is a GNU extension and is declared in sched.h.
+       
+        details see: 
+            http://man7.org/linux/man-pages/man2/sched_setaffinity.2.html     
+
+       

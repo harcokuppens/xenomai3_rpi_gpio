@@ -1,0 +1,105 @@
+
+cat /proc/xenomai/irq  shows interrupts happened
+
+
+root@raspberrypi:~ # cat /proc/xenomai/sched/stat
+CPU  PID    MSW        CSW        XSC        PF    STAT       %CPU  NAME
+  0  0      0          0          0          0     00018000  100.0  [ROOT/0]
+  1  0      0          14         0          0     00018000  100.0  [ROOT/1]
+  2  0      0          15         0          0     00018000  100.0  [ROOT/2]
+  3  0      0          0          0          0     00018000  100.0  [ROOT/3]
+  2  1120   11         13         62         0     000680c0    0.0  button_toggles_
+  2  1122   2          5          12         0     00048042    0.0  IsrTask
+  1  0      0          5645       0          0     00000000    0.0  [IRQ97: [timer]]
+  2  0      0          3688       0          0     00000000    0.0  [IRQ97: [timer]]
+  3  0      0          9385       0          0     00000000    0.0  [IRQ97: [timer]]
+  2  0      0          0          0          0     00000000    0.0  [IRQ503: gpio23]
+  3  0      0          0          0          0     00000000    0.0  [IRQ503: gpio23]
+root@raspberrypi:~ # cat /proc/xenomai/sched/threads
+CPU  PID    CLASS  TYPE      PRI   TIMEOUT       STAT       NAME
+  0  0      idle   core       -1   -             R          [ROOT/0]
+  1  0      idle   core       -1   -             R          [ROOT/1]
+  2  0      idle   core       -1   -             R          [ROOT/2]
+  3  0      idle   core       -1   -             R          [ROOT/3]
+  2  1120   rt     cobalt      0   -             X          button_toggles_
+  2  1122   rt     cobalt     40   -             W          IsrTask
+root@raspberrypi:~ # cat /proc/xenomai/sched/rt/threads
+CPU  PID    PRI      PERIOD     NAME
+  2  1122    40      -          IsrTask
+
+
+https://github.com/BelaPlatform/Bela/wiki/Performance-monitor
+note: bela - The platform for ultra-low latency audio and sensor processing
+
+Performance monitor
+
+
+    When a process is running, you may want to monitor the CPU usage, in order to know how much CPU power is left on the
+    board for you to use. Another important metric for Xenomai programs is that time-critical tasks should always run in
+    primary (Xenomai) mode and never in secondary (kernel) mode or switch back and forth. A mode switch occurs every time
+    the task switches from primary to secondary mode or viceversa.
+
+    When using the IDE, the cumulative CPU usage of the Xenomai tasks is displayed on the main toolbar, provided you ticked
+    the appropriate box in the settings. The "IDE" percentage is an estimate of the CPU used by the IDE and its
+    sub-processes (e.g.: the compiler or the scope). As this value is an estimate, you will occasionally see it go above
+    100%.
+
+    Every time a mode switch is detected in the bela-audio thread, this is logged to the IDE window.
+
+    You can monitor CPU usage and mode switches in more detail either activating the "Xenomai stats" option in the IDE or
+    from the command line.
+
+    Monitoring CPU and mode switches from the IDE carries quite some CPU overhead.
+
+    The file 
+           
+           /proc/xenomai/stat       => renamed for xenomai3 to /proc/xenomai/sched/stat
+    
+    contains the current CPU usage for all the Xenomai tasks. 
+    
+    To monitor it, once you have ssh-ed into the board, you can run:
+
+        $ watch -n 0.5 cat /proc/xenomai/stat
+
+    Here you can see the CPU used by every Xenomai thread when running in primary (Xenomai) mode. The CPU usage of tasks
+    running in secondary (kernel) mode, or switching back an forth between the two will be displayed, as a cumulative
+    value, through the usual top command:
+
+        $ top -p `pgrep projectName`
+
+    Mode switches are listed in the MSW column and this value should NEVER increase for the bela-audio thread (it usually
+    starts at 2). Non real-time critic tasks that continuously switch back and forth between primary and secondary mode,
+    for which MSW increments rapidly and steadily, are less evil, but should still be avoided whenever possible.
+
+    More info on mode switches, how to detect them and how to avoid them can be found at the URLs below:
+
+        https://xenomai.org/2014/08/porting-a-linux-application-to-xenomai-dual-kernel/#Chasing_the_unwanted_mode_switches
+        https://xenomai.org/2014/06/finding-spurious-relaxes/
+
+    We are using Xenomai 2.6.3 and the option CONFIG_XENO_OPT_DEBUG_SYNCH_RELAX is enabled in our kernel) .
+
+
+
+http://events.linuxfoundation.org/sites/events/files/slides/Practical-Real-Time-Linux-ELCE15.pdf
+  
+  
+Avoid mode switches to guarantee RT
+  ● Xenomai does a lot out of the box by wrapping POSIX calls 
+  ● Check/proc/xenomai/stat
+  CPU PID MSW  CSW        PF    STAT       %CPU  NAME
+  0     0  0   31831032   0     00500088   42.8  ROOT/0
+  0   757  2   4          0     00300182    0.0  bench_main
+  0   763 19   23         0     00300182    0.0  bench_scope
+  0   764  1   2          0     00300182    0.0  bench_Event
+  0   773  2   31831009   0     00300180   56.9  bench
+  0   762  1   1          0     00300380    0.0  bench_viewer
+  0     0  0   92096      0     00000000    0.1  IRQ42: pio0
+  0     0  0   699086     0     00000000    0.0  IRQ52: [timer]
+  
+  MSW  column shows    mode switches   => switch between  primary<->secondary mode  
+  
+  
+  ● Using PTHREAD_WARNSW: sends a SIGXCPU signal
+  ● http://xenomai.org/2014/08/porting-a-linux-application-to-xenomai-dual-kernel
+  
+  

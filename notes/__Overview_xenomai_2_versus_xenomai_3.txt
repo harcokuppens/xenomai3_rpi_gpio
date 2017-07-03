@@ -1,0 +1,238 @@
+Overview: xenomai 2 versus xenomai 3
+======================================
+   
+   
+xenomai 3 
+   2016 april : presentation xenomai 3  Jan Kiska
+     https://www.youtube.com/watch?v=bHEC1FnPaD0
+     Xenomai 3: An Overview of the Real-Time Framework for Linux by Jan Kiszka - YouTube
+        
+
+src: xenomai3_presentation_jan_kiszka.pdf
+-------------------------------------
+
+   persons: 
+    
+        Philippe Gerum                            – Project founder and maintainer
+         => wrote O'reilly book: 
+               Building Embedded Linux Systems, 2nd Edition
+               Concepts, techniques, tricks, and traps
+
+        Gilles Chanteperdrix                      – ARM, x86 archs, Xenomai 2 & 3 core, RTnet
+        Alexis Berlemont, Jorge Ramirez-Ortiz     – Analogy stack
+        Wolfgang Grandegger                       – Real-time CAN
+        Jan Kiszka                                – RTDM, x86 arch, assorted
+        et al.
+
+
+    Glossary:
+
+
+        Cobalt                – Co-kernel variant of Xenomai 3
+        Mercury               – Native Linux variant of Xenomai 3
+
+        Alchemy               – Xenomai-own real-time API        => formerly native API in xenomai 2
+                                                                  note: skins  : POSIX, alchemy (native) , pSos, vxworks, 
+        Copperplate           – Library layer for building RTOS APIs
+        Boilerplate           – Internal utility Library
+
+        Trank                 – Library to support porting from Xenomai 2 to 3
+        RTDM                  – Real-Time Driver Model, kernel API that enables RT drivers, specifically for Cobalt
+        Analogy               – RTDM drivers for digital/analogue converters => for DAQ drivers
+
+        Adeos                 – Original interrupt pipeline for Linux,used by early Xenomai 2 versions
+        I-pipe                – Evolution and simplification of Adeos
+        Dovetail              – New architecture of Linux extensions to hook Xenomai 3 into Linux
+
+http://xenomai.org/migrating-from-xenomai-2-x-to-3-x
+
+
+http://xenomai.org/installing-xenomai-3-x/
+    –enable-smp
+        Turns on SMP support for Xenomai libraries. 
+
+        Caution
+            SMP support must be enabled in Xenomai libraries when the client
+            applications are running over a SMP-capable kernel.
+
+
+http://xenomai.org/2015/05/application-setup-and-init/#Standard_Xenomai_command_line_options
+
+rtdm
+------
+
+
+
+Page 15  April 2016 Jan Kiszka, Corporate Technology © Siemens AG 2015, et al. Creative Commons BY-SA 3.0 license.
+
+Real-Time Driver Model (RTDM)
+
+    Goals and principles
+    • Provide environment for co-kernel real-time drivers
+    • Service interface towards applications and other drivers • Low-level primitives from implementing drivers
+    • Reuse Linux for non-RT purposes
+    (setup / shutdown, resource discovery and claiming, etc.)
+    Two types of RTDM devices
+    • Character device (open/close, read, write, ioctl)
+    • Protocol device (socket, bind, send, recv, etc.)
+    Device profiles
+    • Character: UART, UDD (analogous to UIO), Memory, ... 
+    • Protocol: UDP/TCP (RTnet), CAN, IPC, ...
+
+
+  => new version for xenomai 3 
+  
+        porting help : 
+           however xenomai-3.0.2/include/trank/rtdm/rtdm.h
+           bridges old rtdm interface to new in xenomai-3.0.2/include/rtdm/rtdm.h 
+
+
+        no user space support for interrupt handlers anymore instead :
+        
+             Handling real-time interrupt events from  from applications running in user-space can be done via a RTDM driver, 
+             which gives you a rtdm device file within the /dev/rtdm/ folder on which you can use a read(2) or ioctl(2) interface 
+             for waiting for interrupt events.       
+        
+        details see : rtdm/no_user_space_support_for_interrupt_handlers_anymore_instead_use_rtdm_device_files.txt
+        
+        
+        
+        
+        
+
+
+
+uio/udd
+-------
+
+
+If you use UIO for your card's driver, here's what you get:
+ *  only one small kernel module to write and maintain.
+ * develop the main part of your driver in user space, with all the tools and libraries you're used to.
+ * bugs in your driver won't crash the kernel.
+ * updates of your driver can take place without recompiling the kernel.
+
+
+https://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#Interrupt_management
+ 
+One may rely on the RTDM-based UDD framework shipped with Xenomai 3. UDD stands for User-space Device Driver, enabling
+interrupt control and I/O memory access interfaces to applications in a safe manner. It is reminiscent of the UIO
+framework available with the Linux kernel, adapted to the dual kernel Cobalt environment.
+
+ uio: 
+    => https://www.kernel.org/doc/htmldocs/uio-howto/about.html
+     more info: 
+      http://www.crashcourse.ca/wiki/index.php/User_space_drivers
+
+    => nice comparison user space vs kernel space drivers 
+           http://www.embedded.com/design/operating-systems/4401769/Device-drivers-in-user-space
+    
+ 
+ udd:
+   
+   ./include/rtdm/uapi/udd.h
+   ./include/rtdm/udd.h
+   ./include/cobalt/kernel/rtdm/udd.h    <= used in kernel module
+   
+   
+
+analogy
+--------
+
+http://xenomai.org/analogy-general-presentation/
+http://xenomai.org/analogy-practical-presentation/
+  
+
+  goal: “to put a generic interface on top of lots of different cards for measurement and control purposes”
+
+Analogy is a free software project included in Xenomai which tries to provides management facilities for data
+acquisition devices in real time.
+
+By data acquisition, we mean:
+
+    reading / writing analog signals
+    reading / writing digital I/Os
+    counting pulses and frequencies
+    generating pulses
+
+By real-time, we mean:
+
+    Generally speaking: ensuring the various I/Os can be acquired and triggered in bounded delays
+    “Softwarely” speaking: providing a fixed determinism at any software layers (kernel drivers, user space applications).
+
+Analogy is a fork of the Comedi project. 
+   Comedi is a DAQ framework originally developed by David Schleef. His goal was “to put a generic interface on top of
+   lots of different cards for measurement and control purposes”. Comedi is mainly used with vanilla Linux and with
+   RTAI.
+
+
+Analogy relies on the Real Time Driver Model, which is “an approach to unify the interfaces for developing device
+drivers and associated application under Linux”. So, thanks to RTDM, implemented in Xenomai in a skin, the Analogy
+framework benefits from real-time determinism in both user and kernel spaces. That means that a Xenomai real-time task
+based on any skin (native, POSIX, etc.) can use Analogy without leaving the primary mode (hard real time constraints)
+
+
+=>  http://git.xenomai.org/xenomai-3.git/tree/utils/analogy
+
+
+gpio
+-----
+
+  xenomai 3 comes with realtime gpio support in both user and kernel space
+
+  
+ Overview 
+ ========
+ 
+ 
+     xenomai 2                                                     xenomai 3
+    ---------------------------------------------------------------------------- 
+    
+     rtdm separate kernel patch                                     new rtdm  directly in cobalt kernel
+                                                                      -> no support for user space interrupts
+                                                                         must use (select) wait on device file
+                                                                         in user space instead
+                                                                         
+                                                                         ---> example???
+                                                                         ---> where dev file 
+                                                                               be carefull not to use
+                                                                               user space dev file 
+                                                                               and still forced into userspace!!!   
+                                                                         
+        api:                                                         api: 
+           include/rtdm/rtdm.h                                       include/rtdm/rtdm.h
+                                                                      => xenomai2 interface include/trank/rtdm/rtdm.h
+                                                                    
+      x                                                             udd 
+                                                                       helper library to write device drivers
+                                                                       where top-half in kernel space and 
+                                                                       bottom half in user-space
+                                                                       => reminisment of linux kernel's uio
+       
+                                                                    
+     analogy                                                         analogy 
+       library to write driver                                          -> probably also changed in xenomai 3??
+       for DAQ cards
+     
+     interrupt handling in userspace                                no interrupt handling in userspace
+                                                                    instead user rtdm driver which gives you 
+                                                                    a rtdm device file on which you can do a blocking
+                                                                    read which gets unblocked when interrupt appears
+     
+     gpio                                                            new realtime gpio library to implement rtdm drivers
+                                                                     for gpio chips. 
+                                                                         => because no interrupts in user space anymore
+                                                                            you must implement rtdm drivers for gpiochips
+                                                                            to be able to catch gpio interrupts
+                                                                                                                                                
+                                                                     note: 
+                                                                         Rtmd driver for rpi gpio chips is implemented
+                                                                         using this new realtime gpio library.
+     
+
+                                                                         
+                                                                            
+     
+     
+     
+     
