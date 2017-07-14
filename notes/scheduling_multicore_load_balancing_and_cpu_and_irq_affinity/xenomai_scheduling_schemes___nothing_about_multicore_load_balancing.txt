@@ -81,10 +81,165 @@ int rt_task_create 	( 	RT_TASK *  	task,
 
 This service creates a task with access to the full set of Alchemy services. 
 
-If prio is non-zero, the new task belongs to Xenomai's real-time FIFO scheduling class, aka SCHED_FIFO. 
-If prio is zero, the task belongs to the regular SCHED_OTHER class.
+  If prio is non-zero, the new task belongs to Xenomai's real-time FIFO scheduling class, aka SCHED_FIFO. 
+  If prio is zero, the task belongs to the regular SCHED_OTHER class.
 
 
 
+note: about prio 0 :
+
+    src: https://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#_scheduling (see below)
+      prio 0 => SCHED_OTHER   (still scheduled by cobalt core  => not linux!!)
+   
+      SCHED_OTHER for a Xenomai-enabled thread is scheduled as SCHED_WEAK,0 by the Cobalt core.
+  
+      with SCHED_WEAK, Xenomai now accepts Linux real-time scheduling policies (SCHED_FIFO, SCHED_RR) to be weakly 
+      scheduled by the Cobalt core, within a low priority scheduling class (i.e. below the Xenomai real-time classes, but still above the idle class).
+  
+    src: https://xenomai.org/introducing-xenomai-3/#_new_scheduling_policies (see below)
+  
+      it is now possible to run threads which belong to the lowest priority class Xenomai-wise and to the SCHED_FIFO 
+      or SCHED_RR class in the regular kernel at the same time.
+   
+       => thus same scheduling setting withing both xenomai and linux !!
+   
+        IMPORTANT: match up lowest priority xenomai scheduling with
+                   highest priority linux scheduling so we get a matching
+                   bridge from on to the other :   SCHED_WEAK/SCHED_FIFO <-> linux/SCHED_FIFO
+                 
+                
+               
+                     ---------- priority lower  ---->  
+               
+                       cobalt              linux 
+                       ------             -------
+           
+                      SCHED_WEAK      =>    
+                        SCHED_FIFO         SCHED_FIFO
+                
+  
+  
+  
+     => thus SCHED_OTHER is either SCHED_FIFO, SCHED_RR scheduled by the Cobalt core, within a low priority scheduling class,
+        below the Xenomai real-time classes, but still above the idle class (linux schedular!)
 
 
+
+Details about xenomai 3 scheduling
+===================================  
+
+https://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#_scheduling
+
+Scheduling
+-----------
+
+ * Cobalt implements the following POSIX.1-2001 services not present in Xenomai 2.x: sched_setscheduler(2),
+   sched_getscheduler(2).
+
+ * The SCHED_FIFO, SCHED_RR, SCHED_SPORADIC and SCHED_TP classes now support up to 256 priority levels, instead of 99
+   as previously with Xenomai 2.x. However, sched_get_priority_max(2) still returns 99. Only the Cobalt extended call
+   forms (e.g. pthread_attr_setschedparam_ex(), pthread_create_ex()) recognize these additional levels.
+
+ * The new sched_get_priority_min_ex() and sched_get_priority_max_ex() services should be used for querying the static
+   priority range of Cobalt policies.
+
+ * pthread_setschedparam(3) may cause a secondary mode switch for the caller, but will not cause any mode switch for
+   the target thread unlike with Xenomai 2.x.
+
+    This is a requirement for maintaining both the glibc and the Xenomai scheduler in sync, with respect to thread
+    priorities, since the former maintains a process-local priority cache for the threads it knows about. Therefore, an
+    explicit call to the the regular pthread_setschedparam(3) shall be issued upon each priority change Xenomai-wise,
+    for maintaining consistency.
+
+    In the Xenomai 2.x implementation, the thread being set a new priority would receive a SIGSHADOW signal, triggering
+    a call to pthread_setschedparam(3) immediately.
+
+Rationale
+
+  The target Xenomai thread may hold a mutex or any resource which may only be held in primary mode, in which case
+  switching to secondary mode for applying the priority change at any random location over a signal handler may create
+  a pathological issue. In addition, pthread_setschedparam(3) is not async-safe, which makes the former method fragile.
+
+Conversely, a thread which calls pthread_setschedparam(3) does know unambiguously whether the current calling context
+is safe for the incurred migration.
+
+ * A new SCHED_WEAK class is available to POSIX threads, which may be optionally turned on using the
+   CONFIG_XENO_OPT_SCHED_WEAK kernel configuration switch.
+
+ * By this feature, Xenomai now accepts Linux real-time scheduling policies (SCHED_FIFO, SCHED_RR) to be weakly
+   scheduled by the Cobalt core, within a low priority scheduling class (i.e. below the Xenomai real-time classes, but
+   still above the idle class).
+
+ * Xenomai 2.x already had a limited form of such policy, based on scheduling SCHED_OTHER threads at the special
+   SCHED_FIFO,0 priority level in the Xenomai core. SCHED_WEAK is a generalization of such policy, which provides for
+   99 priority levels, to cope with the full extent of the regular Linux SCHED_FIFO/RR priority range.
+
+    For instance, a (non real-time) Xenomai thread within the SCHED_WEAK class at priority level 20 in the Cobalt core,
+    may be scheduled with policy SCHED_FIFO/RR at priority 20, by the Linux kernel. The code fragment below would set
+    the scheduling parameters accordingly, assuming the Cobalt version of pthread_setschedparam(3) is invoked:
+
+        struct sched_param param = {
+               .sched_priority = -20,
+        };
+
+        pthread_setschedparam(tid, SCHED_FIFO, &param);
+
+Switching a thread to the SCHED_WEAK class can be done by negating the priority level in the scheduling parameters sent
+to the Cobalt core. For instance, SCHED_FIFO, prio=-7 would be scheduled as SCHED_WEAK, prio=7 by the Cobalt core.
+
+SCHED_OTHER for a Xenomai-enabled thread is scheduled as SCHED_WEAK,0 by the Cobalt core. When the SCHED_WEAK support
+is disabled in the kernel configuration, only SCHED_OTHER is available for weak scheduling of threads by the Cobalt
+core.
+
+ * A new SCHED_QUOTA class is available to POSIX threads, which may be optionally turned on using the
+   CONFIG_XENO_OPT_SCHED_QUOTA kernel configuration switch.
+
+ * This policy enforces a limitation on the CPU consumption of threads over a globally defined period, known as the
+   quota interval. This is done by pooling threads with common requirements in groups, and giving each group a share of
+   the global period (see CONFIG_XENO_OPT_SCHED_QUOTA_PERIOD).
+
+    When threads have entirely consumed the quota allotted to the group they belong to, the latter is suspended as a
+    whole, until the next quota interval starts. At this point, a new runtime budget is given to each group, in
+    accordance with its share.
+ 
+ * When called from primary mode, sched_yield(2) now delays the caller for a short while only in case no context switch
+   happened as a result of the manual round-robin. The delay ends next time the regular Linux kernel switches tasks, or
+   a kernel (virtual) tick has elapsed (TICK_NSEC), whichever comes first.
+
+    Typically, a Xenomai thread undergoing the SCHED_FIFO or SCHED_RR policy with no contender at the same priority
+    level would still be delayed for a while.
+
+Rationale
+
+  In most case, it is unwanted that sched_yield(2) does not cause any context switch, since this service is commonly
+  used for implementing a poor man’s cooperative scheduling. A typical use case involves a Xenomai thread running in
+  primary mode which needs to yield the CPU to another thread running in secondary mode. By waiting for a context
+  switch to happen in the regular kernel, we guarantee that the manual round-robin takes place between both threads,
+  despite the execution mode mismatch. By limiting the incurred delay, we prevent a regular high priority SCHED_FIFO
+  thread stuck in a tight loop, from locking out the delayed Xenomai thread indefinitely.
+
+
+https://xenomai.org/introducing-xenomai-3/#_new_scheduling_policies
+
+  New scheduling policies
+
+      SCHED_QUOTA
+
+          The SCHED_QUOTA policy enforces a limitation on the CPU consumption of threads over a globally defined period, known
+          as the quota interval. This is done by pooling threads with common requirements in groups, and giving each group a
+          share of the global period.
+
+          When threads have entirely consumed the quota allotted to the group they belong to, the latter is suspended as a
+          whole, until the next quota interval starts. At this point, a new runtime budget is given to each group, in
+          accordance with its share.
+
+
+      SCHED_WEAK
+
+          Members from the SCHED_WEAK class are weakly scheduled by Xenomai, only for the purpose of synchronizing with
+          real-time threads from other scheduling classes. However, they cannot compete for CPU resources with real-time
+          threads, and leave the primary domain upon return from Xenomai syscalls automatically.
+
+          This policy is an extension of Xenomai’s special handling of the SCHED_OTHER policy to members of the SCHED_FIFO and
+          SCHED_RR classes from a regular Linux kernel. In other words, it is now possible to run threads which belong to the
+          lowest priority class Xenomai-wise and to the SCHED_FIFO or SCHED_RR class in the regular kernel at the same time.

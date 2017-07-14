@@ -278,7 +278,10 @@ int run() {
 	rt_task_create(&blink_task, "BlinkTask", 0, 50, 0);
 	rt_task_create(&hello_task, "HelloTask", 0, 40, 0);
 
-
+    // maybe problem:
+    //   rt_task_set_affinity may not  be called from linux ??
+    //  => do set affinities instead in realtime runStartTasks task!
+    
   // set_affinity_cpu(&hello_task,1);  // ok, makes hello world run in parallel
 
   // problem: cannot change cpu affinity of blink or isr task without something going wrong, unclear why

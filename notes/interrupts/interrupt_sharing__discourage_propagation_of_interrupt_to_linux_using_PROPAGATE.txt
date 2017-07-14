@@ -1,0 +1,356 @@
+
+  
+  short: sharing still possible in kernel-mode but discouraged,
+         but not possible anymore in user-mode.
+         
+         However  in user-mode  we can still temporary open an rtdm device file
+         and catch all interrupts in xenomai which are not forwarded to linux,
+         and then close device for interrupts, making following
+         interrupts to go to linux!  => still demo  possible!!
+    
+         Note: in user space you need a rtdm device driver,
+               when you still need to write the rtdm device driver
+               yourself you could in the driver code in kernel
+               mode catch the interrupt and propagate it to linux!!
+
+discouraged propagation of interrupt from xenomai to linux
+===========================================================
+
+http://www.xenomai.org/pipermail/xenomai/2015-April/033900.html
+
+question: 
+    I am trying to propagate an interrupt from the real time kernel to the
+    linux domain.
+    
+    It is still possible to control propagation of interrupts in xenomai 3.x?
+    
+
+http://www.xenomai.org/pipermail/xenomai/2015-April/033941.html
+
+Answer is yes: 
+
+  thus:
+  
+    install both IRQs as shared handlers:
+
+        RT domain:
+          ret = rtdm_irq_request(&intr, IRQ, irq_handler, RTDM_IRQTYPE_SHARED, name,NULL);
+                                              `-> return XN_ISR_PROPAGATE  to propagate to linux
+                                              
+        Linux domain:       
+          ret = request_irq(RTCIRQ, rtc_interrupt, 0, name, NULL));
+                 `-> only in kernel space (include/linux/interrupt.h)
+                  
+    and return from the RT ISR:
+        
+         XN_ISR_PROPAGATE
+         
+        
+         
+  
+  More precisely, Xenomai 3 enforces handling of interrupt top-halves from
+  kernel space, which still allows to process bottom-halves from
+  user-space. The UDD driver (kernel/drivers/udd) provides for the
+  boilerplate support needed, just like UIO does for the regular kernel.
+    => https://www.kernel.org/doc/htmldocs/uio-howto/about.html
+  
+ 
+ short:  
+     Sharing IRQs between xenomai and linux discouraged 
+     because IRQ line must be kept  masked  until linux is done
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     which leads to priority inversion problem
+ 
+ 
+   => update (see below) : adeos pipeline does mask the IRQ line from first to last domain!!
+                          => however the reason why adeos does this is described directly below
+                             under 'why kept masked?'
+                          
+ explanation : 
+   
+  Sharing IRQs between the rt domain and linux leads to a basic priority
+  inversion problem with level type interrupts, since one would have to
+  keep the IRQ line masked until the linux handler eventually had a chance
+                    ^^^^^^ 
+  to process the same event. This would obviously delay the next interrupt
+  from the same device for the rt domain.
+  
+  For this reason, their is no API for implementing such sharing
+  explicitly anymore, since it is discouraged. However, the mechanism is
+  still in place for the (rare) desperate cases when there would be no
+  other option, and the application could cope with the incurred delay.
+  
+  This hack is enabled when a RTDM interrupt handler returns
+  XN_ISR_PROPAGATE, in which case the interrupt line is not unmasked upon
+  return from the handler, and the event is posted to the linux domain.
+
+  -- 
+  Philippe.
+  
+
+     
+  
+
+  above says:
+  
+       since one would have to keep the IRQ line masked until the linux handler 
+       eventually had a chance to process the same event.
+
+  why kept masked?
+   
+       maybe because  
+       => linux requires the IRQ line to be masked when handling an IRQ
+         see: https://notes.shichao.io/lkd/ch7/#reentrancy-and-interrupt-handlers
+   
+       probably yes,
+       linux policy is to mask that IRQ line , but anyway linux must deal with the IRQ before sending the EOI
+       because when EOI is send:
+
+         - when EOI is send from cpu to interrupt controller: 
+         
+             it is just a basic message for the interrupt controller that interrupt is done
+             handling, and that the interrupt controller can switch to handle the next interrupt
+             (on same line, or other line) 
+              => the interrupt controller just looks in its registers to send the next IRQ
+                 to a cpu (multiplexing function) 
+   
+              => http://retired.beyondlogic.org/interrupts/interupt.htm#6
+                    very clearly documents interrupt controller
+   
+   
+         - when EOI is send: 
+            all internal info  in hardware devices itself stays the same!!
+            If an IRQ is handled for device A using its handler A the handler must reset itself the signaled interrupt
+            in the device such that it can trigger the next one!!  => this is device specific code, which cannot be done by PIC!
+   
+            => note:
+                source: http://www.wikiwand.com/en/Interrupt#Level-triggered
+                 the CPU may recheck the interrupt line status to determine whether any other devices also needs service 
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                `-> just loop over all handlers for the IRQ
+                                                    each handler knows how to check whether its device is triggered
+                                                    with device specific code!
+   
+             
+               so when an IRQ for device X only occurs once for linux you must sure you handle it,
+               if you don't handle it, two scenarios occur :
+                 the IRQ never happens again  => IRQ  is lossed
+                 the IRQ happens again (can be even by other device)   =>  can be handled with LATENCY   ( interupt still triggered in device! )
+            
+                 => see keyboard_irq_sharing_xenomai_linux_eoi__discussion_on_xenomai_mailinglist.txt
+     
+       
+update: Adeos already masks any incoming interrupts at PIC level  before feeding the pipeline with it.
+    |   => note: the reason is explained above!!
+    `-> source:             
+           
+        Life with Adeos
+        Philippe Gerum
+
+
+        2. What does Adeos provide to Xenomai?
+
+            Conversely, this question could also be: what basic guarantees does Xenomai need to provide real-time services? The
+            answer is simple and straightforward: it must be allowed to handle all incoming interrupts first, before the Linux
+            kernel has had the opportunity to notice them, and it must be able to handle them immediately, regardless of any
+            current at- tempt from the Linux kernel to lock them out using the CPU interrupt mask. It must also make sure to always
+            enforce the proper priority management for its threads, regardless of their current execution domain.
+
+
+        3.2. Sharing interrupts between domains
+
+            Fortunately, there is a solution for sharing interrupts properly, between domains which need to keep the interrupt
+            source disabled until the final processing is done (e.g. dealing with level-triggered interrupts is one of those
+            issues): actually, you don't need to do anything, because Adeos already masks any incoming interrupts at PIC level
+                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            before feeding the pipeline with it. Therefore, you only need to process the interrupt as you see fit in the relevant
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            domain handler, and make sure to re-enable the interrupt source from the last one using rthal_irq_enable(). Whenever
+            the Linux kernel is one of those recipients, the regular kernel handler will do this re-enabling automatically, so
+            basically, you just need to bother calling rthal_irq_enable() in handlers which don't propagate the incom- ing
+            interrupts downstream to the Linux kernel.
+
+            Specifically on the x86 architecture, it happens that the timer interrupt is not being masked upon receipt by Adeos,
+            for performances reasons. This said, the timer source is not one you may want to disable in any way, so this is a
+            non-issue.
+
+        3.3. Interrupt sharing and latency
+
+            However, keeping an interrupt source masked while the propagation takes place through the entire pipeline may
+            increase the latency.
+               
+           
+     
+     
+ example that the handler must reset itself the signaled interrupt:  
+ -----------------------------------------------------------------
+ 
+             Linux Device Drivers, 2nd Edition, chapter 9
+             http://www.xml.com/ldd/chapter/book/ch09.html#t6
+               under section "Interrupt Sharing"
+
+
+                 There is nothing in the design of the hardware itself that says that interrupt lines cannot be
+                 shared. The problems are on the software side. With the arrival of the PCI bus, the writers of
+                 system software have had to work a little harder, since all PCI interrupts can explicitly be
+                 shared. So Linux supports shared interrupts -- and on all buses where it makes any sense, not just
+                 the PCI. Thus, suitably aware drivers for ISA devices can also share an IRQ line.
+               
+                 The kernel keeps a list of shared handlers associated with the interrupt.
+                 
+ !                Whenever two or more drivers are sharing an interrupt line and the hardware interrupts the        
+ !                processor on that line, the kernel invokes every handler registered for that interrupt, passing
+ !                each its own dev_id. Therefore, a shared handler must be able to recognize its own interrupts, and
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ !                should quickly exit when its own device has not interrupted.
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   
+
+                 when the kernel receives an interrupt, all the registered handlers are invoked. A shared handler
+                 must be able to distinguish between interrupts that it needs to handle and interrupts generated by
+                 other devices.
+                 
+                 
+                 Preparing the Parallel Port
+                      Once interrupts are enabled, the parallel interface generates an interrupt whenever the
+                      electrical signal at pin 10 (the so-called ACK bit) changes from low to high. The simplest way to
+                      force the interface to generate interrupts (short of hooking up a printer to the port) is to
+                      connect pins 9 and 10 of the parallel connector. A short length of wire inserted into the
+                      appropriate holes in the parallel port connector on the back of your system will create this
+                      connection.
+                  
+                      Pin 9 is the most significant bit of the parallel data byte. If you write binary data to
+                      /dev/short0, you'll generate several interrupts. Loading short with the option shared=1
+                      installs the following handler instead of the default:
+
+                  shared  handler
+                   
+                     void short_sh_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+                     {
+                         int value, written;
+                         struct timeval tv;
+
+                         /* If it wasn't short, return immediately */
+                         value = inb(short_base);
+                         if (!(value & 0x80)) return;
+        
+                         /* clear the interrupting bit */
+                         outb(value & 0x7F, short_base);
+
+                         /* the rest is unchanged */
+
+                         do_gettimeofday(&tv);
+                         written = sprintf((char *)short_head,"%08u.%06u\n",
+                                           (int)(tv.tv_sec % 100000000), (int)(tv.tv_usec));
+                         short_incr_bp(&short_head, written);
+                         wake_up_interruptible(&short_queue); /* wake any reading process */
+                     }
+
+                 An explanation is due here. Since the parallel port has no "interrupt-pending'' bit to check, the
+                 handler uses the ACK bit (pin 10) for this purpose. 
+                    
+                    the parallel interface generates an interrupt whenever the
+                    electrical signal at pin 10 (the so-called ACK bit) changes from low to high.
+                    
+                    If you connect together pins 9 and 10 of the parallel connector, you can generate interrupts by
+                    raising the high bit of the parallel data byte. This can be accomplished by writing binary data
+                    to /dev/short0 or by writing anything to /dev/shortint.[37]
+
+                     [37]The shortint device accomplishes its task by alternately writing 0x00 and 0xff to the parallel port.
+                     
+                    However for carefull triggering and detecting interrupt has happened we have to do :  
+                    => inactive state :  keeping data line low (pin 10  low)
+                    => trigger interrupt:  set data line high ( raise pin 10 to high) 
+                    => reset interrupt :  set data line back to low ( lower pin 10 to low)
+                    
+                 
+                 If the bit is high, the interrupt being reported is for
+                 short, and the handler clears the bit : 
+
+                     The handler resets the bit by zeroing the high bit of the parallel interface's data port (pin 9)
+                      -- short handler assumes that pins 9 and 10 are connected together. 
+                      If one of the other devices sharing the IRQ
+                     with short generates an interrupt, short sees that its own line (pin 10) is still inactive and does nothing.
+                 
+
+    more info:     
+       
+       
+          src:  keyboard_irq_sharing_xenomai_linux_eoi__discussion_on_xenomai_mailinglist.txt                                       
+
+           Jan Kiszka Wed, 17 Sep 2008 14:36:19 -0700 
+
+              > Probably because linux first has to finish the first interrupt?
+
+
+              Exactly. You forward the IRQ to Linux, thus you rely on Linux for                  
+              dealing with the periphery (acking the IRQ there) and the final
+              end-of-IRQ signal.
+              
+           => so relies on linux, and linux does masking the IRQ in the ""interrupt controller""!      
+       
+       
+        IMPORTANT: 
+           
+             next interrupt for same IRQ line can be only be handled if  the cpu sends EOI
+             to the PIC controller. Only then the PIC controller can trigger the handling of this
+             next interrupt!!
+             Note: IRQ's of different lines can preempt each other, because they are independent, (different hardware)
+                   but IRQ's of same line must be  handled in series with EOI triggering the next!
+                   
+             If an IRQ is shared, the CPU can check the IRQ is triggered for device A in the device A's own specific status register.
+             However if handle A is not called and the EOI is send, then although  A's own specific status register
+             keeps the record that the IRQ is trigger for device A, it will not handled for this IRQ. (EOI means interrupt controller switches to next IRQ)
+             But instead  of being handled for this IRQ it 
+               - may be handled much later on the next time the same IRQ happens    => LATENCY
+               - or never be handled if the IRQ never happens again                 => LOST
+               
+               => so vital linux handles first the IRQ's before sending EO  ( otherwise no sharing happens, because linux wouldn't get anything!)
+                                                                  
+                      source: http://www.wikiwand.com/en/Interrupt#Level-triggered
+                         the CPU may recheck the interrupt line status to determine whether any other devices also needs service 
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                              `-> just loop over all handlers for the IRQ
+                                                  each handler knows how to check whether its device is triggered
+                                                  with device specific code!    
+
+
+
+             Ipipe virtualizes the interrupt controller to create a pipeline to which multiple
+             clients can subscribe to get interrupts. So even though Ipipe virtualizes the interrupt controller
+             it still has to send an EOI at the end of the line to make the real hardware interrupt controller
+             service the next IRQ of the same line!!   
+             
+             
+             
+             note: if ipipe itself could call only the detection code of the devices whether or not an IRQ is active for them,
+                   then it could detect whether for linux still has devices which need handling the IRQ. (linux sharing an IRQ with xenomai)
+                   Then when handled the IRQ by xenomai it check if devices linux still has to handle the IRQ. If yes it remembers this IRQ
+                   to be handled only by linux.  Then it sends EOI to allow new IRQ for xenomai.  (works only for edge interrupts, level must be cleared!!)
+                   When all high prio xenomai tasks are done,  then the pipeline can give the IRQ to linux, which then finally
+                   can handle this IRQ.  However if the IRQ would occur again before linux got a change we can forget the 
+                   cached IRQ for linux and just take this new one to repeat the procedure from the beginning!
+
+                   => for ipipe itself to call only the decection code probably this would take effort for every device
+                      because this code is now integrated in the handler itself, and must be first separated from that!! 
+                   => much work => makes it difficult!! => not done!!
+                   
+                   
+                   
+                   
+             
+
+         => more details about IRQ sharing see discussion
+           
+             keyboard_irq_sharing_xenomai_linux_eoi__discussion_on_xenomai_mailinglist.txt                                       
+           
+           and for more general info see 
+           
+             interrupt_controller_IRR_ISR_IMR_EOI.txt
+
+
+
+
+
+
+

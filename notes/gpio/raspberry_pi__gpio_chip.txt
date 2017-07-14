@@ -1,0 +1,319 @@
+     
+ CONCLUSION: 
+ 
+    in linux the  pinctrl-bcm2835 driver is used for the gpiochip
+    in xenomai  similar!
+
+
+
+raspberry pi  uses platform driver register mechanism to load/unload a gpiochip
+================================================================================ 
+ 
+ 
+ IMPORTANT: see Manual_driver_binding_and_unbinding.txt to see how you can use sysfs to load/unload a platform driver
+ 
+ 
+ two drivers for Broadcom BCM2835 GPIO unit:
+ 
+  * "pinctrl-bcm2835"        -> already available in kernel.org, but patched by raspbian
+        ./linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c     => compiled into kernel
+        
+        => use pinctl library in linux
+            see: linux__pinctrl_subsystem.txt  and raspberry_pi__gpio_memory_mapping.txt
+        =>   note: 
+             ./arch/arm/mach-bcm2708/bcm2708_gpio.c  for pi1          \,-> exact same file  => Driver for 
+             ./arch/arm/mach-bcm2709/bcm2708_gpio.c  for pi2/pi3      /
+                     
+
+        
+  * "bcm2708_gpio"           -> only available in raspbian
+        ./linux/arch/arm/mach-bcm2709/bcm2708_gpio.c     => compiled into kernel
+ 
+ 
+ 
+     
+ CONCLUSION: 
+ 
+    in linux the  pinctrl-bcm2835 driver is used for the gpiochip
+    in xenomai  similar!
+   
+  
+explanation
+--------------   
+   
+ How do we know these files implement a gpiochip structure to implement a driver for Broadcom BCM2835 GPIO unit?
+
+      
+        => because both call   gpiochip_add  and seem to implement  a gpiochip driver for BCM2835 GPIO
+                         \
+                          http://elixir.free-electrons.com/linux/v2.6.32/source/drivers/gpio/gpiolib.c#L915
+                            /**
+                             * gpiochip_add() - register a gpio_chip
+                             * @chip: the chip to register, with chip->base initialized
+                             * Context: potentially before irqs or kmalloc will work
+                             *
+                             .
+                             */
+                             int gpiochip_add(struct gpio_chip *chip)     
+     
+     
+   
+       platform_driver_model.txt  
+            => both  bcm2708_gpio and  pinctrl-bcm2835   are listed as platform driver !!
+      
+       note: gpiochip driver is wrapped in standard platform driver structure so that it is also availabe in device tree  (DT)
+           
+   
+
+  how do we know which driver is used?
+    
+       root@raspberrypi:/boot# ls -lF /sys/devices/platform/soc/3f200000.gpio
+       total 0
+       lrwxrwxrwx 1 root root    0 Aug 17 16:34 driver -> ../../../../bus/platform/drivers/pinctrl-bcm2835/
+       -rw-r--r-- 1 root root 4096 Aug 17 16:34 driver_override
+       drwxr-xr-x 3 root root    0 Aug 17 13:35 gpio/
+       -r--r--r-- 1 root root 4096 Aug 17 16:34 modalias
+       lrwxrwxrwx 1 root root    0 Aug 17 16:34 of_node -> ../../../../firmware/devicetree/base/soc/gpio@7e200000/
+       lrwxrwxrwx 1 root root    0 Aug 17 13:35 subsystem -> ../../../../bus/platform/
+       -rw-r--r-- 1 root root 4096 Aug 17 13:35 uevent
+
+
+          => our gpio device is attached to pinctrl-bcm2835 driver
+             More details below!
+             
+   
+  STRANGE NOTE:                                                   
+   => however when searching for gpio chip with gpiolib api only one is available : pinctrl-bcm2835
+                    `-> did this once in a kernel module
+       
+         so unclear why only pinctrl-bcm2835 is found?? 
+                    why is bcm2708_gpio  NOT found??    => at least explains why it is not used!
+       
+       
+   => BUT anyway only one can be loaded !!!  => competing implementations from only one may be loaded at the time
+      -> so current raspbian image seems to prefer  pinctrl-bcm2835
+     
+    
+
+
+
+ more details in /sys/
+ ----------------------
+   
+
+  root@raspberrypi:/boot# ls /sys/bus/platform/drivers/pinctrl-bcm2835/
+  3f200000.gpio  bind  uevent  unbind                                             => loaded!
+  root@raspberrypi:/boot# ls /sys/bus/platform/drivers/bcm2708_gpio/
+  bind  uevent  unbind
+
+
+
+  root@raspberrypi:/boot# ls -l /sys/bus/platform/drivers/pinctrl-bcm2835/
+  total 0
+  lrwxrwxrwx 1 root root    0 Aug 17 16:26 3f200000.gpio -> ../../../../devices/platform/soc/3f200000.gpio
+  --w------- 1 root root 4096 Aug 17 16:26 bind
+  --w------- 1 root root 4096 Aug 17 13:35 uevent
+  --w------- 1 root root 4096 Aug 17 16:26 unbind
+
+
+  root@raspberrypi:/boot# ls -l /sys/devices/platform/soc/           lists devices on "system on chip"
+  total 0
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 3f007000.dma
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 3f00b200.interrupt-controller
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 3f00b840.vchiq
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 3f00b880.mailbox
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 3f104000.rng
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 3f200000.gpio                 => our device
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 3f200000.gpiomem
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 3f201000.uart
+  drwxr-xr-x 3 root root    0 Jan  1  1970 3f202000.sdhost
+  drwxr-xr-x 4 root root    0 Aug 17 13:35 3f980000.usb
+  -rw-r--r-- 1 root root 4096 Aug 17 16:28 driver_override
+  -r--r--r-- 1 root root 4096 Aug 17 16:28 modalias
+  lrwxrwxrwx 1 root root    0 Aug 17 16:28 of_node -> ../../../firmware/devicetree/base/soc
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 soc:arm-pmu
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 soc:fb
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 soc:firmware
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 soc:leds
+  drwxr-xr-x 2 root root    0 Aug 17 13:35 soc:thermal
+  lrwxrwxrwx 1 root root    0 Aug 17 13:35 subsystem -> ../../../bus/platform
+  -rw-r--r-- 1 root root 4096 Aug 17 13:35 uevent
+
+
+
+  root@raspberrypi:/boot# ls -lF /sys/devices/platform/soc/3f200000.gpio
+  total 0
+  lrwxrwxrwx 1 root root    0 Aug 17 16:34 driver -> ../../../../bus/platform/drivers/pinctrl-bcm2835/
+  -rw-r--r-- 1 root root 4096 Aug 17 16:34 driver_override
+  drwxr-xr-x 3 root root    0 Aug 17 13:35 gpio/
+  -r--r--r-- 1 root root 4096 Aug 17 16:34 modalias
+  lrwxrwxrwx 1 root root    0 Aug 17 16:34 of_node -> ../../../../firmware/devicetree/base/soc/gpio@7e200000/
+  lrwxrwxrwx 1 root root    0 Aug 17 13:35 subsystem -> ../../../../bus/platform/
+  -rw-r--r-- 1 root root 4096 Aug 17 13:35 uevent
+
+
+     => our gpio device is attached to pinctrl-bcm2835 driver
+   
+ 
+       
+ 
+ 
+   $ cat /sys/devices/platform/soc/3f200000.gpio/uevent
+   DRIVER=pinctrl-bcm2835
+   OF_NAME=gpio
+   OF_FULLNAME=/soc/gpio@7e200000
+   OF_COMPATIBLE_0=brcm,bcm2835-gpio
+   OF_COMPATIBLE_N=1
+   MODALIAS=of:NgpioT<NULL>Cbrcm,bcm2835-gpio
+ 
+ 
+    $ ls -lF /sys/devices/platform/soc/3f200000.gpio/gpio/gpiochip0/
+    total 0
+    -rwxrwx--- 1 root gpio 4096 Aug 17 13:35 base*
+    lrwxrwxrwx 1 root gpio    0 Aug 17 13:35 device -> ../../../3f200000.gpio/
+    -rwxrwx--- 1 root gpio 4096 Aug 17 13:35 label*
+    -rwxrwx--- 1 root gpio 4096 Aug 17 13:35 ngpio*
+    lrwxrwxrwx 1 root gpio    0 Aug 17 13:35 subsystem -> ../../../../../../class/gpio/
+    -rwxrwx--- 1 root gpio 4096 Aug 17 13:35 uevent*
+  
+   $ cat /sys/devices/platform/soc/3f200000.gpio/gpio/gpiochip0/uevent
+     => nothing
+   
+   
+   
+   
+   
+   
+
+   
+   
+ 
+ 
+ 
+SOURCE
+======= 
+ 
+pinctrl-bcm2835
+--------------- 
+ 
+./linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+
+
+    #define MODULE_NAME "pinctrl-bcm2835"
+
+
+    ...
+
+    static const struct of_device_id bcm2835_pinctrl_match[] = {
+        { .compatible = "brcm,bcm2835-gpio" },
+        {}
+    };
+    MODULE_DEVICE_TABLE(of, bcm2835_pinctrl_match);
+
+    static struct platform_driver bcm2835_pinctrl_driver = {
+        .probe = bcm2835_pinctrl_probe,
+        .remove = bcm2835_pinctrl_remove,
+        .driver = {
+            .name = MODULE_NAME,                       => "pinctrl-bcm2835"
+            .owner = THIS_MODULE,
+            .of_match_table = bcm2835_pinctrl_match,
+        },
+    };
+    module_platform_driver(bcm2835_pinctrl_driver);
+
+
+$ cat ./linux/drivers/pinctrl/bcm/Kconfig
+
+#
+# Broadcom pinctrl drivers
+#
+
+config PINCTRL_BCM2835
+       	bool
+       	select PINMUX
+       	select PINCONF
+
+$ cat ./linux/drivers/pinctrl/bcm/Makefile 
+ obj-$(CONFIG_PINCTRL_BCM2835)  		+= pinctrl-bcm2835.o
+  
+  
+  
+  
+  
+ bcm2708_gpio
+ ----------- 
+  
+./linux/arch/arm/mach-bcm2709/bcm2708_gpio.c
+
+  
+    static struct platform_driver bcm2708_gpio_driver = {
+        .probe = bcm2708_gpio_probe,
+        .remove = bcm2708_gpio_remove,
+        .driver = {
+               .name = "bcm2708_gpio"},               =>    "bcm2708_gpio"
+    };
+
+    static int __init bcm2708_gpio_init(void)
+    {
+        return platform_driver_register(&bcm2708_gpio_driver);
+    }
+
+    static void __exit bcm2708_gpio_exit(void)
+    {
+        platform_driver_unregister(&bcm2708_gpio_driver);
+    }
+
+    module_init(bcm2708_gpio_init);
+    module_exit(bcm2708_gpio_exit);
+
+
+
+
+
+
+NOTE: other drivers also explicitly load "pinctrl-bcm2835"
+==========================================================
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=667529
+
+
+example: 
+
+   the driver lirc_rpi searches for bcm2708_gpio by name, when in the DT (device tree) case pinctrl-bcm2835 would work just as well. 
+
+    ./linux/drivers/staging/media/lirc/lirc_rpi.c      => infrared remote control (irc)   uses gpio :
+    
+            static int init_port(void)
+            {
+                int i, nlow, nhigh, ret;
+                struct device_node *node;
+
+                node = lirc_rpi_dev->dev.of_node;
+
+                gpiochip = gpiochip_find("bcm2708_gpio", is_right_chip);
+
+                /*
+                 * Because of the lack of a setpull function, only support
+                 * pinctrl-bcm2835 if using device tree.
+                */
+                if (!gpiochip && node)
+                    gpiochip = gpiochip_find("pinctrl-bcm2835", is_right_chip);          => requires "pinctrl-bcm2835" gpiochip
+
+                if (!gpiochip) {
+                    pr_err(LIRC_DRIVER_NAME ": gpio chip not found!\n");
+                    return -ENODEV;
+                }
+    
+    
+   => xenomai 3.05 also uses  pinctrl-bcm2835 gpiochip implementation 
+ 
+    
+
+
+in linux source documentation about "pinctrl-bcm2835"    :
+
+   ./Documentation/devicetree/bindings/pinctrl/brcm,bcm2835-gpio.txt
+ 
+
+

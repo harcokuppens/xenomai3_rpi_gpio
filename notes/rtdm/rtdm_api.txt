@@ -1,0 +1,386 @@
+RTDM library (xenomai)
+============
+
+
+
+xenomai 3 : uses in userspace the POSIX API on rtdm device file :
+
+
+    // open gpio pin's rtdm device file's path   
+	fd = open("/dev/rtdm/pinctrl-bcm2835/gpio23", O_RDWR);
+
+    // enable the IRQ in the adeos pipeline for Xenomai, so that after this we
+    // can expect interupts really be coming!
+    int trigger = GPIO_TRIGGER_EDGE_FALLING;
+	int ret = ioctl(fd, GPIO_RTIOC_IRQEN, &trigger);
+
+
+   then inside a realtime task you can wait for an interrupt for a given RealTime interrupt handle  fd
+       /* Wait for the next interrupt */
+       ret = read(fd, &value, sizeof(value));
+
+
+   POSIX API:
+     open
+     ioctl
+     read
+     
+
+historical note: 
+
+        xenomai 2: uses in userspace the native API :
+
+            // define RealTime interrupt handle
+           static  RT_INTR myinterrupt;
+
+            // set handler
+            // important to propagate interrupts to Linux!
+            rt_intr_create(&myinterrupt,"myinterrupt",PARPORT_IRQ,I_PROPAGATE);
+
+           // enable the IRQ in the adeos pipeline for Xenomai, so that after this we
+           // can expect interupts really be coming!
+           rt_printf("enable IRQ\n");
+           rt_intr_enable(&myinterrupt);    
+
+
+           then inside a realtime task you can wait for an interrupt for a given RealTime interrupt handle myinterrupt
+               /* Wait for the next interrupt */
+               number_of_interrupts_waiting = rt_intr_wait(&myinterrupt,TM_INFINITE);
+   
+
+         native API: (user space)
+           rt_intr_create  -> register handler for specifi IRQ
+                               `-> only in kernel module you can configure 
+                                   irp for gpio pin
+                                   
+           rt_intr_enable  
+           rt_intr_wait
+            
+
+
+
+kernel rtdm api :  API isn't changed from xenomai2 to xenomai3 
+
+
+    configure irq
+  
+        static rtdm_irq_t irq_rtdm;
+    	int numero_interruption = gpio_to_irq(GPIO_IN);                => linux gpiolib  NOT-realtime
+    	printk("numero_interruption %d\n",numero_interruption);  
+
+        printk("gpio request in\n");
+    	gpio_request(GPIO_IN, THIS_MODULE->name))                       => linux gpiolib  NOT-realtime
+    
+        printk("gpio direction in\n");
+        gpio_direction_input(GPIO_IN))                                  => linux gpiolib  NOT-realtime
+    
+        printk("set irq trigger: rising\n");
+        irq_set_irq_type(numero_interruption,  IRQ_TYPE_EDGE_FALLING);    => linux kernel api (not gpio)
+
+    
+    retister 
+
+        printk("irq request , IRQ_TYPE_EDGE_FALLING\n");
+        rtdm_irq_request(& irq_rtdm,                                      => xenomai's rtdm api
+    	                 numero_interruption, handler_interruption, 
+    	                 IRQ_TYPE_EDGE_FALLING,
+    	                 THIS_MODULE->name, NULL)) != 0) 
+
+      
+      
+note:       rtdm_irq_enable(& irq_rtdm);  => not needed anymore for xenomai3
+
+
+
+
+By default, keyboard interrupts are enabled.
+
+https://www.blaess.fr/christophe/2012/11/26/les-gpio-du-raspberry-pi/
+
+
+
+https://www.blaess.fr/christophe/category/raspberry-pi/
+
+   
+
+https://xenomai.org/documentation/xenomai-3/html/xeno3prm/group__rtdm__irq.html
+
+
+int 	rtdm_irq_request (rtdm_irq_t *irq_handle, unsigned int irq_no, rtdm_irq_handler_t handler, unsigned long flags, const char *device_name, void *arg)
+ 	Register an interrupt handler. More...
+ 
+int 	rtdm_irq_free (rtdm_irq_t *irq_handle)
+ 	Release an interrupt handler. More...
+ 
+int 	rtdm_irq_enable (rtdm_irq_t *irq_handle)
+ 	Enable interrupt line. More...
+ 
+int 	rtdm_irq_disable (rtdm_irq_t *irq_handle)
+ 	Disable interrupt line. More...
+    
+    
+ => no methods to setup internal pull up or pull down !!
+    Reason: that is to specific, and you can setup pullup pulldown in none-realtime
+            in linux when starting your program.
+            It doesn't need to be setup in realtime!!
+   
+   
+   
+ gpio-core.c  rtdm driver 
+   => uses:
+          gpio_direction_output 
+          gpio_direction_input   
+          request_gpio_irq() gpio, pin, chan, trigger) 
+          release_gpio_irq(gpio, pin, chan);
+          rtdm_safe_copy_from_user 
+          
+          => no pull up nor pull down!
+          
+    static int gpio_pin_ioctl_nrt(struct rtdm_fd *fd,
+                      unsigned int request, void *arg)
+    {
+        struct rtdm_gpio_chan *chan = rtdm_fd_to_private(fd);
+        struct rtdm_device *dev = rtdm_fd_device(fd);
+        unsigned int gpio = rtdm_fd_minor(fd);
+        int ret = 0, val, trigger;
+        struct rtdm_gpio_pin *pin;
+
+        pin = container_of(dev, struct rtdm_gpio_pin, dev);
+
+        switch (request) {
+        case GPIO_RTIOC_DIR_OUT:
+            ret = rtdm_safe_copy_from_user(fd, &val, arg, sizeof(val));
+            if (ret)
+                return ret;
+            ret = gpio_direction_output(gpio, val);
+            if (ret == 0) {
+                chan->has_direction = true;
+                chan->is_output = true;
+            }
+            break;
+        case GPIO_RTIOC_DIR_IN:
+            ret = gpio_direction_input(gpio);
+            if (ret == 0)
+                chan->has_direction = true;
+            break;
+        case GPIO_RTIOC_IRQEN:
+            if (chan->requested)
+                return -EBUSY;
+            ret = rtdm_safe_copy_from_user(fd, &trigger,
+                           arg, sizeof(trigger));
+            if (ret)
+                return ret;
+            ret = request_gpio_irq(gpio, pin, chan, trigger);
+            break;
+        case GPIO_RTIOC_IRQDIS:
+            release_gpio_irq(gpio, pin, chan);
+            chan->requested = false;
+            break;
+        default:
+            return -EINVAL;
+        }
+
+        return ret;
+    }        
+ 
+    
+    
+https://xenomai.org/documentation/xenomai-3/html/xeno3prm/group__rtdm__irq.html
+  => exactly the same in xenomai 2 and 3
+
+int rtdm_irq_request	(	rtdm_irq_t * 	irq_handle,
+                            unsigned int 	irq_no,
+                            rtdm_irq_handler_t 	handler,
+                            unsigned long 	flags,
+                            const char * 	device_name,
+                            void * 	arg 
+)		
+
+Register an interrupt handler.
+
+    This function registers the provided handler with an IRQ line and enables the line.
+
+    Parameters
+        [in,out]	irq_handle	IRQ handle
+        [in]	irq_no	Line number of the addressed IRQ
+        [in]	handler	Interrupt handler
+        [in]	flags	Registration flags, see RTDM_IRQTYPE_xxx for details
+        [in]	device_name	Device name to show up in real-time IRQ lists
+        [in]	arg	Pointer to be passed to the interrupt handler on invocation
+
+    Returns
+        0 on success, otherwise:
+        -EINVAL is returned if an invalid parameter was passed.
+        -EBUSY is returned if the specified IRQ line is already in use.
+
+
+
+    Tags
+        secondary-only
+
+
+
+
+
+
+RTDM_IRQTYPE_xxx
+    Interrupt registrations flags
+
+    #define 	RTDM_IRQTYPE_SHARED   XN_IRQTYPE_SHARED
+     	Enable IRQ-sharing with other real-time drivers. 
+ 
+    #define 	RTDM_IRQTYPE_EDGE   XN_IRQTYPE_EDGE
+     	Mark IRQ as edge-triggered, relevant for correct handling of shared edge-triggered IRQs. 
+ 
+
+RTDM_IRQ_xxx
+     Return flags of interrupt handlers
+
+    #define 	RTDM_IRQ_NONE   XN_IRQ_NONE
+     	Unhandled interrupt. 
+ 
+    #define 	RTDM_IRQ_HANDLED   XN_IRQ_HANDLED
+     	Denote handled interrupt. 
+ 
+    #define 	RTDM_IRQ_DISABLE   XN_IRQ_DISABLE
+     	Request interrupt disabling on exit. 
+ 
+
+
+
+
+
+
+xenomai's specific gpiolib implementing a rtdm device per gpio pin 
+================================================================
+
+
+ => gpio-core.c:  xenomai's generic gpio implementation
+      
+ => gpio-bcm2835.c :  gpio implementation for raspberry pi for xenomai  => uses gpio-core.c  -> in this c file only  needs to load right gpio chip used on rpi
+
+
+
+xenomai 
+
+
+struct rtdm_gpio_chip {
+	struct gpio_chip *gc;              => gpio_chip
+	struct rtdm_driver driver;
+	struct class *devclass;
+	struct list_head pins;
+	struct list_head next;
+	rtdm_lock_t lock;
+};
+
+  struct rtdm_gpio_pin {
+  	struct rtdm_device dev;
+  	struct list_head next;
+  	rtdm_irq_t irqh;
+  	rtdm_event_t event;
+  	char *name;
+  	struct gpio_desc *desc;
+  };
+  
+
+
+       
+required fields in 
+
+ struct gpio_chip {
+     const char      *label;
+     ..
+     struct module       *owner;     -> probably current driver for chip
+     int         base;
+     u16         ngpio;
+     ..
+   }       
+       
+    // gc->owner, gc->label gc->base  gc->ngpio
+    //  `-> tricky one to get hold to!!
+    int rtdm_gpiochip_add(struct rtdm_gpio_chip *rgc,
+    		      struct gpio_chip *gc, int gpio_subclass)
+
+
+    // gc->base  gc->ngpio  gc->label
+    static int create_pin_devices(struct rtdm_gpio_chip *rgc)
+
+ 
+ => gpio_chip not used in fops methods!!
+     => however in gpiolib in linux  gpio_chip is found using  gpio number 
+         => find chip which is responsible for the gpio number 
+              chip.base < gpionumber  < base + chip.numgpio
+
+          => thus finds that registered gpiochip and uses it!
+          
+          
+
+
+./linux/kernel/xenomai/rtdm/drvlib.c:1422:
+
+  int rtdm_irq_request(rtdm_irq_t *irq_handle, unsigned int irq_no,
+          
+
+
+
+$ ls ./kernel/drivers/gpio/
+gpio-bcm2835.c  gpio-core.c  gpio-core.h  gpio-mxc.c  Kconfig  Makefile
+
+
+
+$ cat ./kernel/drivers/gpio/Makefile
+
+    ccflags-$(CONFIG_XENO_DRIVERS_GPIO_DEBUG) := -DDEBUG
+
+    obj-$(CONFIG_XENO_DRIVERS_GPIO) += xeno_gpio.o
+
+    xeno_gpio-y := gpio-core.o
+
+    xeno_gpio-$(CONFIG_XENO_DRIVERS_GPIO_BCM2835) += gpio-bcm2835.o
+    xeno_gpio-$(CONFIG_XENO_DRIVERS_GPIO_MXC) += gpio-mxc.o
+
+
+  => xeno_gpio kernel module contains both gpio-core.c and gpio-bcm2835.c !!
+  
+ADVICE: 
+       set CONFIG_XENO_DRIVERS_GPIO  to y instead of m in kernel config     => adds generic realtime (rtdm) gpio support
+        and also set CONFIG_XENO_DRIVERS_GPIO_BCM2835 to yes,               => adds specific gpiochip 
+       then this drivers gets build into the kernel  and is automatically 
+       available on boot. So you then don't need to load to xeno_gpio kernel model before before starting a 
+       xenomai program using this gpio driver.
+      
+
+
+./kernel/drivers/gpio/gpio-bcm2835.c   => kernel module which loads rtdm driver for gpiochip within bcm2835 chip (uses generic xenomai's gpio code which wraps gpiochip in rtdm driver in gpio-core.c )
+
+
+        #include <linux/module.h>
+        #include "gpio-core.h"                                                  <===    generic gpio support from xenomai -> wraps gpiochip in rtdm drive 
+
+        #define RTDM_SUBCLASS_BCM2835  1
+
+        static int __init bcm2835_gpio_init(void)
+        {
+            return rtdm_gpiochip_scan_of(NULL, "brcm,bcm2835-gpio",RTDM_SUBCLASS_BCM2835);         => loads rtdm driver  for "brcm,bcm2835-gpio"
+        }
+        module_init(bcm2835_gpio_init);
+
+        static void __exit bcm2835_gpio_exit(void)
+        {
+            rtdm_gpiochip_remove_of(RTDM_SUBCLASS_BCM2835);
+        }
+        module_exit(bcm2835_gpio_exit);
+
+
+
+
+./kernel/drivers/gpio/gpio-core.c  (in xenomai's source)
+
+  => wraps gpiochip X in a rtdm driver giving  ioctl,read,write  interface via device files in /dev/rtdm in user space
+           `-> can be applied for any gpio chip
+            -> we use it for the gpiochip tagges with  "brcm,bcm2835-gpio"
+
+
+
+
+

@@ -1,0 +1,144 @@
+
+  => platform driver model can also be used for none gpio-chips, but linux also uses it for gpio-chips!
+  =>  IMPORTANT: see Manual_driver_binding_and_unbinding.txt to see how you can use sysfs to load/unload a platform           driver
+
+platform driver model
+=====================
+
+
+https://www.kernel.org/doc/Documentation/driver-model/platform.txt
+
+
+https://lists.kernelnewbies.org/pipermail/kernelnewbies/2011-February/000815.html
+
+
+> However, could you point me out where the kernel actually detects the
+> device? Is it keep polling with the driver's name which was given at compile
+> time? Or Is there other mechanism to detect the device? Basically, how the
+> kernel detects those devices, which calls "probe"?
+
+Platform devices represent devices that are usually integrated into a
+given chip and therefore are always there. The platform-specific
+initialization code statically initializes such arrays of platform
+devices and then registers them in a row using platform_register.
+
+Therefore there is no need for sophisticated probing.                   <=======
+
+Instead, the string contained in platform_device.name is compared
+platform_driver.driver.name and a match is assumed if they are equal.
+Have a look at the attached example file that defines and registers a
+dummy platform driver for a dummy platform device. If you change the
+string, the probe function will not be called anymore.
+
+Other buses have more sophisticated detection/probing methods. For
+more information about platform devices, including the places where
+these functions are called, see drivers/base/platform.c. Reading
+Documentation/driver-model/platform.txt is also a good idea.
+
+Alex.
+
+
+attached example file:
+
+    #include <linux/init.h>
+    #include <linux/module.h>
+    #include <linux/kernel.h>
+    #include <linux/platform_device.h>
+
+    static int __devinit drivertest_probe(struct platform_device *dev)
+    {
+        printk(KERN_ALERT "Probe device: %s\n", dev->name);
+        return 0;
+    }
+
+    static int drivertest_remove(struct platform_device *dev)
+    {
+        return 0;
+    }
+
+    static void drivertest_device_release(struct device *dev)
+    {
+    }
+
+    static struct platform_driver drivertest_driver = {
+        .driver = {
+            .name = "drivertest",
+            .owner = THIS_MODULE,
+        },
+        .probe = drivertest_probe,
+        .remove = drivertest_remove,
+    };
+
+    static struct platform_device drivertest_device = {
+        .name = "drivertest",
+        .id = 0,
+        .dev = {
+            .release = drivertest_device_release,
+        },
+    };
+
+    static int __init drivertest_init(void)
+    {
+        printk(KERN_ALERT "Driver test init\n");
+        platform_device_register(&drivertest_device);
+        platform_driver_register(&drivertest_driver);
+        return 0;
+    }
+
+    static void __exit drivertest_exit(void)
+    {
+        printk(KERN_ALERT "Driver test exit\n");
+        platform_driver_unregister(&drivertest_driver);
+        platform_device_unregister(&drivertest_device);
+    }
+
+    module_init(drivertest_init);
+    module_exit(drivertest_exit);
+    MODULE_LICENSE("GPL");
+
+
+http://stackoverflow.com/questions/12865054/init-function-invocation-of-drivers-compiled-into-kernel
+
+  "module_init() will either be called during do_initcalls() (if builtin) or at module insertion time (if a module)."
+  
+ 
+ 
+ 
+ 
+ list platform drivers  in running system
+ =====================================    
+
+  => for details about platform drivers in /sys/devices see:  Manual_driver_binding_and_unbinding.txt     
+
+
+       with 
+ 
+           ls -l /sys/devices/platform/soc/*/driver 
+       
+        you can list all drivers needed for soc    "system on chip"   
+             
+       
+        with 
+       
+           ls /sys/bus/platform/drivers
+         
+         you can list all drivers for this platform (computer)
+        
+
+
+     $ ls /sys/bus/platform/drivers         
+     CCI-400      arm-pmu   		    bcm2708_gpio  bcm2835-rng   bcm2835_AUD2  bcm2835_AUD5 	bcm2835_thermal  dwc_otg       	  mmc-bcm2835  	   poweroff-gpio       	 serial8250
+     CCI-400 PMU  bcm2708-dmaengine 	bcm2835-clk   bcm2835_AUD0  bcm2835_AUD3  bcm2835_AUD6 	bcm2835_vchiq  	 gpiomem-bcm2835  of_serial    	   raspberrypi-firmware  stmpe-gpio
+     alarmtimer   bcm2708_fb		    bcm2835-mbox  bcm2835_AUD1  bcm2835_AUD4  bcm2835_AUD7 	brcmvirt-gpio  	 leds-gpio     	  pinctrl-bcm2835  sdhost-bcm2835      	 uio_pdrv_genirq
+
+
+
+ NOTE: both  bcm2708_gpio and  pinctrl-bcm2835   are listed
+
+
+
+
+
+ 
+
+

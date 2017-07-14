@@ -1,0 +1,500 @@
+
+RTDM driver for gpio ports on bcm2835 chip 
+==========================================
+
+
+realtime gpio library
+---------------------
+
+Xenomai delivers its own realtime gpio library :
+
+  kernel/drivers/gpio/gpio-core.c
+  
+which specific gpiochips can use to implement a realtime RTDM driver for xenomai.
+
+The gpio realtime library makes it very easy to implement a realtime gpio driver
+because you only have to specify the name of the gpiochip, and then the library
+does all the work for you : it just finds the linux gpiochip structure for this gpio chip
+and wraps it automatically in a gpio driver for you.
+
+  
+
+realtime gpio driver for gpio on bcm2835 chip
+---------------------------------------------
+ 
+ 
+In xenomai the RTDM driver for gpio ports on bcm2835 chip is implemented by :
+
+
+   ./kernel/drivers/gpio/gpio-bcm2835.c  
+
+=> which uses gpio-core.c library which finds the linux gpiochip structure for the bcm2835 and wraps 
+   it into an RTDM library for you. 
+   
+   All the work is really done by gpio-core.c library  and the driver is very short :
+   
+   
+       $ cat gpio-bcm2835.c
+
+       #include <linux/module.h>
+       #include "gpio-core.h"
+
+       #define RTDM_SUBCLASS_BCM2835  1
+
+       static int __init bcm2835_gpio_init(void)
+       {
+       	    return rtdm_gpiochip_scan_of(NULL, "brcm,bcm2835-gpio",RTDM_SUBCLASS_BCM2835);
+       }
+       module_init(bcm2835_gpio_init);
+
+       static void __exit bcm2835_gpio_exit(void)
+       {
+       	   rtdm_gpiochip_remove_of(RTDM_SUBCLASS_BCM2835);
+       }
+       module_exit(bcm2835_gpio_exit);
+   
+   
+   so when the driver is loaded it just calls
+
+        rtdm_gpiochip_scan_of(NULL, "brcm,bcm2835-gpio",RTDM_SUBCLASS_BCM2835);
+
+   which searches for the linux gpiochip compatible with "brcm,bcm2835-gpio 
+   and wraps it in a RTDM driver for you.
+   
+   That's all.
+
+
+
+    
+    
+NOTE: about  OLD buggy implementation
+    for xenomai 3.03 or older it did instead : rtdm_gpiochip_add_by_name(&bcm2835_gpio_chip, "bcm2708_gpio",RTDM_SUBCLASS_BCM2835);  // 
+    
+    This didn't work, so I changed it into "pinctrl-bcm2835".
+    I found this name by twisting the source code  the search by name instead
+    and to print all gpio-chips names it could find, and in the result list  this was the only one available.
+      
+
+
+
+implementation details how gpiochip gets wrapped in rtdm driver
+----------------------------------------------------------------
+
+description :
+  rtdm_gpiochip_scan_of is implemented  in the realtime gpio-core.c library
+  which first searches for a platform driver compatible in the device tree with "brcm,bcm2835-gpio"
+  then using the platform driver it can find the gpiochip.
+  Finally when the gpiochip is found it calls  add_gpio_chip(gc, type)
+  which calls rtdm_gpiochip_add  which wraps gpiochip in an 
+   
+    
+      // defined in gpio_core.h 
+      struct rtdm_gpio_chip {
+          struct gpio_chip *gc;
+          struct rtdm_driver driver;
+          struct class *devclass;
+          struct list_head pins;
+          struct list_head next;
+          rtdm_lock_t lock;
+      };
+  
+  
+    where in the "driver" field it has the "struct rtdm_driver"
+    in which it defines the different rtdm methods which wrap gpio :
+  
+        rgc->driver.ops = (struct rtdm_fd_ops){
+            .close      =   gpio_pin_close,
+            .ioctl_nrt  =   gpio_pin_ioctl_nrt,
+            .read_rt    =   gpio_pin_read_rt,
+            .write_rt   =   gpio_pin_write_rt,
+            .select     =   gpio_pin_select,
+        };
+  
+  
+
+
+  
+source for description:  
+======================
+  
+  
+  
+  
+find gpiochip
+------------- 
+
+xenomai-3-3.0.5/kernel/drivers/gpio/gpio-core.c  
+  
+      int rtdm_gpiochip_scan_of(struct device_node *from, const char *compat,
+                    int type)
+      {
+          struct device_node *np = from;
+          struct platform_device *pdev;
+          struct gpio_chip *gc;
+          int ret = -ENODEV;
+
+          for (;;) {
+              np = of_find_compatible_node(np, NULL, compat);
+              if (np == NULL)
+                  break;
+              pdev = of_find_device_by_node(np);
+              of_node_put(np);
+              if (pdev == NULL)
+                  break;
+              gc = gpiochip_find(&pdev->dev, match_gpio_chip);
+              if (gc) {
+                  ret = add_gpio_chip(gc, type);
+                  if (ret)
+                      return ret;
+              }
+      } 
+
+
+  linux code: 
+
+      http://elixir.free-electrons.com/linux/v2.6.34/source/drivers/of/base.c#L434
+
+       /*
+        * Procedures for creating, accessing and interpreting the device tree.
+        */
+  
+       => contains :  
+  
+              of_find_compatible_node
+              of_find_device_by_node
+  
+       http://elixir.free-electrons.com/linux/latest/source/drivers/gpio/gpiolib.c#L1440
+   
+   
+       /**
+        * gpiochip_find() - iterator for locating a specific gpio_chip
+        * @data: data to pass to match function
+        * @callback: Callback function to check gpio_chip
+        *
+        * Similar to bus_find_device.  It returns a reference to a gpio_chip as
+        * determined by a user supplied @match callback.  The callback should return
+        * 0 if the device doesn't match and non-zero if it does.  If the callback is
+        * non-zero, this function will return to the caller and not iterate over any
+        * more gpio_chips.
+        */
+        struct gpio_chip *gpiochip_find(void *data,
+        				int (*match)(struct gpio_chip *chip,
+        					     void *data))
+        {
+        	struct gpio_device *gdev;
+        	struct gpio_chip *chip = NULL;
+        	unsigned long flags;
+
+        	spin_lock_irqsave(&gpio_lock, flags);
+        	list_for_each_entry(gdev, &gpio_devices, list)
+        		if (gdev->chip && match(gdev->chip, data)) {
+        			chip = gdev->chip;
+        			break;
+        		}
+
+        	spin_unlock_irqrestore(&gpio_lock, flags);
+
+        	return chip;
+        }
+    
+        http://elixir.free-electrons.com/linux/latest/source/include/linux/gpio/driver.h
+    
+          => defines: struct gpio_chip
+  
+  
+  
+wrap gpiochip in rtmd driver
+-----------------------------  
+
+ xenomai-3-3.0.5/kernel/drivers/gpio/gpio-core.c  
+ 
+ 
+    static int add_gpio_chip(struct gpio_chip *gc, int type)
+    {
+        struct rtdm_gpio_chip *rgc;
+        int ret;
+
+        rgc = kzalloc(sizeof(*rgc), GFP_KERNEL);
+        if (rgc == NULL)
+            return -ENOMEM;
+
+        ret = rtdm_gpiochip_add(rgc, gc, type);
+        if (ret) {
+            kfree(rgc);
+            return ret;
+        }
+
+        mutex_lock(&chip_lock);
+        list_add(&rgc->next, &rtdm_gpio_chips);
+        mutex_unlock(&chip_lock);
+
+        return 0;
+    }  
+    
+    
+    
+    int rtdm_gpiochip_add(struct rtdm_gpio_chip *rgc,
+                  struct gpio_chip *gc, int gpio_subclass)
+    {
+        int ret;
+
+        if (!realtime_core_enabled())
+            return 0;
+
+        rgc->devclass = class_create(gc->owner, gc->label);
+        if (IS_ERR(rgc->devclass)) {
+            printk(XENO_ERR "cannot create sysfs class\n");
+            return PTR_ERR(rgc->devclass);
+        }
+        rgc->devclass->devnode = gpio_pin_devnode;
+
+        rgc->driver.profile_info = (struct rtdm_profile_info)
+            RTDM_PROFILE_INFO(rtdm_gpio_chip,
+                      RTDM_CLASS_GPIO,
+                      gpio_subclass,
+                      0);
+        rgc->driver.device_flags = RTDM_NAMED_DEVICE|RTDM_FIXED_MINOR;
+        rgc->driver.base_minor = gc->base;
+        rgc->driver.device_count = gc->ngpio;
+        rgc->driver.context_size = sizeof(struct rtdm_gpio_chan);
+        rgc->driver.ops = (struct rtdm_fd_ops){
+            .close      =   gpio_pin_close,
+            .ioctl_nrt  =   gpio_pin_ioctl_nrt,
+            .read_rt    =   gpio_pin_read_rt,
+            .write_rt   =   gpio_pin_write_rt,
+            .select     =   gpio_pin_select,
+        };
+
+        rtdm_drv_set_sysclass(&rgc->driver, rgc->devclass);
+
+        rgc->gc = gc;
+        INIT_LIST_HEAD(&rgc->pins);
+        rtdm_lock_init(&rgc->lock);
+
+        ret = create_pin_devices(rgc);
+        if (ret)
+            class_destroy(rgc->devclass);
+
+        return ret;
+    }    
+
+
+
+rtdm driver methods wrapping gpiochip 
+--------------------------------------
+
+xenomai-3-3.0.5/kernel/drivers/gpio/gpio-core.c  
+  
+   to make an rtdm (realtime) driver 
+
+        gpio_pin_ioctl_nrt   => use linux's gpiolib (none-realtime)
+        gpio_pin_read_rt
+        gpio_pin_write_rt
+
+
+
+
+
+
+
+static int gpio_pin_ioctl_nrt(struct rtdm_fd *fd,
+                  unsigned int request, void *arg)
+{
+    struct rtdm_gpio_chan *chan = rtdm_fd_to_private(fd);
+    struct rtdm_device *dev = rtdm_fd_device(fd);
+    unsigned int gpio = rtdm_fd_minor(fd);
+    int ret = 0, val, trigger;
+    struct rtdm_gpio_pin *pin;
+
+    pin = container_of(dev, struct rtdm_gpio_pin, dev);
+
+    switch (request) {
+    case GPIO_RTIOC_DIR_OUT:
+        ret = rtdm_safe_copy_from_user(fd, &val, arg, sizeof(val));
+        if (ret)
+            return ret;
+        ret = gpio_direction_output(gpio, val);
+        if (ret == 0) {
+            chan->has_direction = true;
+            chan->is_output = true;
+        }
+        break;
+    case GPIO_RTIOC_DIR_IN:
+        ret = gpio_direction_input(gpio);
+        if (ret == 0)
+            chan->has_direction = true;
+        break;
+    case GPIO_RTIOC_IRQEN:
+        if (chan->requested)
+            return -EBUSY;
+        ret = rtdm_safe_copy_from_user(fd, &trigger,
+                       arg, sizeof(trigger));
+        if (ret)
+            return ret;
+        ret = request_gpio_irq(gpio, pin, chan, trigger);
+        break;
+    case GPIO_RTIOC_IRQDIS:
+        release_gpio_irq(gpio, pin, chan);
+        chan->requested = false;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return ret;
+}
+
+static ssize_t gpio_pin_read_rt(struct rtdm_fd *fd,
+                void __user *buf, size_t len)
+{
+    struct rtdm_gpio_chan *chan = rtdm_fd_to_private(fd);
+    struct rtdm_device *dev = rtdm_fd_device(fd);
+    struct rtdm_gpio_pin *pin;
+    int value, ret;
+
+    if (len < sizeof(value))
+        return -EINVAL;
+
+    if (!chan->has_direction)
+        return -EAGAIN;
+
+    if (chan->is_output)
+        return -EINVAL;
+
+    pin = container_of(dev, struct rtdm_gpio_pin, dev);
+
+    if (!(fd->oflags & O_NONBLOCK)) {
+        ret = rtdm_event_wait(&pin->event);
+        if (ret)
+            return ret;
+    }
+
+    value = gpiod_get_raw_value(pin->desc);
+    ret = rtdm_safe_copy_to_user(fd, buf, &value, sizeof(value));
+
+    return ret ?: sizeof(value);
+}     
+     
+static ssize_t gpio_pin_write_rt(struct rtdm_fd *fd,
+                 const void __user *buf, size_t len)
+{
+    struct rtdm_gpio_chan *chan = rtdm_fd_to_private(fd);
+    struct rtdm_device *dev = rtdm_fd_device(fd);
+    struct rtdm_gpio_pin *pin;
+    int value, ret;
+
+    if (len < sizeof(value))
+        return -EINVAL;
+
+    if (!chan->has_direction)
+        return -EAGAIN;
+
+    if (!chan->is_output)
+        return -EINVAL;
+
+    ret = rtdm_safe_copy_from_user(fd, &value, buf, sizeof(value));
+    if (ret)
+        return ret;
+
+    pin = container_of(dev, struct rtdm_gpio_pin, dev);
+    gpiod_set_raw_value(pin->desc, value);
+
+    return sizeof(value);
+}   
+   
+
+
+
+
+gpio_set_value  vs  gpiod_set_raw_value 
+---------------------------------------
+
+
+  
+gpio_set_value(unsigned int gpio, int value)
+  => finds gpio_desc for gpio pin and calls :   gpiod_set_raw_value(struct gpio_desc *desc, int value)
+
+
+gpiod_set_raw_value 
+  defined in  linux's drivers/gpio/gpiolib.c  
+  and used by ./xenomai-3-3.0.5/kernel/drivers/gpio/gpio-core.c  
+  
+
+explanation in source:   
+
+
+    include/linux/gpio.h
+
+        static inline void gpio_set_value(unsigned int gpio, int value)
+        {
+            __gpio_set_value(gpio, value);
+        }
+
+        static inline void __gpio_set_value(unsigned gpio, int value)
+        {
+            return gpiod_set_raw_value(gpio_to_desc(gpio), value);
+        }
+    
+    
+
+     drivers/gpio/gpiolib.c
+
+        /**
+         * gpiod_set_raw_value() - assign a gpio's raw value
+         * @desc: gpio whose value will be assigned
+         * @value: value to assign
+         *
+         * Set the raw value of the GPIO, i.e. the value of its physical line without
+         * regard for its ACTIVE_LOW status.
+         *
+         * This function should be called from contexts where we cannot sleep, and will
+         * complain if the GPIO chip functions potentially sleep.
+         */
+        void gpiod_set_raw_value(struct gpio_desc *desc, int value)
+        {
+            if (!desc)
+                return;
+            /* Should be using gpio_set_value_cansleep() */
+            WARN_ON(desc->chip->can_sleep);
+            _gpiod_set_raw_value(desc, value);
+        }
+
+        static void _gpiod_set_raw_value(struct gpio_desc *desc, bool value)
+        {
+            struct gpio_chip    *chip;
+
+            chip = desc->chip;
+            trace_gpio_value(desc_to_gpio(desc), 0, value);
+            if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
+                _gpio_set_open_drain_value(desc, value);
+            else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
+                _gpio_set_open_source_value(desc, value);
+            else
+                chip->set(chip, gpio_chip_hwgpio(desc), value);
+        }
+
+
+
+
+
+  
+  
+  
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+

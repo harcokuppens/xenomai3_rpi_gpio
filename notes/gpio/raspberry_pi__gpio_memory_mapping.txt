@@ -1,0 +1,293 @@
+gpio memory mapping 
+===================
+
+short:
+  - rpi uses memory for gpio
+  - you can low level read/write memory to control gpio ports
+  - however pinctrl library in linux helps you to do this more easily
+      => see pinctrl_subsystem_in_linux.txt
+  - in linux you can control the pins in user space via the /sys interface,
+    however this is limited (eg. you can not set pullup or pull down),
+    so instead you can use in user space a library (e.g. wiring pi) which
+    access the GPIO hardware registers directly through the /dev/mem psuedo-file. (instead of via /sys)
+      => see  raspberry_pi__gpio_userspace_library_wiringpi.txt
+  
+
+http://stackoverflow.com/questions/31622586/how-gpio-is-mapped-in-memory
+
+
+
+    I found nothing like I/O ports mapping like request_io_region and __io_remap.
+                         
+        ARM does not have an I/O port space.                                     => no special io-bus (like for intel parallel ports io-ports using the special io-bus )
+        
+        All peripheral registers are assigned to addresses in memory space.      =>  memory mapped cpu access !!
+
+        => for details see : 
+               
+               io_ports__or__memory_mapped.txt                          
+
+
+    How GPIO for BCM2708 mapped in memory ?
+
+        GPIOs are typically implemented as a peripheral of control registers, and the GPIOs in the BCM2835 of the RPi
+        follows this convention. This set of control register may have a different name; for example Atmel refers to
+        these registers as the Parallel I/O (PIO) peripheral.
+
+        Each GPIO (or more accurately each pin) will be represented by one or more bits in each control register
+        function. The control register functions include pin assignment (aka multiplexing), set output to high, set
+        output to low, read pin level, and level and edge detection control.
+
+        In other words there is no single bit that can be read and written that corresponds to a GPIO. 
+        For a GPIO there would be a bit in a specific register to fetch the input level. 
+        There's a bit in another register to set that GPIO output
+        high, and bit in another register to set that GPIO output low.
+
+    Is there another driver?
+
+        Yes. The pinctrl (pin control) driver is a lower-layer (i.e. closer to the HW) than GPIO. It's the pinctrl
+        layer that handles pin multiplexing (i.e. whether a pin is used for a peripheral function or as a GPIO). The
+        pinctrl driver for the SoC (e.g. drivers/pinctrl/pinctrl-bcm2835.c) is where you would find
+        devm_ioremap_resources() (which in turn calls devm_request_mem_region() and devm_ioremap()) for the GPIO
+        register block.
+
+    And can I handle GPIO just by R&W to /sys/class/gpio/*?
+
+        Yes. the sysfs interface is provided for accessing those pins not assigned to peripherals.
+
+
+
+ADDENDUM
+
+    The sysfs GPIO interface has limited capabilities.  -> no pull-up or pull-down  
+        ^^^^^
+        
+    Apparently there are userspace libraries to access additional pin attributes (e.g. enabling pull-up or pull-down
+    resistor) that are normally in the domain of the pinctrl driver.  (pinctrl accesses directly mapped memory )
+                                                     ^^^^^^^^     
+    Typically such libraries access the PIO hardware registers directly through the /dev/mem psuedo-file. 
+    Be cognizant that such techniques are not secure and could interfere with other device drivers.
+
+
+
+
+
+more details about memory mapping
+----------------------------------
+
+
+
+For standard raspbian  we have:
+
+
+# lsmod
+Module                  Size  Used by
+cfg80211              409107  0
+rfkill                 15917  1 cfg80211
+joydev                  9040  0
+bcm2835_rng             1743  0
+bcm2835_gpiomem         2824  0                             =>  seems for "gpio"
+snd_bcm2835            19526  0
+snd_pcm                72628  1 snd_bcm2835
+snd_timer              18864  1 snd_pcm
+snd                    50375  3 snd_bcm2835,snd_timer,snd_pcm
+uio_pdrv_genirq         2916  0
+uio                     7920  1 uio_pdrv_genirq
+evdev                  10302  3
+ipv6                  346756  34
+
+
+
+
+conclusions from below :
+
+ * bcm2835-gpiomem.c implements a linux driver  which causes the memory mapping for gpio 
+ 
+ * probably origin of  /dev/gpiomem     
+
+
+
+base address of memory mapping
+---------------------------------        
+
+
+
+http://mirrors.neusoft.edu.cn/rpi-kernel/drivers/char/broadcom/bcm2835-gpiomem.c
+
+
+rmmod bcm2835_gpiomem
+modrpobe bcm2835_gpiomem
+
+/var/log/messages :
+Aug  9 15:02:11 raspberrypi kernel: [ 5758.709188] gpiomem-bcm2835 3f200000.gpiomem: Initialised: Registers at 0x3f200000
+
+
+pi@raspberrypi:/usr/src/linux $ grep -ir 'GPIO mem driver removed' *
+drivers/char/broadcom/bcm2835-gpiomem.c:	dev_info(dev, "GPIO mem driver removed - OK");
+
+
+=> drivers/char/broadcom/bcm2835-gpiomem.c contains line :
+  dev_info(inst->dev, "Initialised: Registers at 0x%08lx",
+          
+THUS bcm2835-gpiomem.c implements a linux driver  which causes the memory mapping for gpiomem!!
+ 
+probably origin of  
+ /dev/gpiomem        
+ 
+ 
+     
+
+http://stackoverflow.com/questions/31622586/how-gpio-is-mapped-in-memory
+  
+
+  This response may not be "on all fours" since it merely provides a GPIO base address for Raspberry Pi 2 vs a how.
+
+  Notwithstanding, the Raspbian OS on Raspberry Pi 2 provides a base address at 0x3f20,0000.
+
+      $ dmesg -H 
+      [  +0.000749] gpiomem-bcm2835 3f200000.gpiomem: Initialised: Registers at 0x3f200000
+
+  A crude ARMv7 Assembly example using the above base address, via an mmmap call, to blink the ACT LED on the Raspberry
+  Pi 2 is indicated in the link below.
+
+      https://github.com/InfinitelyManic/Raspberry-Pi-2
+      
+note: 
+  memory mapping done in hardware, so doesn't matter  whether you change the mapped memory from linux 
+  or xenomai kernel  -> talks to hardware of gpio pins!!
+  
+        
+
+
+
+
+general about memory mapping used in kernel module => how to it registers in /proc/devices and /proc/iomem
+----------------------------------------------------------------------------------------------------------        
+        
+
+https://www.centos.org/docs/5/html/5.2/Deployment_Guide/s2-proc-iomem.html
+
+/proc/iomem
+    This file shows you the current map of the system's memory for each physical device:
+
+    The first column displays the memory registers used by each of the different types of memory. The second column
+    lists the kind of memory located within those registers and displays which memory registers are used by the kernel
+    within the system RAM or, if the network interface card has multiple Ethernet ports, the memory registers assigned
+    for each port.
+
+
+NOTE: when raspbian is running:
+
+root@raspberrypi:~/blink# cat /proc/iomem
+00000000-3affffff : System RAM
+  00008000-007b92ff : Kernel code
+  0082c000-009818ff : Kernel data
+3f006000-3f006fff : dwc_otg
+3f007000-3f007eff : /soc/dma@7e007000
+3f00b840-3f00b84e : /soc/vchiq
+3f00b880-3f00b8bf : /soc/mailbox@7e00b800
+3f200000-3f2000b3 : /soc/gpio@7e200000                  <==  gpio pins !!   (soc: system on chip)  => GPIO memory mapped!!
+3f201000-3f201fff : /soc/uart@7e201000
+  3f201000-3f201fff : uart-pl011
+3f202000-3f2020ff : /soc/sdhost@7e202000
+3f980000-3f98ffff : dwc_otg
+
+
+
+
+
+example of standard kernel module doing memory mapping  to show how it appears in /proc/iomem and /proc/devices
+==============================================================================================================
+
+src: http://www.tldp.org/LDP/LG/issue83/thangaraju.html
+ 
+   
+module code:
+
+    Example Driver Code for I/O memory region allocation
+
+    #include <linux/module.h>
+    #include <linux/init.h>
+    #include <linux/fs.h>
+    #include <linux/ioport.h>
+
+    static int Major, result;
+    struct file_operations fops;
+
+    unsigned long start = 0, length = 0;
+
+    MODULE_PARM (start, "l");
+    MODULE_PARM (length, "l");
+
+    int Wipro_init (void) {
+        Major = register_chrdev (0, "Wipro_device", &fops);
+        if (Major < 0)
+        {
+            printk (" Major number allocation is failed \n");
+            return (Major);
+        }
+        printk (" The Major number of the device is %d \n", Major);
+
+        result = check_mem_region (start, length);
+        if (result < 0)
+            {
+                printk ("Allocation for I/O memory range is failed: Try other range\n");
+                return (result);
+            }
+
+            request_mem_region (start, length, "Wipro_device");
+            return 0;
+    }
+
+    void Wipro_cleanup (void) {
+        release_mem_region (start, length);
+        printk (" The I/O memory region is released successfully \n");
+
+        unregister_chrdev (Major, "Wipro_device");
+        printk (" The Major number is released successfully \n");
+    }
+
+    module_init (Wipro_init);
+    module_exit (Wipro_cleanup);    
+   
+
+before loading module :
+
+
+    $cat /proc/devices
+    Character devices:
+    1 mem
+    2 pty
+    ...
+    180 usb
+
+    $cat /proc/iomem
+    00000000-0009fbff : System RAM
+    ...
+    e0000000-e3ffffff : Silicon Integrated Systems [SiS] 620 Host
+    ffff0000-ffffffff : reserved 
+
+after loading module: 
+
+
+    $cat /proc/devices
+    Character devices:
+    1 mem
+    2 pty
+    ...
+    180 usb
+    254 Wipro_device                                                       <------------------
+
+    $cat /proc/iomem
+    00000000-0009fbff : System RAM
+    ...
+    e0000000-e3ffffff : Silicon Integrated Systems [SiS] 620 Host
+    eeee0000-eeeeeeed : Wipro_device                                       <------------------
+    ffff0000-ffffffff : reserved 
+
+
+NOTE: “/proc/ioports”  is special for intel x86 where you don't memory map, but have special io-ports
+      which you can read/write with inb and outb cpu-instructions specially build into the intel CPU
+
+
+

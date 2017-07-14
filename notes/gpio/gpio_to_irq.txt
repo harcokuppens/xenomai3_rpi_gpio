@@ -1,0 +1,96 @@
+   gpio_to_irq(gpio) -> irq    
+ ---------------------------
+ 
+
+   In gpiochip structure you must set per specific gpio chip
+   a function which determines how this  gpio -> irq mapping is done.
+   This is offcourse per chip different, and per chip you must write specific driver
+   code for this.
+   
+   For raspberry pi's bcm2835_gpio_chip  :
+   
+   
+   in ./drivers/pinctrl/bcm/pinctrl-bcm2835.c : 
+   
+       static struct gpio_chip bcm2835_gpio_chip = {
+           .label = MODULE_NAME,
+           .owner = THIS_MODULE,
+           .request = bcm2835_gpio_request,
+           .free = bcm2835_gpio_free,
+           .direction_input = bcm2835_gpio_direction_input,
+           .direction_output = bcm2835_gpio_direction_output,
+           .get = bcm2835_gpio_get,
+           .set = bcm2835_gpio_set,
+           .to_irq = bcm2835_gpio_to_irq,                    => specific function
+           .base = 0,
+           .ngpio = BCM2835_NUM_GPIOS,
+           .can_sleep = false,
+       };
+   
+
+      ..
+      
+      
+      static int bcm2835_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+      {
+          struct bcm2835_pinctrl *pc = dev_get_drvdata(chip->dev);
+
+          return irq_linear_revmap(pc->irq_domain, offset);
+      }
+      
+      
+      => so specific implementation !!  
+         note: irq_linear_revmap seems to hint that there is some lineair mapping from gpio number to irq number!!
+
+
+          
+           
+  question : is on the pi the IRQ different per gpio pin??
+  --------------------------------------------------------
+  
+  answer:  yes 
+     
+      proof :
+      
+        two userspace programs : 
+            button_toggles_led program uses irq on gpio24
+            output_driven_irq program uses irq on gpio23
+     
+
+
+        before/after  running these programs
+     
+          root@raspberrypi:~ # cat /proc/xenomai/irq
+            IRQ         CPU0        CPU1        CPU2        CPU3
+             97:     1331976      522004      234960      206689         [timer/0]
+           1033:           0           0           0           0         [sync]
+           1034:           0           1           1           1         [timer-ipi]
+           1035:           0           2          75          60         [reschedule]
+           1036:           0           0           0           0         [virtual]
+           1040:          17         125          44          29         [virtual]                               
+   
+        during running both programs button_toggles_led and output_driven_irq
+   
+           root@raspberrypi:~ # cat /proc/xenomai/irq
+             IRQ         CPU0        CPU1        CPU2        CPU3
+              97:     1340732      523754      235468      207286         [timer/0]
+             503:         800           0           0           0         gpio23                  => button_toggles_led 
+             504:          12           0           0           0         gpio24                  => output_driven_irq
+            1033:           0           0           0           0         [sync]
+            1034:           0           1           1           1         [timer-ipi]
+            1035:           0           2          75          60         [reschedule]
+            1036:           0           0           0           0         [virtual]
+            1040:          17         129          48         121         [virtual]
+                           |
+                           `-> all on cpu0 
+                               => for why see rpi2_irq_affinity.txt 
+   
+   IMPORTANT:
+   
+      in /proc/interrupts  you cannot find irq 503 and 504  because in xenomai the irq's are not shared!!
+      
+       => either a device is handled in realtime or in linux  but never both  =>  make a choice!!
+       
+       
+       
+   

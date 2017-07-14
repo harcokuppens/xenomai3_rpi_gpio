@@ -1,0 +1,44 @@
+realtime gpio - xenomai RTDM gpio driver
+----------------------------------------
+
+ in xenomai3 project at git : http://git.xenomai.org/xenomai-3.git/
+ there is a work in progress drivers branch (wip/drivers): http://git.xenomai.org/xenomai-3.git/log/?h=wip/drivers
+
+ Which contains a beta version of a rtdm driver for each gpio port :
+   
+   in xenomai  source :
+       include/rtdm/gpio.h
+       include/rtdm/uapi/gpio.h
+       
+    $ ls -1 kernel/drivers/gpio/
+    gpio-bcm2835.c                      => realtime (RTDM) driver for bcm2835's gpio (raspberry pi)  => uses generic gpio-core.c library to implement it
+    gpio-core.c                         => realtime (RTDM) gpio library to implement gpiochip drivers in realtime
+    gpio-core.h
+    gpio-mxc.c                          => driver for mxc's gpio (NOT raspberry pi)
+    Kconfig                             => config parameters for linux kernel (whether to build into kernel or not)
+    Makefile   
+
+     =>  kernel space source code!!!
+     
+
+IMPORTANT: 
+
+* see 
+  
+     RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt 
+
+  for details of the implementation of the realtime (RTDM) driver for bcm2835's gpio
+
+* the realtime library implemented in gpio-core.c wraps a gpiochip in an rtdm driver, but when 
+  doing this it only supports realtime for read and write file operations
+  but not for ioctl and open. For ioctl and open the program will return to linux prioritiy!!
+   => details see in : 
+   
+       RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt 
+ 
+ 
+
+   
+ 
+ 
+

@@ -1,0 +1,220 @@
+
+io-ports with io-bus    versus     memory mapped
+------------------------------------------------
+
+http://www.wikiwand.com/en/Input/output
+
+
+An I/O interface is required whenever the I/O device is driven by the processor. 
+Typically a CPU communicates with devices via a bus.   
+
+Whether it uses special io-ports or is memory mapped they can both use a bus in the background, but the interface
+from the cpu is different!  (assembly code different)
+Note: memory mapped can be the a special controller fetches it from memory and puts it on a special io bus (maybe such as CAN bus)
+      but it can also be that device is integrated in the chip and the controller only uses the memory bus to fetch 
+      instruction and gives it directly to the device.
+      
+
+   
+two types of access:  
+
+ - memory mapped  
+  A computer that uses memory-mapped I/O accesses hardware by reading and writing to specific memory locations, using
+  the same assembly language instructions that computer would normally use to access memory.
+
+ - specialised io instructions   
+  An alternative method is via instruction-based I/O which requires that a CPU have specialised instructions for I/O.
+  
+ 
+ 
+raspberry pi uses memory mapping for gpio
+-----------------------------------------
+  
+  for raspberry pi gpio pin , you write to the memory mapped gpio, the chip's memory bus implementation
+  or a special controller on the bus (don't know which) then somehow recognizes this special memory mapped address 
+  and  steers the gpio pins 
+  
+  Anyway: for the enduser it only matters whether it is memory mapped and he can simple write into memory,
+          or it  uses special io-bus with special cpu instruction (eg. inb outb for intel io-ports)
+
+
+  see example code:
+     http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access
+        => memory mapping to gpio pins ==> directly turn them on/off
+     
+     
+     note: each gpio pin value mapped to a bit in memory
+
+http://wiki.osdev.org/I/O_Ports  
+
+  An I/O port is usually used as a technical term for a specific address on the x86's IO bus. This bus provides
+  communication with devices in a fixed order and size, and was used as an alternative to memory access. 
+                                                            ^^^         ^^^^^^^^^^^^^^  ================
+                                                             
+  On many other architectures, there is no predefined bus for such communication and all communication with hardware is
+  done via memory-mapped IO. This also increasingly happens on modern x86 hardware.
+  
+  
+  
+  
+  
+http://cs.nyu.edu/courses/fall10/V22.0436-001/lecture23.html
+
+ Input-output: requirements on the processor  / IO device interface
+
+    support wide variety of device speeds and types
+    multiple, concurrent data transfers
+    asynchronous devices
+    open architecture
+
+
+http://cs.nyu.edu/courses/fall10/V22.0436-001/lecture24.html
+
+
+
+Lecture 24: Input-Output:  Buses and I/O Transfers
+==================================================
+
+Bus
+
+    a bus is a set of wires connecting multiple modules (processor, memory, IO devices)
+    a bus standard provides flexibility:  can connect multiple devices from different manufacturers
+    but a bus may be a communications bottleneck
+    a bus may be synchronous or asynchronous
+    to coordinate transmission on an asnchronous bus, a hanndshaking protocol can be used (text p. 584)
+
+A simple bus:  the ISA bus
+
+    Original bus of the IBM PC.
+    Includes the following signals (not a complete list)
+
+        the processor clock
+        power and ground
+        20 address lines
+        8 data lines
+        memory read, memory write, IO read, IO write lines (set by processor)
+
+    The x86 has separate addresses spaces for memory and IO (port numbers);                        => special io
+    
+    Some processors, such as MIPS, have a single address space for both (memory-mapped IO).        => memory mapped io
+
+
+Control and Status Registers
+
+   Each I/O device is connected to the I/O bus through a controller. A simple controller will have at least 3 addresses
+   (ports) on the bus, each corresponding to a register in the controller
+
+        a data register (either readable or writable, depending on whether it is an input or output device)
+        a control register (writable, for controlling device operation)
+        a status register (readable, for determining device status -- in particular, whether it is ready to receive or provide data)
+
+    More complex devices (e.g., disks) will have multiple control and status registers
+
+
+Controlling input-output transfers 
+
+    polling: processor continuously checks IO devices;
+         practical only for the simplest controllers  (either processor is dedicated to polling, or polling must be
+          performed regularly as part of the  program running on the processor)
+    
+    interrupt-driven IO: IO device interrupts processor when ready to transmit data; processor executes interrupt routine to tranfer data
+        separate interrupt line (or lines) on bus
+        processor checks for interrupt after each instruction;  
+        on interrupt, saves PC (and registers) and goes to interrupt routine
+        will generally have several interrupts with different priorities
+            ISA has IRQ2 ... IRQ7 interrupt lines
+        vectored interrrupt -- interrupt routine selected by CPU depends on source of interrupt
+    OK for moderate speed devices, but a significant load on CPU for fast devices
+    
+    DMA (direct memory access):
+        
+        IO controller can independently perform transfer of a block of data once started by CPU
+        
+        the CPU must still transmit control information to the IO device (e.g., for a disk, the sector to read) and
+        must transmit the starting address and length of the data block to the DMA controller; when the transmission of
+        the block is finished, the controller will interrupt the CPU
+        
+        with DMA, a system has multiple bus masters: multiple devices on the bus which can initiate a bus operation.
+        Consequently, the bus needs a priority mechanism to determine which bus master can get the bus if there are
+        several requests. Normally IO devices will have higher priority than the CPU.
+        
+            ISA has DRQ1 ... 3 lines so that devices can request DMA
+        
+        DMA raises problems for cache coherence: since not all data destined for memory goes through the CPU, one must
+        insure coherence between cache information and memory information. This can be addressed by a 'snoopy' cache.
+    
+    intelligent controllers (microprocessors themselves): 
+    
+         handle basic control of IO device in addition to block transfers (e.g., error checking for communication
+         lines, transfer of multiple sectors from disk
+    
+
+http://cs.nyu.edu/courses/fall10/V22.0436-001/lecture25.html
+
+
+Lecture 25:  Bus structure of a modern PC
+==========================================
+
+A hierarchy of busses
+
+    The single ISA bus of the original PC has evolved into a hierarchy of busses, consisting of very fast CPU busses
+    connecting to fast local busses connecting to (relatively) slow external busses
+
+    Typical machine organization
+        CPU
+        north bridge (memory controller hub)
+           connects to RAM and AGP
+        south bridge (I/O controller hub)
+           connects to all other I/O
+    AMD 64-bit chips and now Intel Core i7 chips move the memory controller onto the CPU, part of a trend towards greater consolidation.
+
+    Connection from CPU to north bridge is system bus
+        also referred to as front-side bus (FSB)
+        64-bit width on most current CPUs
+        up to about 1 GHz for current processors
+        [in contrast to back side bus, used on some machines to connect CPU to an L2 or L3 cache]
+
+    When the memory controller moves onto the CPU, the FSB is replaced by a QuickPath Interconnect (QPI) [Intel] or
+    HyperTransport [AMD] to the IO Hub (former Southbridge). Recent Core i7 chips also move some PCIe connections onto the
+    CPU chip.
+
+
+
+Local Ports and Busses
+
+    AGP
+        accelerated graphics port (dedicated port -- not a bus)
+        introduced when transfer speed of PCI bus was no longer sufficient for graphics devices
+        basic bus is 32 bits, 66 MHz clock, so initially 266 MB/sec, but newer versions are X2, X4, X8 speed;  X8 = 2.1 GB/sec
+        now largely replaced by PCIe (PCI Express) bus
+
+    PCI bus
+        Peripheral Component Interconnect bus
+        Introduced in 1993 as 32-bit bus, 33 MHz (raised withh PIC 2.2 to 66 MHz)
+        Replaced ISA and EISA busses as primary bus for faster devices;  ISA remains as a device on PCI bus
+        Upgrade in 1998:  PCI-X, PCI Extended, 64-bit bus, 133 MHz
+
+    Upgrade in 2004:  PCIe, PCI Express
+        PCIe is not a real bus, but a set of serial point-to-point interconnections (same software interface as PCI)
+        Each 'lane' of PICe supports 250MB/sec (full duplex)
+            in 2007, PCIe 2.0, 500MB/sec
+            in late 2010, PCIe 3.0, doubles PCIe 2.0 speed
+        Can support up to 32 lanes (can connect multiple lanes to same device for faster speeds)
+
+Busses for connecting I/O Devices
+
+    General tendency towards serial links to avoid problems of signal skew as frequencies increase
+
+    For disk drives
+        ATA (Advanced Technology Attachment) ... 16-bit parallel bus introduced in 1980's for PC disks
+        now generally replaced by
+        SATA (Serial ATA) ... serial bus (not a shared bus) ... initially 1.5Gb/s, then 3.0Gb/s;  6.0Gb/s introduced in 2009 to handle fastest SSDs
+
+    USB
+        Universal Serial Bus
+        Introduced 1996
+        Three speeds:  low (1.5 Mbps), full (12 Mbps), and (with USB 2.0 in 2000) hi (480 Mbps)
+            A new, faster standard (USB 3.0 -- 4.8 Gbps) was released in August 2008 with product introductions beginning in 2010
+        4 wires (differential data wires + power and ground)  (8 wires for USB 3.0)
+
+     

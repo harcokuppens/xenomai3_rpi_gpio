@@ -1,16 +1,10 @@
-  
+ 
+
+         
 rpi
 ----       
    
-   add reset button to rpi
-      http://www.makeuseof.com/tag/add-reset-switch-raspberry-pi/
-  
-       => I just put a switch with two long legs throught the holes of  the "run header to reset"
-       
-       2 functions :
-           - when running : button press -> hard  reset
-           - when system is halted by running : sudo halt 
-                button press -> initiate start (boot)
+
        
         
   microusb-kabel-met-aan-uit-schakelaar  
@@ -25,11 +19,24 @@ rpi
     
      
   open case  
-    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/officiele-raspberry-pi-3-behuizing  => top can open, sides can open     
-    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/raspberry-pi-hat-behuizing-zwart   <= prefer!  => also gives access to hat with breadboard
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/officiele-raspberry-pi-3-behuizing  => top can open, sides can open       € 7,95
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/raspberry-pi-hat-behuizing-zwart   => doorzichtig draai deksel, echter for ide kabel deksel moet open staan  => also gives access to hat with breadboard
     http://tinkersphere.com/raspberry-pi-accessories/375-raspberry-pi-3-case-enclosure-with-gpio-access.html
     
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/adafruit-raspberry-pi-b-plus-pi-2-case-smoke-base-clear-top => € 8,95 doorzichtig desksel  met uitsparing gpio!
+                  `-> prefer  because good to connect and nice to see through clear top!!
+                  
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/multicomp-raspberry-pi-3-behuizing-zwart  € 6,50
+      => good connections (uitsparing gpio) => geen doorzichtig deksel              
+    
+    
     lego behuizing : https://www.sossolutions.nl/smartipi-lego-behuizing-met-gopro-mount-1293
+    
+    
+    
+    
+    
+    
     
   hat with breadboard
      => https://www.kiwi-electronics.nl/explorer-hat-voor-raspberry-pi

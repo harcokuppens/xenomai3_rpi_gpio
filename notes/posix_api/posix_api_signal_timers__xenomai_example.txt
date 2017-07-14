@@ -1,0 +1,396 @@
+
+NOTE:  alchemy API with rt_alarm_X methods are much easier to use!
+
+
+
+posix  timers and signals
+=========================
+
+
+timer create SIG_ALRM => resumes thread
+----------------------------------------
+
+
+$ man timer_create 
+$ man timer_settime
+
+
+$ man sig_wait
+        
+        sigwait - wait for a signal
+        
+        The  sigwait()  function  suspends execution of the calling thread until one of the signals specified in the signal set set becomes pending.  The function accepts the
+        signal (removes it from the pending list of signals), and returns the signal number in sig.
+        
+        
+  => signal must first be pending => means blocked
+          
+$ man sigprocmask
+
+ sigprocmask - examine and change blocked signals
+ 
+sigprocmask() is used to fetch and/or change the signal mask of the calling thread.  
+The signal mask is the set of signals whose delivery is currently blocked for the
+caller (see also signal(7) for more details).
+       
+       
+       
+   Linux supports both POSIX reliable signals (hereinafter "standard signals") and POSIX real-time signals.       
+
+
+
+$ man 7 signal
+
+you can either :
+
+    
+  - Asynchronously handle a signal in a special signal handler function    
+       -> signal must not be blocked
+
+
+  - Synchronously accepting a signal
+       Rather than asynchronously catching a signal via a signal handler, it is possible to synchronously accept the signal, that is, to block execution until the signal  is
+       delivered, at which point the kernel returns information about the signal to the caller.  There are two general ways to do this:
+
+       * sigwaitinfo(2), sigtimedwait(2), and sigwait(3) suspend execution until one of the signals in a 
+         specified set is delivered.  Each of these calls returns information
+         about the delivered signal.
+          -> signal must be blocked when calling sigwait such that sigwait can remove it from pending queue
+         
+
+       * signalfd(2) returns a file descriptor that can be used to read information about signals that are delivered to the caller.  Each read(2) from this  file  descriptor
+         blocks  until  one  of  the  signals  in  the set specified in the signalfd(2) call is delivered to the caller.  The buffer returned by read(2) contains a structure
+         describing the signal.
+
+  - Waiting for a signal to be caught
+  
+       The following system calls suspend execution of the calling process or thread until a signal is caught (or an
+       unhandled signal terminates the process):
+
+       pause(2)        Suspends execution until any signal is caught.
+
+       sigsuspend(2)   Temporarily changes the signal mask (see below) and suspends execution until one of the unmasked signals is caught.
+       
+      
+
+$ man 7 signal
+
+   Signal mask and pending signals
+       A signal may be blocked, which means that it will not be delivered until it is later unblocked. 
+       Between the time when it is generated and when it is delivered a signal is said to be pending.
+    
+       Each thread in a process has an independent signal mask, which indicates the set of signals that the thread is
+       currently blocking. A thread can manipulate its signal mask using pthread_sigmask(3). In a traditional
+       single-threaded application, sigprocmask(2) can be used to manipulate the signal mask.
+       
+       
+       A child created via fork(2) inherits a copy of its parent's signal mask; the signal mask is preserved across
+       execve(2).
+
+       A signal may be generated (and thus pending) for a process as a whole (e.g., when sent using kill(2)) or for a specific thread (e.g., certain signals, such as SIGSEGV
+       and  SIGFPE,  generated  as a consequence of executing a specific machine-language instruction are thread directed, as are signals targeted at a specific thread using
+       pthread_kill(3)).  A process-directed signal may be delivered to any one of the threads that does not currently have the signal blocked.  If  more  than  one  of  the
+       threads has the signal unblocked, then the kernel chooses an arbitrary thread to which to deliver the signal.
+
+       A  thread  can obtain the set of signals that it currently has pending using sigpending(2).  This set will consist of the union of the set of pending process-directed
+       signals and the set of signals pending for the calling thread.
+
+       A child created via fork(2) initially has an empty pending signal set; the pending signal set is preserved
+       across an execve(2).                         ------------------------
+                                                     `-> queue !!  (not mask => mask is inherited)
+       
+       
+  Real-time signals are distinguished by the following:
+
+       1.  Multiple instances of real-time signals can be queued.  
+           By contrast, if multiple instances of a  standard signal are  delivered  while  that  signal  is  currently
+           blocked, then only one instance is queued.
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           `-> normal signal such as SIGALRM
+                           
+       2.  If the signal is sent using sigqueue(3), an accompanying value (either an integer or a pointer) can be sent with the signal.  If the receiving process establishes
+           a handler for this signal using the SA_SIGINFO flag to sigaction(2) then it can obtain this data via the si_value field of the siginfo_t structure passed  as  the
+           second argument to the handler.  Furthermore, the si_pid and si_uid fields of this structure can be used to obtain the PID and real user ID of the process sending
+           the signal.
+
+       3.  Real-time signals are delivered in a guaranteed order.  Multiple real-time signals of the same type are delivered in the order they were sent.  If different real-
+           time  signals  are  sent  to a process, they are delivered starting with the lowest-numbered signal.  (I.e., low-numbered signals have highest priority.)  By con‐
+           trast, if multiple standard signals are pending for a process, the order in which they are delivered is unspecified.
+       
+
+$ man sigevent
+
+       struct sigevent {
+           int          sigev_notify; /* Notification method */
+           int          sigev_signo;  /* Notification signal */
+           union sigval sigev_value;  /* Data passed with
+                                         notification */
+           void       (*sigev_notify_function) (union sigval);
+                            /* Function used for thread
+                               notification (SIGEV_THREAD) */           =>  xenomai NO-SUPPORT
+           void        *sigev_notify_attributes;
+                            /* Attributes for notification thread
+                               (SIGEV_THREAD) */                           =>  xenomai NO-SUPPORT
+           pid_t        sigev_notify_thread_id;                                    
+                            /* ID of thread to signal (SIGEV_THREAD_ID) */  =>  xenomai  SUPPORT  YES!!
+       };
+
+
+       The sigev_notify field specifies how notification is to be performed.  This field can have one of the following values:
+
+       SIGEV_NONE   -> dummy 
+               A "null" notification: don't do anything when the event occurs.
+
+       SIGEV_SIGNAL  -> to process 
+               Notify the process by sending the signal specified in sigev_signo.
+
+               If  the  signal is caught with a signal handler that was registered using the sigaction(2) SA_SIGINFO flag, then the following fields are set in the siginfo_t
+               structure that is passed as the second argument of the handler:
+
+               si_code   This field is set to a value that depends on the API delivering the notification.
+
+               si_signo  This field is set to the signal number (i.e., the same value as in sigev_signo).
+
+               si_value  This field is set to the value specified in sigev_value.
+
+               Depending on the API, other fields may also be set in the siginfo_t structure.
+
+               The same information is also available if the signal is accepted using sigwaitinfo(2).
+
+       SIGEV_THREAD  -> to special handler function (like new thread!)
+               Notify the process by invoking sigev_notify_function "as if" it were the start function of a new thread.  (Among the  implementation  possibilities  here  are
+               that  each timer notification could result in the creation of a new thread, or that a single thread is created to receive all notifications.)  The function is
+               invoked with sigev_value as its sole argument.  If sigev_notify_attributes is not NULL, it should point to a pthread_attr_t structure that defines  attributes
+               for the new thread (see pthread_attr_init(3)).
+
+      SIGEV_THREAD_ID (Linux-specific)  -> to specific thread id  (pid_t)
+               Currently used only by POSIX timers; see timer_create(2).
+               
+               
+               
+src: http://www.xenomai.org/documentation/xenomai-3/html/xeno3prm/group__cobalt__api__time.html#ga8a24ab6b0901162bbbbbca4f5205abd0
+
+xenomai - timer_create() 
+    Only thread-directed notification is supported (evp->sigev_notify set to SIGEV_THREAD_ID).
+    
+  thus : 
+     sevent.sigev_notify = SIGEV_THREAD_ID;
+     sevent.sigev_notify_thread_id = syscall(__NR_gettid);
+                                      `-> get pid_t of thread 
+
+
+
+
+
+https://courses.engr.illinois.edu/cs241/sp2009/ds/cs241-sp09-discussion6.pdf
+
+sigwait()
+
+  Takes as parameter a sigset corresponding to which signals it should wait for
+
+  You should block the signals first
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+  sigwait() will remove a signal from the queue that is in its sigset
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+  Must also pass a pointer to an integer for it to store signal that was removed
+   
+     sigwait(sigset_t *set, int *signo);       
+   
+Timers
+
+  Using POSIX:TMR timers...
+
+  Send the SIGALRM signal to the process
+
+  If we set up a signal handler for SIGALRM, we have a programmable timer!
+
+  !! Signals sent for timers or interrupts need to be unblocked for the thread that will be receiving them !! 
+       `=> if you have signal handler for that thread
+           however if you use sigwait to resume a thread from a timer's SIGALRM then
+           it should be blocked so that sigwait can fetch it from the queue as it arrives!!
+            (see above)
+           
+       
+       
+       
+       
+http://www.xenomai.org/pipermail/xenomai/2015-September/035044.html
+
+For future reference, this is what a working POSIX timer in Xenomai 
+looks like:
+
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <time.h>
+#include <pthread.h>
+#include <sys/syscall.h>
+
+void* print_time (void*);
+
+timer_t timer1;
+pthread_t thread;
+
+int main (int argc, char **argv)
+{
+     pthread_create(&thread, NULL, print_time, NULL);
+
+     pthread_join(thread, NULL);
+     exit (EXIT_SUCCESS);
+}
+
+void* print_time (void* args)
+{
+     struct timespec tp;
+     char buffer [80];
+     struct itimerspec new_value, old_value;
+     struct sigaction action;
+     struct sigevent sevent;
+     sigset_t set;
+     int signum = SIGALRM;
+
+     sevent.sigev_notify = SIGEV_THREAD_ID;
+     sevent.sigev_notify_thread_id = syscall(__NR_gettid);
+     sevent.sigev_signo = signum;
+
+     sigemptyset(&set);
+     sigaddset(&set, signum);
+     sigprocmask(SIG_BLOCK, &set, NULL);   // => SIGALRM must be first blocked before you can create timer!!
+                         
+                         // => 
+     if (timer_create (CLOCK_MONOTONIC, &sevent, &timer1) == -1)
+             perror ("timer_create");
+
+     new_value.it_interval.tv_sec = 1;
+     new_value.it_interval.tv_nsec = 0;
+     new_value.it_value.tv_sec = 1;
+     new_value.it_value.tv_nsec = 0;
+
+     if (timer_settime (timer1, 0, &new_value, &old_value) == -1)
+         perror ("timer_settime");
+
+     while(1){
+         /* wait for signal (1 s) */
+         if (sigwait (&set, &signum) == -1)
+             perror ("sigwait");
+
+         if (clock_gettime (CLOCK_MONOTONIC, &tp) == -1)
+             perror ("clock_gettime");
+
+         sprintf (buffer, "%ld s %ld ns overrun = %d\n", tp.tv_sec,
+                 tp.tv_nsec, timer_getoverrun (timer1));
+         write (STDOUT_FILENO, buffer, strlen (buffer));
+     }
+}   
+
+
+
+
+
+ 
+ 
+          
+     
+https://stackoverflow.com/questions/32283171/signal-handler-in-a-separate-pthread-using-timer-create
+
+  If you can accept the creation of a new thread for every timer tick, you can use SIGEV_THREAD:
+
+  struct sigevent evp;
+  memset((void *)&evp, 0, sizeof(evp));
+  evp.sigev_notify = SIGEV_THREAD;
+  evp.sigev_notify_function = &sig_alrm_handler;
+  evp.sigev_signo = SIGALRM;
+  evp.sigev_value.sigval_ptr = (void *)this;
+  int ret = timer_create(CLOCK_REALTIME, &evp, &_timerId);
+
+  This will create a new thread for every tick.
+
+  If you need to handle the signal in a specific thread, a little more work is required:
+
+
+
+
+  static void *
+  sig_threadproc(void *thrarg)
+  {
+      sigset_t sigset;
+      sigemptyset(&sigset);
+      sigaddset(&sigset, SIGALRM); 
+      
+      // no blocking of SIGALRM set because that blocking is inherited from main thread!
+
+      /* endless loop to wait for and handle a signal repeatedly */
+      for (;;) {
+          int sig;
+          int error;
+
+          error = sigwait(&sigset, &sig);   // sigwait 
+          if (error == 0) {
+              assert(sig == SIGALRM);
+              printf("got SIGALRM\n");
+          } else {
+              perror("sigwait");
+          }
+      }
+      return NULL;
+  }
+
+  static void
+  sig_alrm_handler(int signo)
+  {
+      /**
+       * dummy signal handler, 
+       * the signal is actually handled in sig_threadproc() 
+       **/
+  }
+
+
+  int
+  main(int argc, char *argv[])
+  {  
+     sigset_t sigset;
+      struct sigaction sa;
+      pthread_t sig_thread;
+      struct itimerspec tspec;
+      timer_t timer_id;
+
+      /* mask SIGALRM in all threads by default */
+      sigemptyset(&sigset);
+      sigaddset(&sigset, SIGALRM);           
+      sigprocmask(SIG_BLOCK, &sigset, NULL);
+
+      /* we need a signal handler.                   => dummy signal hander, which  is never called, 
+       * The default is to call abort() and              SIGALRM is blocked on the main thread 
+       * setting SIG_IGN might cause the signal         => UPDATE: just remove this dummy code!!
+       * to not be delivered at all.                 note: thread "sig_threadproc" does sigwait which can fetch SIGALRM if it arrives
+       **/
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_handler = sig_alrm_handler;
+      sigaction(SIGALRM, &sa, NULL);
+
+      /* create SIGALRM looper thread */
+      pthread_create(&sig_thread, NULL, sig_threadproc, NULL);
+
+      /* setup timer */
+      tspec.it_interval.tv_sec = 1;
+      tspec.it_interval.tv_nsec = 0;
+      tspec.it_value.tv_sec = 1;
+      tspec.it_value.tv_nsec = 0;
+
+      timer_create(CLOCK_REALTIME, NULL, &timer_id);
+      timer_settime(timer_id, 0, &tspec, NULL);
+
+      /**
+       * this might return early if usleep() is interrupted (by a signal)
+       * It should not happen, since SIGALRM is blocked on the
+       * main thread
+       **/
+      usleep(10000000);
+
+      return 0;
+  }
+
+   

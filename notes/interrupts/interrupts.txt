@@ -96,7 +96,13 @@ ERR:  0
                         functions handled by a USB controller.
  
  
-rasberry pi
+ 
+ 
+ 
+=>  IMPORTANT:  raspberry pi doesn't has ""emulated""  Intel 8042 chip  which gives keyboard interrupt on IRQ 1 
+                but many pc's still have  => even virtual box pc emulation has   ""emulated""  Intel 8042 chip  which gives keyboard interrupt on IRQ 1
+ 
+raspberry pi
 ------------ 
  =>  https://raspberrypi.stackexchange.com/questions/8661/interrupts-on-the-raspberry-pi
       /proc/interrupts for pi hardware 

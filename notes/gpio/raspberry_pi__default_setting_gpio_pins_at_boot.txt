@@ -1,0 +1,38 @@
+
+default values gpio pins on boot
+---------------------------------
+    
+          https://www.raspberrypi.org/forums/viewtopic.php?t=24491
+      
+          Five of the 17 available GPIO lines are pulled high by default (the rest are pulled low). 
+          The numbers are GPIO0/2, GPIO1/3, GPIO4, GPIO7 and GPIO8.
+      
+          GPIO14
+            As I learned from the forums, I use an LED hooked up to GPIO14 and mounted on my chassis to notify me when the
+            pi has completely shut down (The LED is lit at boot and is turned off at shutdown after the files systems have
+            been unmounted.
+
+         https://raspberrypi.stackexchange.com/questions/51479/gpio-pin-states-on-powerup
+     
+          The power on state is defined in BCM2835 ARM Peripherals page 102.
+
+          Basically all GPIO are in INPUT mode, GPIO 0-8 have pull-ups to 3V3 enabled, GPIO 9-27 have pull-downs to 0V enabled.
+      
+
+fix:  
+-----
+
+
+
+add to  /etc/rc.local  :
+
+
+    # by default turn clock leds off (clock exercise)
+    # leds are connected to gpio pins 2 3 4 17 27 22 10 9
+    echo "$prefix set output value 0 on gpio pins  2 3 4 17  27 22 10 9"
+    for d in 2 3 4 17 27 22 10 9
+    do
+      gpio -g mode $d out
+      gpio -g write $d 0
+    done
+    

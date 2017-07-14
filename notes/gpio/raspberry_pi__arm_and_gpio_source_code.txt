@@ -1,0 +1,40 @@
+
+
+
+raspberry pi arm and gpio source code
+=====================================
+
+
+bcm270X chip support in kernel 
+
+   raspbian/linux/arch/arm/mach-bcm2708
+      armctrl.c  armctrl.h  bcm2708.c  bcm2708_gpio.c  bcm2708.h  include/  Kconfig  Makefile  Makefile.boot
+
+   raspbian/linux/arch/arm/mach-bcm2709
+      armctrl.c  armctrl.h bcm2709.c   bcm2708_gpio.c   bcm2709.h   delay.S  include/  Kconfig  Makefile  Makefile.boot    vc_support.c    
+      
+    note:  raspbian/linux/arch/arm/mach-bcm2708 and  raspbian/linux/arch/arm/mach-bcm2709 contain both the same file bcm2708_gpio.c
+            but all other files differ, because chips differ but they both chips have same gpio circuit (nothing changed in gpio)  
+
+
+gpio support
+
+
+   raspbian/linux/arch/arm/mach-bcm2708/bcm2708.h
+   raspbian/linux/arch/arm/mach-bcm2708/bcm2709.h
+     => gpio driver  for gpio in bcm2835 chip  ==> not used!
+
+   kernel.org/linux-4.1.21/drivers/gpio/
+      gpiolib.c gpiolib.h gpiolib-legacy.c  and lots of gpio-<deviceX>.c
+        `-> generic gpio support in linux kernel
+        
+   kernel.org/linux-4.1.21/drivers/pinctrl/bcm/
+        pinctrl-bcm2835.c       
+         `->  gpio driver for gpio in bcm2835 chip => USED!!
+          -> comes already with kernel.org, patched in raspbian, and needed more patch code to make it realtime!
+           
+   xenomai-3-3.0.5/kernel/drivers/gpio/
+     gpio-bcm2835.c  gpio-core.c  gpio-core.h  gpio-mxc.c  Kconfig  Makefile
+      `-> rtdm driver for gpio in bcm2835 chip , use gpio-core.c  generic  rtdm support for gpio 
+          => wraps  pinctrl-bcm2835.c  driver  
+          ==> IMPORTANT:  pinctrl-bcm2835.c  NEEDED patch code to make it realtime!!
