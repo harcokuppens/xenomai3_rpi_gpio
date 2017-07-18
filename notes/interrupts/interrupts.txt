@@ -1,0 +1,192 @@
+
+linux
+  lookup processes : top 
+  lookup irq :   /proc/interrupts
+  
+
+xenomai :
+
+ lookup realtime tasks : /proc/xenomai/sched/rt/threads  
+ lookup irq : /proc/xenomai/irq
+ 
+ 
+
+
+http://www.thegeekstuff.com/2014/01/linux-interrupts/?utm_source=feedburner
+
+# cat /proc/interrupts
+           CPU0   CPU1  CPU2  CPU3
+  0: 3710374484      0     0     0  IO-APIC-edge  timer
+  1:         20      0     0     0  IO-APIC-edge  i8042           <= keyboard  controller 
+  6:          5      0     0     0  IO-APIC-edge  floppy
+  7:          0      0     0     0  IO-APIC-edge  parport0
+  8:          0      0     0     0  IO-APIC-edge  rtc
+  ..
+  
+A small IRQ number value means higher priority.
+
+For example if CPU receives interrupt from Keyboard and system clock simultaneously. CPU will serve System Clock first since it has IRQ number 0.
+
+    IRQ 0 — system timer (cannot be changed);
+    IRQ 1 — keyboard controller (cannot be changed)
+    IRQ 3 — serial port controller for serial port 2 (shared with serial port 4, if present);
+    IRQ 4 — serial port controller for serial port 1 (shared with serial port 3, if present);
+    IRQ 5 — parallel port 2 and 3 or sound card;
+    IRQ 6 — floppy disk controller;
+    IRQ 7 — parallel port 1. It is used for printers or for any parallel port if a printer is not present.
+
+
+also see https://notes.shichao.io/lkd/ch7/#procinterrupts
+ 
+ 
+      CPU0
+0:    3602371  XT-PIC  timer
+1:    3048     XT-PIC  i8042
+2:    0        XT-PIC  cascade
+4:    2689466  XT-PIC  uhci-hcd,  eth0
+5:    0        XT-PIC  EMU10K1
+12:   85077    XT-PIC  uhci-hcd
+15:   24571    XT-PIC  aic7xxx
+NMI:  0
+LOC:  3602236
+ERR:  0
+
+    The first column is the interrupt line.
+        Interrupts numbered 0–2, 4, 5, 12, and 15 are present this system.
+        Handlers not installed on lines are not displayed.
+    The second column is a counter of the number of interrupts received. A column is present for each processor 
+        on the system (this system has one processor: CPU0). On this system:
+        The timer interrupt has received 3,602,371 interrupts
+        The sound card (EMU10K1) has received none (which is an indication that it has not been used since the machine booted).
+    The third column is the interrupt controller handling this interrupt.
+        XT-PIC corresponds to the standard PC programmable interrupt controller.
+        On systems with an I/O APIC, most interrupts would list IO-APIC-level or IO-APIC-edge as their interrupt controller.
+    The last column is the device associated with this interrupt.
+        This name is supplied by the name parameter to request_irq(), as discussed previously.
+        If the interrupt is shared, as is the case with interrupt number 4 in this example, 
+        all the devices registered on the interrupt line are listed.
+ 
+ 
+  about keyboard controller 
+           
+            for the last column the  name is supplied by the name parameter to request_irq() and represents the device
+            CAUSING the interrupt!
+            
+            note: in case of IRQ 1  the device is "i8042" which is the classic ibm chip for the keyboard controller
+                 however nowadays the hardware hasn't this chip anymore, but it is integrated in bigger chip
+                 either the super i/o device or a usb controller :
+ 
+                    http://www.wikiwand.com/en/Keyboard_controller_(computing)
+
+                    In computing, a keyboard controller is a device that interfaces a keyboard to a computer. Its main function is to
+                    inform the computer when a key is pressed or released. When data from the keyboard arrives, the controller raises an
+                    interrupt (a keyboard interrupt) to allow the CPU to handle the input.
+
+
+                    The keyboard controller is not directly attached to the keys, but receives scancodes from a microcontroller embedded in
+                    the keyboard via some kind of serial interface. In this case, the controller usually also controls the keyboard's LEDs
+                    by sending data back to keyboard through the wire.
+
+
+                    hardware :
+
+                        The IBM PC AT used an Intel 8042 chip to interface to the keyboard. 
+
+                        Today the keyboard controller is either a unit inside a Super I/O device or is missing, having its keyboard and mouse
+                        functions handled by a USB controller.
+ 
+ 
+ 
+ 
+ 
+=>  IMPORTANT:  raspberry pi doesn't has ""emulated""  Intel 8042 chip  which gives keyboard interrupt on IRQ 1 
+                but many pc's still have  => even virtual box pc emulation has   ""emulated""  Intel 8042 chip  which gives keyboard interrupt on IRQ 1
+ 
+raspberry pi
+------------ 
+ =>  https://raspberrypi.stackexchange.com/questions/8661/interrupts-on-the-raspberry-pi
+      /proc/interrupts for pi hardware 
+      
+       The /proc/interrupts output names give good clues to the device attached. I believe the following are correct.
+
+                  CPU0       
+         3:      24988   ARMCTRL  BCM2708 Timer Tick
+
+       system timer - the timer that is used for process scheduling and kernel housekeeping
+
+        32:     365683   ARMCTRL  dwc_otg, dwc_otg_pcd, dwc_otg_hcd:usb1
+
+       USB/ethernet
+
+        52:          0   ARMCTRL  BCM2708 GPIO catchall handler
+
+       GPIO device driver
+
+        65:       2583   ARMCTRL  ARM Mailbox IRQ
+        66:          1   ARMCTRL  VCHIQ doorbell
+
+       GPU communications interrupts
+
+        75:          1   ARMCTRL
+
+       Alternate USB interrupt for some configurations
+
+        77:       7076   ARMCTRL  bcm2708_sdhci (dma)
+
+       SD card dma access?
+
+        83:         19   ARMCTRL  uart-pl011
+
+       Serial port uart
+
+        84:      11515   ARMCTRL  mmc0
+
+       SD card access
+
+       FIQ:              usb_fiq
+       Err:          0
+       
+
+
+
+cup: my linux pc ubuntu 14.04 lenovo
+----------------------------------
+
+harcok@cup:~
+$ cat /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3
+  0:         17          0          0          0   IO-APIC-edge      timer
+  1:          2          0          0          0   IO-APIC-edge      i8042           => keyboard controller, seems on interrupt line 1, even keyboard is usb keyboard
+  7:          8          0          0          0   IO-APIC-edge
+  8:          1          0          0          0   IO-APIC-edge      rtc0
+  9:          1          1          0          2   IO-APIC-fasteoi   acpi
+ 12:          3          0          1          0   IO-APIC-edge      i8042
+ 17:         29          1          3          0   IO-APIC-fasteoi   ehci_hcd:usb1
+ 19:          2          6          0          4   IO-APIC-fasteoi
+ 23:         35          0          2          0   IO-APIC-fasteoi   ehci_hcd:usb2
+ 40:          0          0          0          0   PCI-MSI-edge      PCIe PME
+ 41:          0          0          0          0   PCI-MSI-edge      PCIe PME
+ 42:          0          0          0          0   PCI-MSI-edge      PCIe PME
+ 43:    1108192      38783    2566247    5607126   PCI-MSI-edge      xhci_hcd
+ 44:        118   58871757        580        336   PCI-MSI-edge      eth0
+ 45:    3632176    2563015     556489     853747   PCI-MSI-edge      ahci
+ 46:       5777        909        920        315   PCI-MSI-edge      i915
+ 47:         24          0          0          0   PCI-MSI-edge      mei_me
+ 48:         52          9         35    2107587   PCI-MSI-edge      iwlwifi
+ 49:        354         12          6          6   PCI-MSI-edge      snd_hda_intel
+ 50:        902        419        152        164   PCI-MSI-edge      snd_hda_intel
+NMI:       4311       3243       4549       5004   Non-maskable interrupts
+LOC:   44611547   47183415   45153168   44534137   Local timer interrupts
+SPU:          0          0          0          0   Spurious interrupts
+PMI:       4311       3243       4549       5004   Performance monitoring interrupts
+IWI:    2723399    3462323    3105332    3043484   IRQ work interrupts
+RTR:          3          0          0          0   APIC ICR read retries
+RES:    2849114    2389880    2633022    2494931   Rescheduling interrupts
+CAL:       1219       1303       1365       1595   Function call interrupts
+TLB:     446864     468953     467582     497670   TLB shootdowns
+TRM:          0          0          0          0   Thermal event interrupts
+THR:          0          0          0          0   Threshold APIC interrupts
+MCE:          0          0          0          0   Machine check exceptions
+MCP:       9742       9742       9742       9742   Machine check polls
+ERR:          8
+MIS:          0

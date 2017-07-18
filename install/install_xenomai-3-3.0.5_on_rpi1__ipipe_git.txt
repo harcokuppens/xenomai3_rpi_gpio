@@ -1,0 +1,365 @@
+
+credits :
+--------
+ based on :
+    git://git.xenomai.org/ipipe.git  => branch "vendors/raspberry/ipipe-4.1" 
+
+    => a more official patch for ipipe for the rpi in the xenomai's ipipe git repository in a special branch for the pi1
+         ~~~~~~~~~~~~~~~~~~
+           `-> made by official xenomai and ipipe maintainers,
+               however not officially released
+               
+               
+ documentation how to build kernel for raspbian:
+    https://www.raspberrypi.org/documentation/linux/kernel/building.md
+
+
+ used tips from similar builds in 
+  http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi
+ 
+  http://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/
+  http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3
+ and 
+   added my modifications to get gpio to work on rpi1 
+
+
+ remark:
+   This build is done using a kind of more official
+   patch in the xenomai's ipipe git repository in a special
+   branch for the pi1  you find at :   git://git.xenomai.org/ipipe.git
+
+        $ git clone  git://git.xenomai.org/ipipe.git
+        $ cd ipipe 
+        $ git checkout vendors/raspberry/ipipe-4.1          => contains patched kernel source
+        $ make kernelversion
+        4.1.21
+
+        $ head  -4  Makefile
+        VERSION = 4
+        PATCHLEVEL = 1
+        SUBLEVEL = 21
+        EXTRAVERSION =
+
+
+   I think this branch source is based on the official raspbian source for 
+   branch rpi-4.1.y : https://github.com/raspberrypi/linux.git
+
+        # rasbian 4.1.21
+        mkdir raspbian
+        cd raspbian/
+        git clone https://github.com/raspberrypi/linux.git -b rpi-4.1.y --depth 1
+
+        note:   --depth <depth>
+                   Create a shallow clone with a history truncated to the specified number of revisions.
+
+        $ cd linux
+        $ make kernelversion
+        4.1.21
+
+        $ head -4 Makefile
+        VERSION = 4
+        PATCHLEVEL = 1
+        SUBLEVEL = 21
+        EXTRAVERSION =
+
+   However I think there are small differences in the kernel source,
+   so I  suppose the ipipe-4.1  is based on raspbian rpi-4.1.y,  
+   but which raspbian version precisely is unclear.
+   
+   This makes it difficult to make a nice  ipipe patch file for raspbian
+   from this ipipe-4.1  source. 
+
+
+
+
+
+
+
+
+
+# 0. prepare 
+# ------------
+
+export BUILDDIR=/var/tmp/ipipe_for_rpi1
+# build kernel with NUMCORES
+export NUMCORES=4
+
+
+mkdir $BUILDDIR   # place where download and build everything  
+mkdir  $BUILDDIR/dist  # for ready to install files
+
+
+
+
+# 1. get sources 
+#---------------
+#
+# 1a. get from xenomai's ipipe git repository ipipe patched raspbian linux ; probably on raspbian branch rpi-4.1
+#
+cd $BUILDDIR
+
+git clone  git://git.xenomai.org/ipipe.git
+cd  ipipe/
+git checkout vendors/raspberry/ipipe-4.1         #  contains ipipe-patched kernel source (probably based on raspbian)
+cd ..
+#
+# 1b. get xenomai source 
+wget http://git.xenomai.org/xenomai-3.git/snapshot/xenomai-3-3.0.5.tar.bz2
+tar -xjvf xenomai-3-3.0.5.tar.bz2
+#
+# 1c. get ipipe  patch 
+# => already in ipipe source 
+# download   bcm patch for xenomai3 :  3.18.12-xenomai3-temp.patch 
+# => already in ipipe source 
+
+ 
+# 2.  apply kernel patches ( xenomai only ; ipipe, and bcm already done!)
+# ------------------------
+#
+#  apply xenomai  patch to kernel
+# 
+xenomai-3-3.0.5/scripts/prepare-kernel.sh  --linux=ipipe/  --arch=arm 
+
+
+# question : How to apply xenomai patch if ipipe patch already applied?
+# answer : apply 
+#             scripts/prepare-kernel.sh  --linux=ipipe/  --arch=arm 
+#          without an --pipe argument
+#          
+#         background info :  
+#             http://xenomai.org/installing-xenomai-3-x/#Preparing_the_Cobalt_kernel
+#   
+#               --ipipe
+#      
+#                  specifies the path of the interrupt pipeline (aka I-pipe) patch to apply against the kernel tree. Suitable patches
+#                  are available from the project’s download area. This parameter can be omitted if the I-pipe has already been
+#                  patched in, or the script shall suggest an appropriate one. The script will detect whether the interrupt pipeline
+#                  code is already present into the kernel tree, and skip this operation if so.
+#      
+#              => so no problem kernel source is already patched!
+# 
+
+
+
+# 3. configure linux kernel/module option
+# ---------------------------------------
+
+
+cd ipipe
+       
+
+# create default config for bcm2708  => different per rpi type!
+#  note default configs in :  ./arch/arm/configs/bcm*
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+
+# a default configuration for bcm2708 written to .config
+# specialize config for xenomai
+# install package needed for menuconfig :  apt-get  install libncurses5-dev
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+    CPU Power Management  --->
+      CPU Frequency scaling  --->
+        [ ] CPU Frequency scaling
+      CPU idle  --->
+        [ ] CPU idle PM support
+    Kernel Features  --->
+        [ ] Contiguous Memory Allocator
+        [ ] Allow for memory compaction
+    Kernel Hacking  --->
+        [ ] KGDB: kernel debugger
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+
+
+    Xenomai Cobalt --->
+         Drivers  --->
+                 Real-time GPIO drivers  --->
+                    <*> GPIO controller                  => instead of:  [M] GPIO controller     => with * builds directly in kernel, then no need to load module anymore!
+                    [*]   Support for BCM2835 GPIOs
+                    [ ]   Enable GPIO core debugging features
+
+
+    note: in above  [ ]  means disable,  [X]  means enable
+
+
+
+cd ..
+        
+        
+        
+
+
+# 4. build kernel and modules in linux dir 
+# ----------------------------------------
+ 
+cd ipipe/
+# build
+export NUMCORES=4 
+time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+# -> real    6m45.452s
+# install in ../dist/ dir 
+time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
+
+cd ..
+
+ 
+
+# 5. built Xenomai user space part  ( kernel part is built with kernel above)
+$ ------------------------------
+
+## you need to have installed autoconf and libtool :
+# sudo apt-get install autoconf
+# sudo apt-get install libtool
+
+# install different cross compiler to compile xenomai user space source :
+
+svn co https://github.com/raspberrypi/tools/trunk/arm-bcm2708/arm-bcm2708hardfp-linux-gnueabi 
+# => gcc then in ./arm-bcm2708hardfp-linux-gnueabi/arm-bcm2708hardfp-linux-gnueabi/bin/gcc
+  
+export PATH=$PATH:$BUILDDIR/arm-bcm2708hardfp-linux-gnueabi/bin/
+
+# build xenomai    
+    
+export  CFLAGS=" -marm -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard"
+export  LDFLAGS=" -marm -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard" 
+
+cd xenomai-3-3.0.5
+./scripts/bootstrap 
+ 
+./configure  --host=arm-bcm2708hardfp-linux-gnueabi --with-core=cobalt --with-core=cobalt –enable-debug=partial
+#                    `-> different compiler 
+
+# 
+# Notes: 
+# 
+#  * problem 1: without -marm get error when running ./configure
+#       in config.log 
+#         sorry, unimplemented: Thumb-1 hard-float VFP ABI
+# 
+#     https://www.raspberrypi.org/forums/viewtopic.php?f=33&t=8758
+#     
+#       It seems the compiler is setup to generate thumb instructions by default and when you try and force it to build armv6
+#       hardfloat code it tries (and fails since it's not a combination worth implementing) to build armv6 hardfloat thumb
+#       mode code. Try specifying -marm.
+#    
+#   * problem 2: we get illegal instruction for the user space xenomai libraries  => however not for compiling  kernel nor modules ??
+#                => seems that cross compiler generated  thumb2 instructions which pi 1 cannot use
+#                => something wrong with linux cross compiler
+#                
+#                
+#      solution : we need different compiler for compiling for pi1 than the standard arm cross compiler on ubuntu 14.04
+#   
+#       src: https://raspberrypi.stackexchange.com/questions/58984/cross-compile-error-from-ubuntu-14-04-to-raspberry-zero-using-arm-linux-gnueabi
+# 
+#                  Currently the Debian armhf port requires at least an ARMv7 CPU with Thumb-2 and VFP3D16.
+# 
+#              That's what their cross compiler is made to target. Ubuntu follows the same pattern. It won't work to cross
+#              compile for model 1 (single core) pis, with the BCM2835 SoC.
+# 
+#              The confusing bit is that this means Debian's armhf tag is not the same as the armhf tag as used by Raspbian,
+#              which is the arm1176jzf implementation of ARMv6.
+#      
+#              what you need to use instead is :   https://github.com/raspberrypi/tools/tree/master/arm-bcm2708
+# 
+# 
+#    * background info of different cross compiler 
+#    
+#        $ /var/tmp/ipipe_for_rpi1/arm-bcm2708hardfp-linux-gnueabi/arm-bcm2708hardfp-linux-gnueabi/bin/gcc -dumpmachine
+#        arm-bcm2708hardfp-linux-gnueabi
+#        $ /var/tmp/ipipe_for_rpi1/arm-bcm2708hardfp-linux-gnueabi/arm-bcm2708hardfp-linux-gnueabi/bin/gcc -dumpversion
+#        4.7.1
+#        $ /var/tmp/ipipe_for_rpi1/arm-bcm2708hardfp-linux-gnueabi/arm-bcm2708hardfp-linux-gnueabi/bin/gcc --version
+#        gcc (crosstool-NG 1.15.2) 4.7.1 20120402 (prerelease)
+#        Copyright (C) 2012 Free Software Foundation, Inc.
+#        This is free software; see the source for copying conditions.  There is NO
+#        warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#    
+# 
+#  IMPORTANT:
+#    -  I compiled the kernel with the gcc arm compiler coming with ubuntu 14.04 which seems to go alright
+#    -  I only compiled xenomai src (user space tools/libraries) with the alternative compiler
+   
+      
+mkdir ../dist/xenomai
+export DESTDIR=`realpath ../dist/xenomai`  # realpath because must be absolute path
+make  DESTDIR="$DESTDIR"  install
+
+
+
+
+6. copy build stuff in dist/ to raspbian sdcard 
+-----------------------------------------------
+
+# 0. install raspbian on sd card;  os x instructions : 
+
+
+      note: diskutil is os x program!!  => do on mac!!
+
+        diskutil list
+            identify the disk (not partition) of your SD card. e.g. disk4 (not disk4s1)
+        diskutil unmountDisk /dev/<disk# from diskutil>
+            e.g. diskutil unmountDisk /dev/disk4
+        sudo dd bs=1m if=<your image file>.img of=/dev/<disk# from diskutil>
+            e.g. sudo dd bs=1m if=2014-09-09-wheezy-raspbian.img of=/dev/disk4
+            (This will take a few minutes)
+            
+            
+
+# 1. mount sdcard
+#  become root otherwise you cannot access sdcard
+
+sudo su -  
+
+export BUILDDIR=/var/tmp/ipipe_for_rpi1
+export SDCARD=/dev/sdb
+export MOUNTPOINT=/media/sdcard
+
+mkdir ${MOUNTPOINT}
+mount ${SDCARD}2 ${MOUNTPOINT}
+mount ${SDCARD}1 ${MOUNTPOINT}/boot
+
+
+cd $BUILDDIR
+
+# 2. copy Xenomai user space files to sd card
+#  
+cd dist/xenomai
+chown -R root:root *
+cp -a * ${MOUNTPOINT}/
+cd ../../
+
+# 3. copy kernel and modules 
+#
+# 3a. cp kernel and device tree files from linux/ dir  to /boot/ directory on image
+cd ipipe/
+cp arch/arm/boot/zImage ${MOUNTPOINT}/boot/
+cp arch/arm/boot/dts/bcm27*.dtb ${MOUNTPOINT}/boot/
+rm -rf ${MOUNTPOINT}/boot/overlays/*
+cp arch/arm/boot/dts/overlays/*.dtb* ${MOUNTPOINT}/boot/overlays/
+cd ../
+
+# 3b. cp modules from dist/lib/modules to sd card
+cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
+
+# update config for new kernel and device tree
+# at end of /boot/config.txt add :
+
+    kernel=zImage
+    # for pi2
+    # device_tree=bcm2709-rpi-2-b.dtb
+    # for pi3
+    # device_tree=bcm2710-rpi-3-b.dtb
+
+
+
+
+umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
+
+
+
+
+
+
+
+

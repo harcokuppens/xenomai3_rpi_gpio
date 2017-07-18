@@ -1,0 +1,11 @@
+   add reset button to rpi
+   -----------------------
+   
+      http://www.makeuseof.com/tag/add-reset-switch-raspberry-pi/
+  
+       => I just put a switch with two long legs throught the holes of  the "run header to reset"
+       
+       2 functions :
+           - when running : button press -> hard  reset
+           - when system is halted by running : sudo halt 
+                button press -> initiate start (boot)

@@ -1,0 +1,31 @@
+What does edge triggered and level triggered mean?  
+
+  src:  https://electronics.stackexchange.com/questions/21886/what-does-edge-triggered-and-level-triggered-mean
+
+
+  Its exactlly what is says.
+
+  If edge interrupt is set, the ISR will only get fired on falling/rising edge of a pulse. While if level sensitive
+  interrupt (as you say) is set the ISR will get fired everytime there is a low-level/high-level signal on the
+  corresponding pin.
+
+  In short, edge interrupt gets fired only on changing edges, while level interrupts gets fired as long as the pulse is
+  low or high.
+
+  So if you have low-level interrupt set, MCU will keep executing the ISR as long as the pin is low.
+  
+  ==> That is, it will leave and re-enter the ISR again and again, as long as the pin is low.
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  
+ from keyboard_irq_sharing_xenomai_linux_eoi__discussion_on_xenomai_mailinglist.txt :
+                  
+    For level-triggered IRQs, all hardware devices that may have raised the
+    IRQ line must be checked and told to lower it again before sending EOI.                    
+
+  => for some devices this is not possible. Eg. the led sensor for the pendulum clock stays low as long the pendulum
+    passes the sensor  =>   you need the use edge-trigger interrupt instead!!
+    
+            
+
+also see: http://www.wikiwand.com/en/Interrupt#Types_of_interrupts
+          

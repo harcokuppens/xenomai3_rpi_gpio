@@ -1,0 +1,43 @@
+
+
+
+raspberri pi
+============
+
+
+=> just goto https://www.raspberrypi.org/downloads/
+   and download an image you like
+=> for course I prefer minimal install,
+   because minimal image :
+     - in course don't need desktop  => just need terminal
+     - is smaller image to download and install
+     - boots faster because doesn't start desktop
+
+
+custom MINIMAL install tips
+---------------------------
+
+ - minimal raspbian install + remove package  + zero out unused diskspace to make virt.box image smaller (sfill)
+    see : http://www.cnx-software.com/2012/07/31/84-mb-minimal-raspbian-armhf-image-for-raspberry-pi/
+    
+ - using yocto to build raspbian
+     http://www.cnx-software.com/2011/04/29/yocto-project-build-your-own-custom-embedded-kernel-image/
+
+
+
+emulate rpi with qemu
+--------------------- 
+   => note: arm not supported by virtualbox so must use qemu
+   => note: hardware for gpio not there on emulated machine
+   
+  http://www.makeuseof.com/tag/emulate-raspberry-pi-pc/ 
+   => use ready image from https://sourceforge.net/projects/rpiqemuwindows/     ==> ADVICE!! quickstart!
+   
+  http://embedonix.com/articles/linux/emulating-raspberry-pi-on-linux/
+  http://paulscott.co.za/blog/full-raspberry-pi-raspbian-emulation-with-qemu/
+   => manual install
+ 
+
+
+
+  

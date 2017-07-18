@@ -1,0 +1,171 @@
+
+
+
+http://www.wikiwand.com/en/Processor_affinity
+
+
+Scheduling-algorithm implementations vary in adherence to processor affinity. Under certain circumstances, some
+implementations will allow a task to change to another processor if it results in higher efficiency. For example, when
+two processor-intensive tasks (A and B) have affinity to one processor while another processor remains unused, many
+schedulers will shift task B to the second processor in order to maximize processor use. Task B will then acquire
+affinity with the second processor, while task A will continue to have affinity with the original processor.
+
+
+http://www.wikiwand.com/en/Scheduling_(computing)
+
+
+The kernel always uses whatever resources it needs to ensure proper functioning of the system, and so can be said to
+have infinite priority. In SMP(symmetric multiprocessing) systems, processor affinity is considered to increase overall
+system performance, even if it may cause a process itself to run more slowly. This generally improves performance by
+reducing cache thrashing.
+  
+   
+ 
+http://www.glennklockwood.com/hpc-howtos/process-affinity.html
+
+SHORT
+       linux schedular does schedule processes over all your cpu's 
+       but in reality most HPC applications benefit greatly from a little bit of help in manually placing 
+       threads on different processor cores. (HPC: High-performance computing)
+
+
+intro
+-----
+
+The best application performance is usually obtained by keeping your code’s parallel workers (e.g., threads or MPI
+processes) as close to the memory on which they are operating as possible.
+ 
+
+While you might like to think that the Linux thread scheduler would do this automatically for you, the reality is that
+most HPC applications benefit greatly from a little bit of help in manually placing threads on different processor
+cores.  (HPC: High-performance computing)
+
+
+
+monitor
+-------
+To get an idea of what your multithreaded application is doing while it is running, you can use the ps command
+
+Assuming your executable is called application.x, you can easily see what cores each thread is using by issuing the following command in bash:
+
+    $ for i in $(pgrep application.x); do ps -mo pid,tid,fname,user,psr -p $i;done
+
+The PSR field is the OS identifier for the core each TID (thread id) is utilizing.
+
+ pid: process id
+ tid: thread id
+ PSR: core used by thread(tid); note: process is collection of its threads running on possible several cores 
+      => pid has no core, its tid's have each a core!
+
+$ for i in $(pgrep sshd); do ps -mo pid,tid,fname,user,psr -p $i;done
+  PID   TID COMMAND  USER     PSR
+ 1188     - sshd     root       -
+    -  1188 -        root       1
+  PID   TID COMMAND  USER     PSR
+21398     - sshd     root       -
+    - 21398 -        root       0
+  PID   TID COMMAND  USER     PSR
+21513     - sshd     harcok     -
+    - 21513 -        harcok     2
+  PID   TID COMMAND  USER     PSR
+24445     - sshd     root       -
+    - 24445 -        root       0
+  PID   TID COMMAND  USER     PSR
+24500     - sshd     harcok     -
+    - 24500 -        harcok     2
+
+$ for i in $(pgrep firefox); do ps -mo pid,tid,fname,user,psr -p $i;done
+  PID   TID COMMAND  USER     PSR
+10105     - firefox  harcok     -
+    - 10105 -        harcok     2
+    - 10127 -        harcok     2
+    - 10128 -        harcok     1
+    - 10129 -        harcok     1
+    - 10130 -        harcok     0
+    - 10131 -        harcok     2
+    - 10132 -        harcok     1
+    - 10133 -        harcok     0
+    - 10134 -        harcok     1
+    - 10135 -        harcok     0
+    - 10136 -        harcok     3
+    - 10137 -        harcok     2
+    - 10138 -        harcok     3
+    - 10139 -        harcok     2
+    - 10163 -        harcok     2
+   ....
+
+  => on startup firefox already startsup a lot of threads on all the different cpu's!!
+  
+  
+  
+ 
+    
+Types of Thread Scheduling    => what linux schedular COULD do !!
+--------------------------
+
+
+Let’s assume we have compute nodes with two processor sockets, and each processor has four cores:
+
+    When you run a multithreaded application with four threads (or even four serial applications), 
+    Linux will schedule those threads for execution by assigning each one to a CPU core. 
+
+    Without being explicitly told how to do this scheduling, Linux may decide to
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             
+      #1  run thread0 to thread3 on core0 to core3 on socket0
+      #2  run thread0 and thread1 on core0 and core1 on socket0, and run thread2 and thread3 on socket1
+      #3  run thread0 and thread1 on core0 only, run thread2 on core1, run thread3 on core2, and leave core3 completely unutilized
+      #4  any number of other nonsensical allocations involving assigning multiple threads to a single core while other cores sit idle
+
+
+
+
+  Compact Scheduling
+  
+     This is Option #1 and keeps all of your threads running on a single physical processor if possible 
+     
+     this is what you would want if all of the threads in your application need to repeatedly access different parts of a large array. 
+     This is because 
+       * all of the cores on the same physical processor can access the memory banks associated with (or “owned by”) that processor at the same speed
+       * however the cores cannot access memory stored on memory banks owned by a different processor as quickly;
+     this is phenomenon is called NUMA (non-uniform memory access). 
+     
+     If your threads all need to access data stored in the memory owned by one processor, 
+     it is often best to put all of your threads on the processor who owns that memory.
+  
+  Round-Robin Scheduling
+  
+    Option #2 is called “scatter” or “round-robin” scheduling and is ideal if your threads are largely independent of
+    each other and don’t need to access a lot of memory that other threads need. The benefit to round-robin thread
+    scheduling is that not all threads have to share the same memory channel and cache, effectively doubling the memory
+    bandwidth and cache sizes available to your application. The tradeoff is that memory latency becomes higher as
+    threads have to start accessing memory that might be owned by another processor.
+
+  Stupid Scheduling
+  
+    Option #3 and #4 are what I call “stupid” scheduling 
+    In traditional Linux server environments, most of the proceses that are running at any given time aren’t doing anything. 
+    To conserve power, Linux will put a lot of these quiet processes on the same processor or cores, then move them to 
+    their own dedicated core when they wake up and have to start processing.
+    
+    If your application is running at full bore 100% of the time, Linux will probably keep it on its own dedicated CPU
+    core. However, if your application has an uneven load (e.g., threads are mostly idle while the last thread
+    finishes), Linux will see that the application is mostly quiet and pack all the quiet threads (e.g., t0 and t1 in
+    the diagram to the right) on to the same CPU core. This wouldn’t be so bad, but the cost of moving a thread from
+    one core to another requires context switches which get very expensive when done hundreds or thousands of times a
+    minute.
+    
+    
+3. Defining affinity    
+----------------------
+     => do it yourself instead of relying on linux scheduler 
+     => REASON:   in reality most HPC applications benefit greatly from a little bit of help in manually placing 
+                threads on different processor cores. (HPC: High-performance computing)
+
+There are several ways to specify how you want your threads to be bound to cores.
+
+    If your application uses pthreads directly, you will have to use the “Linux-portable” methods
+     (taskset or numactl) described below.    
+     
+     => see : hard_cpu_affinity__with__taskset.txt
+    

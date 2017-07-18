@@ -1,0 +1,60 @@
+BCM2708 or BCM2835?
+-------------------
+
+https://raspberrypi.stackexchange.com/questions/840/why-is-the-cpu-sometimes-referred-to-as-bcm2708-sometimes-bcm2835
+
+
+
+Why is the CPU sometimes referred to as BCM2708, sometimes BCM2835?
+
+	
+
+   I've seen the System on Chip of Raspberry Pi referred to usually as "BCM2835" (e.g. on Wikipedia), 
+   but sometimes as "BCM2708" (e.g. sources for Linux SPI driver are in bcm2708.c)     => cat /proc/cpuinfo  says bcm2708
+
+
+short answer :
+
+  - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family   => linux driver and  'cat /proc/cpuinfo'  says bcm2708
+                                ||      ||         ||
+  - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
+                                                 
+                               pi1       pi2       pi2.1
+                                                   pi3  
+                                                   
+    TIP: lower number is family (27) higher number is specific implementation (28)
+
+answer 1:
+
+    Actually the discrepancy is due to the designation of the silicon and the chip package. Originally there was the
+    silicon die which is known as BCM2708, all initial development was done around this.
+
+    In a stacked 9x9 package with 256M of DRAM it is then known as BCM2763. 
+           `=> Stacked is when you literally bond the DRAM silicon on top of the processor and put bond wires down onto the substrate
+
+    But when the memory is POP'd (package on package, the DRAM package is attached to the top of the processor package)
+    then it was known as BCM2835, this is the device that then had the ARM enabled.
+
+    Later versions of the chip follow the same scheme, there are now 
+      - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family
+      - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
+                                   pi1       pi2       pi2.1
+                                                       pi3
+                                                       
+answer 2 :
+
+
+    there is a discussion here on the git hub issue log for linux drivers discussing how the drivers should be labeled. 
+    The pertinent posts are:
+
+   
+
+        Technically 2708 is the family, and 2835 is a specific implementation. We now know that 2835 is the only
+        implementation in the family that can run linux, (and there won't be new models of this family), so it probably
+        doesn't matter which model is used, although it should be consistent.
+
+        So it would be reasonable to name all the drivers 2708 but the specific device tree file 2835.
+
+
+
+

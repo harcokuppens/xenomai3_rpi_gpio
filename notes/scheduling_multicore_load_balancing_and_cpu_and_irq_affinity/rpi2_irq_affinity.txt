@@ -1,0 +1,201 @@
+raspberry pi 2
+---------------
+   
+   root@raspberrypi:~ # cat /proc/irq/default_smp_affinity
+   f
+   
+  for specific irq 84 
+   
+   root@raspberrypi:~ # cat /proc/irq/84/smp_affinity
+   f   
+   
+   
+   => all cores are possible!!    
+   
+   However if we look at /proc/interrupts we see that all irq's are handled by cpu0,
+   except for the timer and Rescheduling interrupts.
+   
+   
+   
+   
+   https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=100714
+   
+   question:
+      
+      root@ucnraspberrypi2-1:~# echo 3 > /proc/irq/52/smp_affinity
+      bash: echo: write error: Input/output error
+
+      I get the same for any irq when I want to change cpu affinity.
+
+      Is that not implemented in the IRQ driver? If not, is there a hardware reason?
+      
+      
+        here is my /proc/interrupts 
+        
+          root@ucnraspberrypi2-1:~# cat /proc/interrupts
+                     CPU0       CPU1       CPU2       CPU3       
+           16:          0          0          0          0   ARMCTRL  bcm2708_fb dma
+           24:        466          0          0          0   ARMCTRL  DMA IRQ
+           25:       2370          0          0          0   ARMCTRL  DMA IRQ
+           32:   17257562          0          0          0   ARMCTRL  dwc_otg, dwc_otg_pcd, dwc_otg_hcd:usb1
+           52:          1          0          0          0   ARMCTRL  BCM2708 GPIO catchall handler
+           65:         63          0          0          0   ARMCTRL  ARM Mailbox IRQ
+           66:          2          0          0          0   ARMCTRL  VCHIQ doorbell
+           75:          1          0          0          0   ARMCTRL
+           79:          4          0          0          0   ARMCTRL  bcm2708_i2c.1
+           80:          0          0          0          0   ARMCTRL  bcm2708_spi.0
+           83:         33          0          0          0   ARMCTRL  uart-pl011
+           84:      70207          0          0          0   ARMCTRL  mmc0
+           99:     340237     325956     304090     304089   ARMCTRL  arch_timer
+          273:          1          0          0          0      GPIO  Some gpio pin description
+          FIQ:              usb_fiq
+          IPI0:          0          0          0          0  CPU wakeup interrupts
+          IPI1:          0          0          0          0  Timer broadcast interrupts
+          IPI2:     238100      75472     303997     303996  Rescheduling interrupts
+          IPI3:          2          2          4          4  Function call interrupts
+          IPI4:        126         10          0          0  Single function call interrupts
+          IPI5:          0          0          0          0  CPU stop interrupts
+          IPI6:          0          0          0          0  IRQ work interrupts
+          IPI7:          0          0          0          0  completion interrupts
+          Err:          0
+
+      
+        => only 99 (timer) and IPI2 (probably related to timer)    are spread over cpu's
+           probably because timer is special case!! (within cpu itself)
+             
+             => timer is not a peripheral irq for arm cpu, 
+                but is an internal clock interrupt   => special case!!    (same holds for Rescheduling interrupts)
+          
+      
+   answer: 
+   
+     Hardware IRQ affinity isn't possible due to the way that the interrupt controller has been implemented.
+      `-> software IRQ affinity is :
+
+     Because the entirety of the hardware apart from the A7s is untouched, the BCM2835 interrupt routing is still in
+     place.                                             ------------------
+                                                          `-> pi2 ONLY has different ARM  cpu  then pi: A6 -> A7
+                                                              Pi1 had single core ARM6 chip, and BCM2835 interrupt routing
+                                                              is implemented for that, and that same routing
+                                                              is still used for the pi2!!
+     
+     This exposes two lines (nIRQ and nFIQ) that go into the A7 interrupt routing. 
+                  -------------------------         ------------------------------
+                  `-> from BCM2835 interrupt          `-> into A7 cpu's interrupt routing 
+                        (eg. gpio irq)
+                     which isn't change from pi1 to pi2
+                     
+     There is no vectored interrupt controller implemented FOR the A7s - a simple register-based interface is used to
+     route the global top-level interrupt to a specific core, therefore a single core will get all interrupts and have
+     to service them.   
+         => irq addressing implemented in cpu using single register, which can only contain a single core!
+            by default set to CPU0 =>  so all go the specified cpu set  in the register, and this will only
+                                       change if you change the register (then all go to different cpu)
+
+     You could reconfigure this on-the-fly (for example, on entry to the top-level IRQ handler) to have some sort of
+     distributed handling, servicing each successive interrupt on a different core, but the benefits of this are
+     debatable.
+     
+     
+     
+https://raspberrypi.stackexchange.com/questions/8661/interrupts-on-the-raspberry-pi
+
+
+
+
+What are the sources of interrupts on the Raspberry Pi. I currently have the model B, rev. 2.0.
+
+Example itop output:
+
+INT                NAME          RATE             MAX
+  3 [      8 Timer Tick]    20 Ints/s     (max:    20)
+ 32 [g, dwc_otg_pcd, dw]   304 Ints/s     (max:   319)
+ 52 [8 GPIO catchall ha]     0 Ints/s     (max:     0)
+ 65 [         ilbox IRQ]     2 Ints/s     (max:     2)
+ 66 [          doorbell]     0 Ints/s     (max:     0)
+ 75 [          doorbell]     0 Ints/s     (max:     0)
+ 77 [     8_sdhci (dma)]     0 Ints/s     (max:     0)
+ 83 [              l011]     0 Ints/s     (max:     0)
+ 84 [              l011]     1 Ints/s     (max:     1)
+
+cat /proc/interrupts
+
+           CPU0       
+  3:      24988   ARMCTRL  BCM2708 Timer Tick
+ 32:     365683   ARMCTRL  dwc_otg, dwc_otg_pcd, dwc_otg_hcd:usb1
+ 52:          0   ARMCTRL  BCM2708 GPIO catchall handler
+ 65:       2583   ARMCTRL  ARM Mailbox IRQ
+ 66:          1   ARMCTRL  VCHIQ doorbell
+ 75:          1   ARMCTRL
+ 77:       7076   ARMCTRL  bcm2708_sdhci (dma)
+ 83:         19   ARMCTRL  uart-pl011
+ 84:      11515   ARMCTRL  mmc0
+FIQ:              usb_fiq
+Err:          0
+
+For now, I've figured out that dwc_otg, dwc_otg_pcd, dwc_otg_hcd:usb1 are hardware interrupts for both the ethernet and usb.
+
+Where are the higher frequency timer interrupts?
+
+
+
+
+answer :
+
+
+
+
+ The timer interrupts come in on interrupt 3. In your example this only shows them coming at a rate of 20 per second.
+This is due to processor power saving features that reduce the frequency of the timer interrupts when the processor is
+not busy. In my Pi I see 20 per second much of the time but a couple of times a minute it jumps to 1000/second when
+there are things to do.
+
+ The exact interrupts shown will differ depending on what devices are present and which drivers are loaded. The linux
+kernel source contains a table of the assignments that could appear in arch/arm/mach-bcm2708/include/mach/platform.h
+
+ To get the actual mappings between devices and interrupts you have to dig around in the various files in
+arch/arm/mach-bcm2708.
+
+ Note that itop seems to corrupt the device name output (it copies the previous interrupt name if an interrupt does not
+have one assigned) and seems to truncate at whitespace in places.
+
+ The /proc/interrupts output names give good clues to the device attached. I believe the following are correct.
+
+            CPU0       
+   3:      24988   ARMCTRL  BCM2708 Timer Tick
+
+ system timer - the timer that is used for process scheduling and kernel housekeeping
+
+  32:     365683   ARMCTRL  dwc_otg, dwc_otg_pcd, dwc_otg_hcd:usb1
+
+ USB/ethernet
+
+  52:          0   ARMCTRL  BCM2708 GPIO catchall handler
+
+ GPIO device driver
+
+  65:       2583   ARMCTRL  ARM Mailbox IRQ
+  66:          1   ARMCTRL  VCHIQ doorbell
+
+ GPU communications interrupts
+
+  75:          1   ARMCTRL
+
+ Alternate USB interrupt for some configurations
+
+  77:       7076   ARMCTRL  bcm2708_sdhci (dma)
+
+ SD card dma access?
+
+  83:         19   ARMCTRL  uart-pl011
+
+ Serial port uart
+
+  84:      11515   ARMCTRL  mmc0
+
+ SD card access
+
+ FIQ:              usb_fiq
+ Err:          0
+
+ 

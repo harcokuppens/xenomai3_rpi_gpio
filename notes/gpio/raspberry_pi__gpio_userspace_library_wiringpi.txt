@@ -1,0 +1,172 @@
+wiringpi
+========
+
+
+* c library to program gpio
+* but also comes with "gpio" commandline utility 
+
+
+install on rpi
+--------------
+
+apt-get update
+apt-get install wiringpi       => also has gpio utility
+
+
+gpio utility example
+--------------------
+
+$ # Note: -g  => means use GPIO numbers!!
+
+$ gpio -g mode 4 out            => this SETUP needed first otherwise other command on that pin doesn't work
+$ gpio -g read 4     => read value of output!!
+0
+$ gpio -g write 4 1  => set value of output
+$ gpio -g read 4
+1
+$ gpio -g write 4 0
+$ gpio -g read 4
+0 
+
+
+
+https://projects.drogon.net/raspberry-pi/wiringpi/the-gpio-utility/
+
+Standard input and output commands
+
+
+  gpio [-g] mode <pin> in/out/pwm/up/down/tri
+  
+      This sets the mode of a pin to be input, output or pwm and additionally 
+      can set the internal pull-up/down resistors to pull-up, pull-down or none.
+                  --------------------------------------------------------------
+                      `-> for input pin!!                          
+  
+  examples
+
+      Internal pull up/down resistors   (for input mode)
+
+          The GPIO lines have internal pull up or pull-down resistors which can be controlled via 
+          software when a pin is in input mode.
+
+              gpio mode 0 up
+              gpio mode 0 down
+              gpio mode 0 tri
+
+          These set the resistors to pull-up, pull-down and none respectively on wiringPi pin 0.
+
+                                       
+      
+  
+/sys/class/gpio mode commands
+  
+  Note: The pin numbers in the sys mode are always BCM-GPIO pin numbers. 
+
+  gpio edge <pin> rising/falling/both/none
+
+      This enables the given pin for edge interrupt triggering on the rising, falling or both edges. 
+      (Or none which disables it) 
+
+
+
+
+example waiting for 3  different interrupts:
+
+    #define pins
+    gpio mode 0 in
+    gpio mode 0 up
+    gpio edge 0 falling
+
+    gpio mode 1 in
+    gpio mode 1 up
+    gpio edge 1 falling
+
+    gpio mode 2 in
+    gpio mode 2 up
+    gpio edge 2 falling
+
+    #wait for interrupt
+    FIRED=`gpio wfi`
+
+    #handle interrupt
+    case $FIRED in
+    0 ) echo “pin 0”;;
+    1 ) echo “pin 1”;;
+    2 ) echo “pin 2”;;
+    -1 ) echo “timeout”;;
+    * ) echo “unkown”;;
+    esac
+
+
+
+
+===========================================================
+wiringpi c library to setup  pull-up or pull-down resistor
+===========================================================
+
+
+IMPORTANT:  use wiringpi c library because gpiolib doesn't support setting internal pull-up/down resistor in GPIO pin
+ 
+
+https://projects.drogon.net/raspberry-pi/wiringpi/functions/
+or   
+http://wiringpi.com/reference/core-functions/
+
+  
+  void pullUpDnControl (int pin, int pud) ;
+  
+      This sets the pull-up or pull-down resistor mode on the given pin, which should be set as an input. Unlike the
+      Arduino, the BCM2835 has both pull-up an down internal resistors. The parameter pud should be; PUD_OFF, (no pull
+      up/down), PUD_DOWN (pull to ground) or PUD_UP (pull to 3.3v) The internal pull up/down resistors have a value of
+      approximately 50KΩ on the Raspberry Pi.
+
+      This function has no effect on the Raspberry Pi’s GPIO pins when in Sys mode. If you need to activate a
+      pull-up/pull-down, then you can do it with the gpio program in a script before you start your program.
+  
+
+ example code: 
+ 
+    #include <wiringPi.h>
+    
+    #define	GPIO_PIN	23  
+    if (wiringPiSetupGpio() < 0)
+    {
+      fprintf (stderr, "Unable to setup wiringPi with GPIO: %s\n", strerror (errno)) ;
+      return 1 ;
+    }
+    pullUpDnControl (GPIO_PIN,PUD_UP);
+    
+  
+http://wiringpi.com/reference/setup/
+
+  
+There are four ways to initialise wiringPi.
+
+    int wiringPiSetup (void) ;     -> wiringPi pin numbering scheme
+    int wiringPiSetupGpio (void) ; -> GPIO pin numbering scheme
+    int wiringPiSetupPhys (void) ; -> physical pin numbering scheme
+    int wiringPiSetupSys (void) ;  => uses the /sys/class/gpio interface ; always uses GPIO pin numbering scheme
+                                      --> sysmode!!
+
+One of the setup functions must be called at the start of your program or your program will fail to work correctly.
+
+
+wiringPiSetupSys (void) ;
+    
+    This initialises wiringPi but uses the /sys/class/gpio interface rather than accessing the hardware directly. This
+    can be called as a non-root user provided the GPIO pins have been exported before-hand using the gpio program. Pin
+    numbering in this mode is the native Broadcom GPIO numbers – the same as wiringPiSetupGpio() above, so be aware of
+    the differences between Rev 1 and Rev 2 boards.
+
+    Note: In this mode you can only use the pins which have been exported via the /sys/class/gpio interface before you
+    run your program. You can do this in a separate shell-script, or by using the system() function from inside your
+    program to call the gpio program.
+
+    Also note that some functions have no effect when using this mode as they’re not currently possible to action
+    unless called with root privileges. (although you can use system() to call gpio to set/change modes if needed)
+    
+    
+  
+  
+
+  

@@ -1,0 +1,22 @@
+xenomai api docs refers to context in which a functions may be used 
+===================================================================
+
+
+https://xenomai.org/documentation/xenomai-3/html/xeno3prm/group__cobalt__core.html
+
+
+Context tags
+
+Tag	Context on entry
+
+    primary-only	Must be called from a Cobalt task in primary mode
+    coreirq-only	Must be called from a Cobalt IRQ handler
+    secondary-only	Must be called from a Cobalt task in secondary mode or regular Linux task
+    rtdm-task	Must be called from a RTDM driver task
+    mode-unrestricted	Must be called from a Cobalt task in either primary or secondary mode
+    task-unrestricted	May be called from a Cobalt or regular Linux task indifferently
+    unrestricted	May be called from any context previously described
+    atomic-entry	Caller must currently hold the big Cobalt kernel lock (nklock)
+
+
+

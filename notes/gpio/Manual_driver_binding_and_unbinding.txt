@@ -1,0 +1,94 @@
+ Manual driver binding and unbinding
+ ===================================
+ 
+
+ https://lwn.net/Articles/143397/
+   Manual driver binding and unbinding
+  
+  
+  
+   In the sysfs tree, every driver now has bind and unbind files associated with it:
+
+       $ tree /sys/bus/usb/drivers/ub/
+       /sys/bus/usb/drivers/ub/
+       |-- 1-1:1.0 -> ../../../../devices/pci0000:00/0000:00:1d.7/usb1/1-1/1-1:1.0
+       |-- bind
+       |-- module -> ../../../../module/ub
+       `-- unbind
+
+   In order to unbind a device from a driver, simply write the bus id of the device to the unbind file:
+
+       echo -n "1-1:1.0" > /sys/bus/usb/drivers/ub/unbind
+
+   and the device will no longer be bound to the driver:
+
+       $ tree /sys/bus/usb/drivers/ub/
+       /sys/bus/usb/drivers/ub/
+       |-- bind
+       |-- module -> ../../../../module/ub
+       `-- unbind
+
+   To bind a device to a driver, the device must first not be controlled by any other driver. 
+   To ensure this, look for the "driver" symlink in the device directory:
+
+       $ tree /sys/bus/usb/devices/1-1:1.0
+       /sys/bus/usb/devices/1-1:1.0
+       |-- bAlternateSetting
+       |-- bInterfaceClass
+       |-- bInterfaceNumber
+       |-- bInterfaceProtocol
+       |-- bInterfaceSubClass
+       |-- bNumEndpoints
+       |-- bus -> ../../../../../../bus/usb
+       |-- modalias
+       `-- power
+           `-- state
+  
+    Then, simply write the bus id of the device you wish to bind, into the bind file for that driver:
+
+       echo -n "1-1:1.0" > /sys/bus/usb/drivers/usb-storage/bind
+
+   And check that the binding was successful:
+
+       $ tree /sys/bus/usb/devices/1-1:1.0
+       /sys/bus/usb/devices/1-1:1.0
+       |-- bAlternateSetting
+       |-- bInterfaceClass
+       |-- bInterfaceNumber
+       |-- bInterfaceProtocol
+       |-- bInterfaceSubClass
+       |-- bNumEndpoints
+       |-- bus -> ../../../../../../bus/usb
+       |-- driver -> ../../../../../../bus/usb/drivers/usb-storage          => yes driver attached to device
+       |-- host2
+       |   `-- power
+       |       `-- state
+       |-- modalias
+       `-- power
+           `-- state
+  
+
+
+    As the example above shows, this capability is very useful for switching devices between drivers which handle the
+    same type of device (both the ub and usb-storage drivers handle USB mass storage devices, like flash drives.)
+   
+   
+    => only one driver per device!!
+   
+  
+
+
+Injecting events into hotplug via "uevent":         src:  https://www.kernel.org/doc/pending/hotplug.txt
+===========================================
+
+    Events can be injected into the hotplug mechanism through sysfs via the
+    "uevent" files.  Each directory in sysfs containing a "dev" file should also
+    contain a "uevent" file.  
+    
+    Write the name of the event (such as "add" or "remove") to the appropriate uevent file, 
+    and the kernel will deliver such an event for that device via the hotplug mechanism.
+
+    Note that in kernel versions 2.6.24 and newer, "uevent" is readable.  Reading
+    from uevent provides the set of "extra" variables associated with this event.
+   
+ 

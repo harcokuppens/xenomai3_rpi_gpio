@@ -1,0 +1,83 @@
+IMPORTANT:
+  Xenomai does not make any load balancing, because a migration introduces
+  a huge latency (which is not wanted for realtime processes which want to have deterministic behavior!)
+
+  Instead you manually have to distribute your realtime task over the cpu's available.
+  Within a cpu you can then have the different scheduling algorithms supported by the cobalt kernel.
+     see : linux_scheduling_schemes_for_threads___nothing_about_cpu_scheduling__cobalt_scheduling.txt
+
+ 
+ 
+xenomai  smp and load balancing
+--------------------------------
+
+I try to find out how load balancing did work on xenomai, 
+but I couldn't find any documentation about this. I only could
+find information about scheduling of tasks but this scheduling
+never talked about the case with multiple cpu's.
+
+Then I found online :
+ 
+
+    http://www.mail-archive.com/xenomai-help@gna.org/msg12389.html
+
+     Xenomai does not make any load balancing, because a migration introduces
+     a huge latency, so, what you have to do is to set an affinity with just
+     one bit set. And changing affinity during a thread's life is not
+     recommended.
+
+ 
+ 
+Conclusion:
+
+  Linux does do load balancing over cores,
+  however it is very unclear how this algorithm exacty works.
+  Most scheduling is within cores, but sometimes for some reason
+  a thread gets transfered from one core to another.
+   
+  Xenomai cobalt doesn't do load balancing over cores!
+  That is task stay on its the specific core. If you want 
+  a task on a different core, then you explicitly must set it 
+  to  a different core, and then it stays there.
+  Scheduling algorthms in xenomai just work  per core: 
+  it only schedules that core's tasks!
+   
+   => example: output_driven_irq 
+               => runHello task (lower prio) and runBlink task (higher prio)
+                  are scheduled using fifo scheduling on core 0. 
+                  Xenomai keeps them on this single core although the other
+                  cores are idle.
+                  If you want to run them in parallel you can set the 
+                  the hello task to a different core, and then the tasks
+                  just run in parallel.
+        
+Linux running in parallel  with xenomai when having multiple cores:
+            
+        On the pi1 all rt_print output is output on the screen
+        after the runBlink and runHello are done, because
+        the keep the cpu an 100% spinning ( rt_timer_spin instead of rt_task_sleep )
+        causing linux only to get time after they are done
+        to print the output.
+        However on the pi3 linux can run jobs on the other
+        cores to print the output. If it tries to run the
+        output on the same heavy loaded cpu xenomai is running
+        the output will still be afterwards, however if 
+        it tries to run it on another none-busy core then
+        it can immediately do the output in parallel to the xenomai
+        realtime task.
+        I don't think linux can see that xenomai is heavily using a
+        specific core, so it can happen that linux also schedules 
+        a job on that core making its performance bad. However if you
+        are in luck it schedules it on another core and then it runs in 
+        parallel. So it just by LUCK !
+        
+        However you can set the cpu affinity in linux  with isolcpus boot option such that  linux  
+        never uses the specific core which is used by xenomai's realtime thread. Then xenomai and linux
+        can run in parallel on different cores! 
+        See: 
+              linux__isolcpus_together_with_taskset_not_with_numactl.txt
+        
+   
+ 
+
+

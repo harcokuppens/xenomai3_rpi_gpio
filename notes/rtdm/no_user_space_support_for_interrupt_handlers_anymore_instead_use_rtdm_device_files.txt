@@ -1,0 +1,49 @@
+   
+  no user space support for interrupt handlers anymore instead use rtdm device files  :
+  
+       Handling real-time interrupt events from  from applications running in user-space can be done via a RTDM driver, 
+       which gives you a rtdm device file within the /dev/rtdm/ folder on which you can use a read(2) or ioctl(2) interface 
+       for waiting for interrupt events.       
+  
+   
+  
+  source : 
+   
+           https://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#_interrupt_management_2
+           
+              The RT_INTR API is gone. Please see the "rationale" for not handling low-level interrupt service code from user-space.
+                                                            `-> see below
+
+
+                                                            
+           https://xenomai.org/migrating-from-xenomai-2-x-to-3-x/#Interrupt_management
+ 
+               The former pthread_intr API once provided by Xenomai 2.x is gone.
+  
+             "Rationale"
+
+                   Handling real-time interrupt events from user-space can be done safely only if some top-half code exists
+                   for acknowledging the issuing device request from kernel space, particularly when the interrupt line is
+                   shared. This should be done via a RTDM driver, exposing a read(2) or ioctl(2) interface, for waiting for
+                   interrupt events from applications running in user-space.
+   
+                     =>  RTDM driver, exposing a read(2) or ioctl(2) interface
+                         for waiting for interrupt events from applications running in user-space.
+                     
+
+                  So: instead of waiting on interrupt one is waiting for a blocking read ends!
+
+              Tip:   => with udd you can still implement in a safe way waiting on a interrupt!
+              	
+                This said, in the seldom cases where running a device driver in user-space is the best option, one may
+                rely on the RTDM-based UDD framework shipped with Xenomai 3. UDD stands for User-space Device Driver,
+                enabling interrupt control and I/O memory access interfaces to applications in a safe manner. 
+                                                                                                 ^^^^
+                It is reminiscent of the UIO framework available with the Linux kernel, adapted to the dual kernel Cobalt
+                environment.
+
+                   UDD to help implementing top-half (driver): one may rely on the RTDM-based UDD framework shipped with
+                   Xenomai 3. UDD stands for User-space Device Driver, enabling interrupt control and I/O memory access
+                   interfaces to applications in a safe manner. It is reminiscent of the UIO framework available with the
+                   Linux kernel, adapted to the dual kernel Cobalt environment.
+

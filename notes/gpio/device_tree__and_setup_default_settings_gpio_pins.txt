@@ -1,0 +1,284 @@
+https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
+Device Trees
+=============
+
+A Device Tree (DT) is a description of the hardware in a system. It should include the name of the base CPU, its memory
+configuration, and any peripherals (internal and external). A DT should not be used to describe the software, although
+by listing the hardware modules it does usually cause driver modules to be loaded. It helps to remember that DTs are
+supposed to be OS-neutral, so anything which is Linux-specific probably shouldn't be there.
+
+A Device Tree represents the hardware configuration as a hierarchy of nodes. Each node may contain properties and
+subnodes. Properties are named arrays of bytes, which may contain strings, numbers (big-endian), arbitrary sequences of
+bytes, and any combination thereof. By analogy to a filesystem, nodes are directories and properties are files. The
+locations of nodes and properties within the tree can be described using a path, with slashes as separators and a
+single slash (/) to indicate the root.
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?f=107&t=120715
+
+view device tree in rpi: 
+
+
+  cat /proc/device-tree/model
+  
+  
+  
+
+Raspberry Pi uses Device Tree(DT) using /boot/config.txt
+--------------------------------------------------------
+
+Raspberry Pi's latest kernels and firmware, including Raspbian and NOOBS releases, now use a Device Tree (DT) to manage
+some resource allocation and module loading by default. This was implemented to alleviate the problem of multiple
+drivers contending for system resources, and to allow HAT modules to be auto-configured.
+
+The current implementation is not a pure Device Tree system – there is still board support code that creates some
+platform devices – but the external interfaces (I2C, I2S, SPI), and the audio devices that use them, must now be
+instantiated using a Device Tree Blob (DTB) passed to the kernel by the loader (start.elf).
+
+The main impact of using Device Tree is to change:
+- from "everything on", relying on module blacklisting to manage contention, 
+- to "everything off unless requested by the DTB". 
+   In order to continue to use external interfaces and the peripherals that attach to them, you will need to add some new
+   settings to your config.txt.
+   => see if you need to add some device or external interface => add a line to /boot/config.txt 
+
+example:
+  
+  add the line 
+     dtparam=spi=on                                            dt => device tree
+  to /boot/config.txt to enable the spi interface on boot
+  
+  
+  or add to config.txt
+    dtparam=gpio_out_pin=16
+    dtparam=gpio_in_pin=17
+    dtparam=gpio_in_pull=down
+  to configure some intitial state for gpio ports  for specific device :
+    see :https://github.com/raspberrypi/firmware/blob/master/boot/overlays/README
+            
+            Name:   lirc-rpi
+            Info:   Configures lirc-rpi (Linux Infrared Remote Control for Raspberry Pi)
+                    Consult the module documentation for more details.
+            Load:   dtoverlay=lirc-rpi,<param>=<val>
+            Params: gpio_out_pin            GPIO for output (default "17")
+
+                    gpio_in_pin             GPIO for input (default "18")
+
+                    gpio_in_pull            Pull up/down/off on the input pin
+                                            (default "down")
+
+                    sense                   Override the IR receive auto-detection logic:
+                                             "0" = force active-high
+                                             "1" = force active-low
+                                             "-1" = use auto-detection
+                                            (default "-1")
+
+                    softcarrier             Turn the software carrier "on" or "off"
+                                            (default "on")
+
+                    invert                  "on" = invert the output pin (default "off")
+
+                    debug                   "on" = enable additional debug messages
+            (default "off")
+            
+            
+  => for more details see : https://www.raspberrypi.org/documentation/configuration/device-tree.md
+             https://www.raspberrypi.org/documentation/configuration/config-txt/README.md
+             
+
+
+
+http://www.wikiwand.com/en/Device_tree
+  
+  The device tree is a data structure for describing hardware, which originated from Open Firmware. The data structure
+  can hold any kind of data as internally it is a tree of named nodes and properties. Nodes contain properties and
+  child nodes, while properties are name–value pairs.
+  
+
+
+
+# fdtdump /boot/bcm2709-rpi-2-b.dtb |grep gpio
+        gpio = "/soc/gpio@7e200000";
+        gpio@7e200000 {
+            compatible = "brcm,bcm2835-gpio";
+            gpio-controller;
+            #gpio-cells = <0x00000002>;
+            cs-gpios = <0x00000000 0x00000000>;
+            compatible = "gpio-leds";
+                gpios = <0x00000010 0x0000002f 0x00000000>;
+                gpios = <0x00000010 0x00000023 0x00000000>;
+        gpiomem {
+            compatible = "brcm,bcm2835-gpiomem";
+        act_led_gpio = <0x0000001e 0x6770696f 0x733a3400>;
+        pwr_led_gpio = <0x0000001f 0x6770696f 0x733a3400>;
+        gpio = "/soc/gpio@7e200000";
+        sdhost_pins = "/soc/gpio@7e200000/sdhost_pins";
+        spi0_pins = "/soc/gpio@7e200000/spi0_pins";
+        i2c0_pins = "/soc/gpio@7e200000/i2c0";
+        i2c1_pins = "/soc/gpio@7e200000/i2c1";
+        i2s_pins = "/soc/gpio@7e200000/i2s";
+        
+        
+=> gpio device :     "/soc/gpio@7e200000"    
+
+
+
+
+IMPORTANT: device tree is also visible in sysfs : 
+
+# cat /sys/devices/platform/soc/3f200000.gpio/uevent
+DRIVER=pinctrl-bcm2835
+OF_NAME=gpio
+OF_FULLNAME=/soc/gpio@7e200000
+OF_COMPATIBLE_0=brcm,bcm2835-gpio
+OF_COMPATIBLE_N=1
+MODALIAS=of:NgpioT<NULL>Cbrcm,bcm2835-gpio
+
+
+NOTE: OF stands for  open firmare
+
+
+
+
+https://github.com/fivdi/onoff/wiki/Enabling-Pullup-and-Pulldown-Resistors-on-The-Raspberry-Pi
+
+  using device tree setup in config.txt to configure gpio pins
+  
+  
+   Enabling Pullup and Pulldown Resistors on The Raspberry Pi
+    
+       In January 2015 the first version of the Raspbian operating system with built in support for the device tree was
+       released. The device tree is a data structure for describing hardware. Many aspects of the hardware can be
+       described in this data structure rather than being hard coded into the operating system.
+
+       Device tree overlays can be used to apply changes to the kernel's internal device tree representation. For
+       example, a device tree overlay can be used to enable the pullup or pulldown resistor for a GPIO.
+
+       Lets say that the pullup and pulldown resistors for GPIO #7, #8, and #9 need to be configured as shown in the
+       following table:
+       
+       GPIO # 	Header Pin # 	Pull Type
+       7 	26 	pulldown
+       8 	24 	pulldown
+       9 	21 	pullup
+
+       The device tree source file mygpio-overlay.dts for the device tree overlay to acheive this is as follows:
+
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2708";
+
+    fragment@0 {
+        target = <&gpio>;
+        __overlay__ {
+            pinctrl-names = "default";
+            pinctrl-0 = <&my_pins>;
+
+            my_pins: my_pins {
+                brcm,pins = <7 8 9>;     /* gpio no. */
+                brcm,function = <0 0 0>; /* 0:in, 1:out */
+                brcm,pull = <1 1 2>;     /* 2:up 1:down 0:none */
+            };
+        };
+    };
+};
+
+The device tree compiler compiles the source into a binary form. The compiler itself is installed with the following command:
+
+   sudo apt-get install device-tree-compiler
+
+       
+And the overlay is compiled with the following command:
+
+    dtc -@ -I dts -O dtb -o mygpio-overlay.dtb mygpio-overlay.dts
+
+The device tree blob mygpio-overlay.dtb produced by the compiler is the binary and should be copied to directory /boot/overlays.
+
+The last piece of the puzzle is adding the following line at the end of /boot/config.txt so that the overlay gets loaded at boot time:
+
+     device_tree_overlay=overlays/mygpio-overlay.dtb
+
+For additional information about the device tree see Device Trees, Overlays and Parameters
+
+more details: https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
+
+NOTE: on rpi dtc and fdtdump are by default installed in raspbian
+
+ fdtdump /boot/bcm2709-rpi-2-b.dtb | less
+       
+       
+
+
+
+
+
+
+
+
+https://www.raspberrypi.org/documentation/configuration/config-txt.md
+
+ describes /boot/config.txt
+  
+  => in  config.txt you can enable/disable devices in device tree!!
+  
+  
+
+
+https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
+ Device Trees, overlays, and parameters
+
+ Raspberry Pi's latest kernels and firmware, including Raspbian and NOOBS releases, now by default use Device Tree (DT)
+to manage some resource allocation and module loading.
+ 
+
+The main impact of using Device Tree is to change from everything on, relying on module blacklisting to manage
+contention, to everything off unless requested by the DTB. In order to continue to use external interfaces and the
+peripherals that attach to them, you will need to add some new settings to your config.txt.
+
+e.g. in /boot/config.txt 
+
+# Uncomment some or all of these to enable the optional hardware interfaces
+#dtparam=i2c_arm=on
+#dtparam=i2s=on
+#dtparam=spi=on
+
+
+
+https://github.com/raspberrypi/linux/blob/rpi-3.18.y/arch/arm/boot/dts/bcm2709-rpi-2-b.dts
+
+ => contains source of  /boot/bcm2709-rpi-2-b.dtb
+  
+  
+  /dts-v1/;
+
+  /include/ "bcm2709.dtsi"
+
+  / {
+  	compatible = "brcm,bcm2709";
+  	model = "Raspberry Pi 2 Model B";
+
+  	aliases {
+  		soc = &soc;
+  		spi0 = &spi0;
+  		i2c0 = &i2c0;
+  		i2c1 = &i2c1;
+  		i2s  = &i2s;
+  		gpio = &gpio;
+  		intc = &intc;
+  		leds = &leds;
+  		sound = &sound;
+  };
+  
+  ...
+
+
+
+
+  
+  
+  

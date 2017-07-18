@@ -1,0 +1,162 @@
+ linux GPIO support
+====================
+
+
+linux gpiolib and gpiochip
+--------------------------
+
+
+In linux a gpio chip is represented by a “struct gpio_chip”.
+This is done by the gpiolib.c library in the kernel source.
+
+In linux kernel source from kernel.org :
+
+  include/linux/gpio.h            -> gpio_chip
+  drivers/gpio/gpiolib.c
+  drivers/gpio/gpiolib-legacy.c
+
+
+limitation generic gpiolib libary
+---------------------------------
+
+gpiolib is generic library and doesn't handle all details of a chip.
+For example it cannot handle internal pullup or pulldown resistors
+for an input line.  (rpi has them!!) 
+
+
+see  https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
+       
+    Claiming and Releasing GPIOs
+       
+       Some platforms allow some or all GPIO signals to be routed to different pins.
+       Similarly, other aspects of the GPIO or pin may need to be configured, such as
+       pullup/pulldown. Platform software should arrange that any such details are
+       configured prior to gpio_request() being called for those GPIOs, e.g. using
+       the pinctrl subsystem's mapping table, so that GPIO users need not be aware
+       of these details.
+       
+       => so pullup/pulldown should be set using  pinctrl library instead!!
+           => see: https://www.kernel.org/doc/Documentation/pinctrl.txt
+
+          this is said also in section later in document :
+     
+            What do these conventions omit?
+            ===============================
+              One of the biggest things these conventions omit is pin multiplexing, since
+              this is highly chip-specific and nonportable
+    
+              Related to multiplexing is configuration and enabling of the pullups or
+              pulldowns integrated on some platforms.  Not all platforms support them,
+              or support them in the same way;
+      
+
+use wiringpi library for the special features of the rpi which gpiolib doesn't cover
+-----------------------------------------------------------------------------------
+
+ e.g use wiringpi library for rpi to setup pull-up or pull-down internal resistors
+
+
+
+    #include <wiringPi.h>
+    
+    #define	GPIO_PIN	23  
+    if (wiringPiSetupGpio() < 0)
+    {
+      fprintf (stderr, "Unable to setup wiringPi with GPIO: %s\n", strerror (errno)) ;
+      return 1 ;
+    }
+    pullUpDnControl (GPIO_PIN,PUD_UP);
+  
+  
+ 
+ overview methods gpiolib
+ ========================
+ 
+ 
+ 
+ harcok@cup:../rpi/linux/drivers/gpio
+ $ cat  gpiolib-legacy.c |grep EXPORT_SYMBOL
+ EXPORT_SYMBOL_GPL(gpio_free);
+ EXPORT_SYMBOL_GPL(gpio_request_one);
+ EXPORT_SYMBOL_GPL(gpio_request);
+ EXPORT_SYMBOL_GPL(gpio_request_array);
+ EXPORT_SYMBOL_GPL(gpio_free_array);
+
+ harcok@cup:../rpi/linux/drivers/gpio
+ $ cat  gpiolib.c |grep EXPORT_SYMBOL
+ EXPORT_SYMBOL_GPL(gpio_to_desc);
+ EXPORT_SYMBOL_GPL(desc_to_gpio);
+ EXPORT_SYMBOL_GPL(gpiod_to_chip);
+ EXPORT_SYMBOL_GPL(gpiod_get_direction);
+ EXPORT_SYMBOL_GPL(gpiochip_add);
+ EXPORT_SYMBOL_GPL(gpiochip_remove);
+ EXPORT_SYMBOL_GPL(gpiochip_find);
+ EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
+ EXPORT_SYMBOL_GPL(gpiochip_irqchip_add);
+ EXPORT_SYMBOL_GPL(gpiochip_add_pingroup_range);
+ EXPORT_SYMBOL_GPL(gpiochip_add_pin_range);
+ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
+ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
+ EXPORT_SYMBOL_GPL(gpiochip_request_own_desc);
+ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
+ EXPORT_SYMBOL_GPL(gpiod_direction_input);
+ EXPORT_SYMBOL_GPL(gpiod_direction_output_raw);
+ EXPORT_SYMBOL_GPL(gpiod_direction_output);
+ EXPORT_SYMBOL_GPL(gpiod_set_debounce);
+ EXPORT_SYMBOL_GPL(gpiod_is_active_low);
+ EXPORT_SYMBOL_GPL(gpiod_get_raw_value);
+ EXPORT_SYMBOL_GPL(gpiod_get_value);
+ EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
+ EXPORT_SYMBOL_GPL(gpiod_set_value);
+ EXPORT_SYMBOL_GPL(gpiod_set_raw_array);
+ EXPORT_SYMBOL_GPL(gpiod_set_array);
+ EXPORT_SYMBOL_GPL(gpiod_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_to_irq);
+ EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
+ EXPORT_SYMBOL_GPL(gpiochip_unlock_as_irq);
+ EXPORT_SYMBOL_GPL(gpiod_get_raw_value_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_get_value_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_set_raw_value_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_set_raw_array_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_set_array_cansleep);
+ EXPORT_SYMBOL_GPL(gpiod_count);
+ EXPORT_SYMBOL_GPL(__gpiod_get);
+ EXPORT_SYMBOL_GPL(__gpiod_get_optional);
+ EXPORT_SYMBOL_GPL(__gpiod_get_index);
+ EXPORT_SYMBOL_GPL(fwnode_get_named_gpiod);
+ EXPORT_SYMBOL_GPL(__gpiod_get_index_optional);
+ EXPORT_SYMBOL_GPL(gpiod_get_array);
+ EXPORT_SYMBOL_GPL(gpiod_get_array_optional);
+ EXPORT_SYMBOL_GPL(gpiod_put);
+ EXPORT_SYMBOL_GPL(gpiod_put_array);
+ 
+
+gpiolib.c  flags cleared
+        clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+        clear_bit(FLAG_REQUESTED, &desc->flags);
+        clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
+        clear_bit(FLAG_OPEN_SOURCE, &desc->flags);
+        clear_bit(FLAG_IS_HOGGED, &desc->flags);
+
+
+gpiolib.h
+    /* flag symbols are bit numbers */
+    #define FLAG_REQUESTED  0
+    #define FLAG_IS_OUT 1
+    #define FLAG_EXPORT 2   /* protected by sysfs_lock */
+    #define FLAG_SYSFS  3   /* exported via /sys/class/gpio/control */
+    #define FLAG_TRIG_FALL  4   /* trigger on falling edge */
+    #define FLAG_TRIG_RISE  5   /* trigger on rising edge */
+    #define FLAG_ACTIVE_LOW 6   /* value has active low */
+    #define FLAG_OPEN_DRAIN 7   /* Gpio is open drain type */
+    #define FLAG_OPEN_SOURCE 8  /* Gpio is open source type */
+    #define FLAG_USED_AS_IRQ 9  /* GPIO is connected to an IRQ */
+    #define FLAG_SYSFS_DIR  10  /* show sysfs direction attribute */
+    #define FLAG_IS_HOGGED  11  /* GPIO is hogged */
+
+
+
+
+
+

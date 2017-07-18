@@ -1,0 +1,210 @@
+see also: rpi2_irq_affinity.txt
+
+
+
+ CONCLUSION:
+  
+        => ISR is registered to IRQ,  and NOT to CPU
+        => an ISR for IRQ (an single IRQ can have multiple ISRs) can be executed of any of the CPUs
+           which are affined to the IRQ
+           
+       THUS:
+            IRQ not linked to specific CPU 
+            => an specific IRQ is handeled by ISR which can assigned
+               to any off the CPU's to which the IRQ is affined
+          
+   
+
+irq affinity 
+-----------
+
+https://technolinchpin.wordpress.com/2015/11/06/linux-smp-cpu-affinity-settings/
+
+ discusses both
+   * Process Affinity
+   
+   
+       The main objective of setting the Processor affinity is to enable a mapping or binding the running threads or
+       tasks to specific core in multi-core systems. This is needed
+
+       1) To reduce cache problems and optimize the cache performance, by resisting the migration of processes between the processors
+       2) Proper balancing of available cores through proper load distribution, allocating specific amount of work or task to each core, to improve computational time,
+       3) To utilize the time quantum in a multi-threaded application,
+       
+       
+   
+   * Interrupt Affinity
+   
+       The affinity settings of Interrupts need more care and thought as ,
+       1. SoC having ARM Multi core architectures have the interrupts assigned by default to Core 0.
+       2. The Linux kernel later version beyond 2.6 doesn’t support any in-kernel Interrupt load balancing schemes 
+          for the multicore architecture.
+       3. Thus for the interrupts hardware and Soft IRQs (something that is very Linux specific) the irq rebalance to 
+          be performed explicit interrupt affinity settings.
+       
+   Thus to manage the affinity of Process and Interrupts in Linux
+
+       Processes:  
+           You can use taskset to specify which CPUs a process can run on
+       Interrupt Handlers:
+           The interrupt map can be found in /proc/interrupts, 
+           and the affinity for each interrupt can be set in the file smp_affinity in the directory 
+           for each interrupt under /proc/irq/  (see below)
+         
+
+ interesting :
+    On the contrary to the processes, in heavily loaded system with the interrupts ,binding the interrupts to 
+    certain CPU will most likely cause performance degradation.   
+    => note: on pi2 hardware forces you to bind to specific cpu => see: rpi2_irq_affinity.txt
+
+    explanation :
+      short: for processes switching cpu costs to much because cache misses
+             however isr handlers don't use much cache(memory) and WHEN having high interrupt load balancing over cpu's will help!!
+             
+     As far as interrupts concerned, SMP affinity relates the core to the interrupt mapping . On the contrary to the
+     processes, in heavily loaded system with the interrupts ,binding the interrupts to certain CPU will most likely
+     cause performance degradation . The most obvious answer to this comes from the explanation that Interrupt handlers
+     are usually very small in size. Interrupt’s memory footprint is relatively small, thus keeping interrupt on
+     certain CPU will not improve cache hits. Instead, having a system with high interrupt load from multiple
+     interrupts and busy processing softirqs , will keep one of the cores overloaded while others remain relatively
+     free. Scheduler has no idea about this state of affairs. It assumes that our interrupt handling core is as busy as
+     any other core. As a result, you may face bottle necks as one of the processes or threads will occasionally work
+     on core that has only 90% of its power available.
+     
+     Things may be even worse because often core 0 by default handles all interrupts. On busy systems all interrupts
+     may consume as much as 30% of core’s 0 power. Because we assume that all cores are equally powerful, we may find
+     ourselves in a situation where our software system will effectively use only 70% of total CPU power.
+
+
+
+https://rt.wiki.kernel.org/index.php/SMP_IRQ_Affinity
+
+   https://stackoverflow.com/questions/7476656/setting-cpu-affinity-for-linux-kernel-not-process
+     
+     You can steer interrupts, though. Look at /proc/interrupts to identify the interrupts you want to move (say
+     everything matching eth0) and set the affinity by echoing a hexadecimal mask to /proc/irq/XXX/smp_affinity.
+     
+ 
+ 
+ 
+ https://www.kernel.org/doc/Documentation/IRQ-affinity.txt
+ 
+ /proc/irq/IRQ#/smp_affinity and /proc/irq/IRQ#/smp_affinity_list specify
+ which target CPUs are permitted for a given IRQ source.  It's a bitmask
+ (smp_affinity) or cpu list (smp_affinity_list) of allowed CPUs.  It's not
+ allowed to turn off all CPUs, and if an IRQ controller does not support
+ IRQ affinity then the value will not change from the default of all cpus.
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+ /proc/irq/default_smp_affinity specifies default affinity mask that applies
+ to all non-active IRQs. Once IRQ is allocated/activated its affinity bitmask
+ will be set to the default mask. It can then be changed as described above.
+ Default mask is 0xffffffff.                                                 
+                                                  
+ 
+ example:
+   harcok@cup:~
+   $ sudo cat /proc/irq/default_smp_affinity
+   f
+   
+   root@raspberrypi:~ # cat /proc/irq/default_smp_affinity
+   f
+   
+   => all cores are possible!!
+   
+   
+   
+
+   
+ https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-cpu-irq.html
+ 
+   An interrupt request (IRQ) is a request for service, sent at the hardware level. Interrupts can be sent by either a
+   dedicated hardware line, or across a hardware bus as an information packet (a Message Signaled Interrupt, or MSI).
+ 
+   When interrupts are enabled, receipt of an IRQ prompts a switch to interrupt context. Kernel interrupt dispatch code
+   retrieves the IRQ number and its associated list of registered Interrupt Service Routines (ISRs), and calls each ISR
+   in turn. The ISR acknowledges the interrupt and ignores redundant interrupts from the same IRQ, then queues a
+   deferred handler to finish processing the interrupt and stop the ISR from ignoring future interrupts.
+   
+      => note: ISR is registered to IRQ,  and NOT to CPU
+   
+   The /proc/interrupts file lists the number of interrupts per CPU per I/O device. It displays the IRQ number, the
+   number of that interrupt handled by each CPU core, the interrupt type, and a comma-delimited list of drivers that
+   are registered to receive that interrupt. (Refer to the proc(5) man page for further details: man 5 proc)
+ 
+ 
+   IRQs have an associated "affinity" property, smp_affinity, which defines the CPU cores that are allowed to execute
+   the ISR for that IRQ. This property can be used to improve application performance by assigning both interrupt
+   affinity and the application's thread affinity to one or more specific CPU cores. This allows cache line sharing
+   between the specified interrupt and application threads.
+     
+     => an ISR for IRQ (an single IRQ can have multiple ISRs) can be executed of any of the CPUs
+        which are affined to the IRQ
+  
+ 
+ 
+ 
+ CONCLUSION:
+  
+        => ISR is registered to IRQ,  and NOT to CPU
+        => an ISR for IRQ (an single IRQ can have multiple ISRs) can be executed of any of the CPUs
+           which are affined to the IRQ
+           
+       THUS:
+            IRQ not linked to specific CPU 
+            => an specific IRQ is handeled by ISR which can assigned
+               to any off the CPU's to which the IRQ is affined
+                       
+        
+ 
+ http://www.thegeekstuff.com/2014/01/linux-interrupts/?utm_source=feedburner
+
+IRQ number determines the priority of the interrupt that needs to be handled by the CPU.
+
+A small IRQ number value means higher priority. 
+
+
+
+ SMP_AFFINITY
+
+     Symmetric multiprocessing is the processing of programs by multiple processors.
+
+     smp_affinity file holds interrupt affinity value for a IRQ number. The smp_affinity file associated with each IRQ
+     number is stored in /proc/irq/IRQ_NUMBER/smp_affinity file. The value in the file is stored in hexadecimal bit-mask
+     representing all CPU cores in the system. smp_affinity works for device that has IO-APIC enabled device drivers.
+
+     For example, smp_affinity entry for Ethernet driver is shown below:
+
+         grep eth0 /proc/interrupts
+         67: 23834931 0 0 0 IO-APIC-level eth0
+
+     IRQ number for eth0 is 67 and corresponding smp_affinity file is located at:
+
+         cat /proc/irq/67/smp_affinity
+         00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001
+
+     The decimal equivalent for value ‘000000001’ is ‘1’. ie All the interrupt related to Ethernet driver will be serviced by CPU0.
+
+     We can manually change the processor affinity by changing values in smp_affinity file for a particular controller or by using irqbalance.
+    
+      =>see also https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-cpu-irq.html
+    
+ IRQ Balance
+
+     Irqbalance is a Linux utility that distributes interrupts over the processor cores in your computer system which helps to improve performance.
+
+     Irqbalance goal is to find a balance between power saving and optimal performance.
+
+
+
+
+https://stackoverflow.com/questions/11858487/change-smp-affinity-from-linux-device-driver
+
+    In a kernel module you can just call 
+    
+         the kernel API function irq_set_affinity(...) 
+    
+    directly. No need to go through /proc. See: http://lxr.free-electrons.com/source/kernel/irq/manage.c#L189  
+
+
+

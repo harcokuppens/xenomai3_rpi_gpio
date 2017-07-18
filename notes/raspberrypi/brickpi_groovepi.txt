@@ -1,0 +1,58 @@
+brickpi/groovepi
+----------------- 
+ 
+   
+  brickpi => hat for rpi for connecting both  lego motors/sensors   AND grovepi sensor
+  
+     use rpi to control lego motors and sensors 
+       https://www.dexterindustries.com/shop/brickpi-advanced-for-raspberry-pi/ 
+   
+   
+     https://www.dexterindustries.com/shop/brickpi-advanced-for-raspberry-pi/
+        base kit 
+        
+          What’s included in the BrickPi Base Kit?
+
+              BrickPi3 board
+              6-sided Acrylic Case to connect LEGO technic bricks on all sides
+              Case hardware
+              Battery Power Pack (8AA batteries not included)
+          
+   
+     https://www.dexterindustries.com/shop/brickpi-starter-kit/
+       starter kit 
+       
+           Raspberry Pi 3
+           BrickPI3 board
+           BrickPi 6-sided Acrylic Case
+           Battery Power Pack (8AA batteries not included)
+           
+           microSD Card with Dexter Industries Software “Raspbian for Robots”           
+           Mini Wi-Fi Dongle  -> for pc           
+           Power Supply Wall Adapter (110-240V) is recommended so you don’t drain the batteries while you are programming.
+           Ethernet Cable
+      
+      
+
+           
+       
+  grovepi => hat for rpi for connecting grovepi sensor
+     https://www.dexterindustries.com/shop/grovepi-board/
+       => hat for rpi   to easy connect grovepi sensors 
+     https://www.dexterindustries.com/shop/grovepi-starter-kit-raspberry-pi/
+ 
+        GrovePi Board
+        Grove – Sound Sensor
+        Grove – Temperature and Humidity
+        Grove – Light Sensor
+        Grove – Relay
+        Grove – Button
+        Grove – Ultrasonic Sensor
+        Grove – Rotary Angle Sensor
+        Grove – LCD Display
+        Grove – Buzzer
+        Grove – Red LED
+        Grove – Blue LED
+        Grove – Green LED
+        Sensor Cables
+  

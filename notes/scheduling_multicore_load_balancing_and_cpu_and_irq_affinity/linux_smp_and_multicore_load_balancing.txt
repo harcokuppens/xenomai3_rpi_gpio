@@ -1,0 +1,61 @@
+
+
+
+ 
+smp
+---- 
+ 
+http://www.wikiwand.com/en/Symmetric_multiprocessing
+
+Symmetric multiprocessing (SMP) involves a multiprocessor computer hardware and software architecture where two or more
+identical processors are connected to a single, shared main memory, have full access to all I/O devices, and are
+controlled by a single operating system instance that treats all processors equally, reserving none for special
+purposes. Most multiprocessor systems today use an SMP architecture. In the case of multi-core processors, the SMP
+architecture applies to the cores, treating them as separate processors.
+
+
+  http://www.tldp.org/HOWTO/SMP-HOWTO-3.html 
+    ARM does not support SMP        => old notion, nowadays it does!!
+   => same documentation says that SMP is supported if /proc/cpuinfo lists more then one cpu =>  and that is the case for the pi3!!
+  
+
+ http://www.orocos.org/forum/rtt/rtt-dev/orocos-toolchian-xenomai-multiple-cores
+
+   Normally, you should have built your Xenomai Linux kernel with SMP
+   support, so Xenomai can use these extra cores too.
+   
+   
+load_balancing
+---------------   
+
+http://linuxrealtime.org/index.php/Basic_Linux_from_a_Real-Time_Perspective#CPU_Load_Balancing
+
+CPU Load Balancing
+
+  Linux performs allocation of tasks to CPUs. In the default setting, this is done automatically.
+
+  The scheduler is free to move tasks around to evenly distribute the processing load among the available CPUs, similar
+  to the default fair task scheduling which aims at dividing the CPU time for individual CPUs so that each task gets
+  its fair share of processing time.
+
+  The moving of a task is referred to as task migration. The migration is done by a part of the scheduler called the
+  load balancer. It is invoked, on a regular basis, as a part of the processing done during the scheduler tick. The
+  decision to move a task is based on a variety of input data such as CPU load, task behavior, etc.
+
+  For an application which requires determinism, load balancing is problematic. The time to activate a certain task, as
+  a result of an interrupt being serviced, may depend, not only on the scheduling method used, but also on where this
+  task is currently executing.
+
+  It is possible to statically assign tasks to CPUs. One reason for doing this is to increase determinism, for example
+  by making the response time to external events more predictable. Assigning a task to a CPU, or set of CPUs, is
+  referred to as setting the affinity of the task.
+
+  A mechanism used both for setting affinity of tasks and for turning off automatic load balancing, is cpuset, which
+  makes use of the Linux subsystem cgroup
+
+
+
+
+
+
+

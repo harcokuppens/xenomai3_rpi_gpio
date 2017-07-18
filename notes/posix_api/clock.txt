@@ -1,0 +1,117 @@
+clock
+=====
+
+
+
+   https://github.com/rcn-ee/xenomai-3/blob/master/kernel/cobalt/posix/timer.c
+   
+     	if (timer->clockid != CLOCK_MONOTONIC &&
+     	    timer->clockid != CLOCK_MONOTONIC_RAW &&
+     	    timer->clockid != CLOCK_REALTIME) 
+        {
+               return ERR_PTR(-EINVAL);
+        } 
+        
+        
+    man timer_create 
+    
+     The clockid argument specifies the clock that the new timer uses to measure time.  It can be specified as one of the following values:
+
+      CLOCK_REALTIME
+             A settable system-wide real-time clock.
+               ^^^^^^^
+               
+      CLOCK_MONOTONIC
+             A nonsettable monotonically increasing clock that measures time from some unspecified point in the past that does not change after system startup.
+               ^^^^^^^^^^^
+               
+      CLOCK_PROCESS_CPUTIME_ID (since Linux 2.6.12)
+             A clock that measures (user and system) CPU time consumed by (all of the threads in) the calling process.
+
+      CLOCK_THREAD_CPUTIME_ID (since Linux 2.6.12)
+             A clock that measures (user and system) CPU time consumed by the calling thread.          
+
+  http://www.cs.ru.nl/lab/xenomai/api/group__posix__time.html  xenomai 2.4 
+
+     Xenomai POSIX skin supports two clocks:
+
+      CLOCK_REALTIME maps to the nucleus system clock, keeping time as the amount of time since the Epoch, with a
+      resolution of one system clock tick.
+
+      CLOCK_MONOTONIC maps to an architecture-dependent high resolution counter, so is suitable for measuring short
+      time intervals. However, when used for sleeping (with clock_nanosleep()), the CLOCK_MONOTONIC clock has a
+      resolution of one system clock tick, like the CLOCK_REALTIME clock.
+      
+   http://www.cs.ru.nl/lab/xenomai/api3/group__cobalt__api__time.html#details
+   
+     Cobalt supports three built-in clocks:
+
+     CLOCK_REALTIME   -> realtime clock (nanosecond)
+     
+       maps to the nucleus system clock, keeping time as the amount of time since the Epoch, 
+       with a resolution of one  nanosecond.
+
+     CLOCK_MONOTONIC   ->  architecture-dependent high resolution counter  (not clock)
+       
+       maps to an architecture-dependent high resolution counter, so is suitable for measuring short time intervals.
+       However, when used for sleeping (with clock_nanosleep()), the CLOCK_MONOTONIC clock has a resolution of one
+       nanosecond, like the CLOCK_REALTIME clock.
+
+     CLOCK_MONOTONIC_RAW 
+       
+       is Linux-specific, and provides monotonic time values from a hardware timer which is not adjusted by NTP. This
+       is strictly equivalent to CLOCK_MONOTONIC with Cobalt, which is not NTP adjusted either.
+
+     In addition, external clocks can be dynamically registered using the cobalt_clock_register() service. These clocks are fully managed by Cobalt extension code, which should advertise each incoming tick by calling xnclock_tick() for the relevant clock, from an interrupt context.
+
+     Timer objects may be created with the timer_create() service using any of the built-in or external clocks. The resolution of these timers is clock-specific. However, built-in clocks all have nanosecond resolution, as specified for clock_nanosleep().
+     
+     => refers to posix specification
+     
+     http://pubs.opengroup.org/onlinepubs/000095399/functions/xsh_chap02_08.html#tag_02_08_05
+     
+
+      CLOCK_REALTIME
+          The identifier for the system-wide realtime clock.
+      TIMER_ABSTIME
+          Flag indicating time is absolute with respect to the clock associated with a timer.
+      CLOCK_MONOTONIC
+          [MON] [Option Start] The identifier for the system-wide monotonic clock, 
+           which is defined as a clock whose value cannot be set via clock_settime() 
+           and which cannot have backward clock jumps. The maximum possible clock jump is implementation-defined. [Option End]
+
+      The maximum allowable resolution for CLOCK_REALTIME and [MON] [Option Start] CLOCK_MONOTONIC [Option End] clocks
+      and all time services based on these clocks is represented by {_POSIX_CLOCKRES_MIN} and shall be defined as 20 ms
+      (1/50 of a second). Implementations may support smaller values of resolution for these clocks to provide finer
+      granularity time bases. The actual resolution supported by an implementation for a specific clock is obtained
+      using the clock_getres() function. If the actual resolution supported for a time service based on one of these
+      clocks differs from the resolution supported for that clock, the implementation shall document this difference.
+     
+     
+     https://stackoverflow.com/questions/3523442/difference-between-clock-realtime-and-clock-monotonic
+       
+
+
+       CLOCK_REALTIME
+         
+          represents the machine's best-guess as to the current wall-clock, time-of-day time. As Ignacio and MarkR say,
+          this means that CLOCK_REALTIME can jump forwards and backwards as the system time-of-day clock is changed,
+          including by NTP.
+
+       CLOCK_MONOTONIC 
+       
+          represents the absolute elapsed wall-clock time since some arbitrary, fixed point in the past. It isn't
+          affected by changes in the system time-of-day clock.
+
+       If you want to compute the elapsed time between two events observed on the one machine without an intervening
+       reboot, CLOCK_MONOTONIC is the best option.
+       
+       
+         
+        The important aspect of a monotonic time source is NOT the current value, but the guarantee that the time
+        source is strictly linearly increasing, and thus useful for calculating the difference in time between two
+        samplings
+  
+  
+  
+ => just use CLOCK_MONOTONIC

@@ -1,0 +1,115 @@
+  => wifi 
+      http://weworkweplay.com/play/automatically-connect-a-raspberry-pi-to-a-wifi-network/
+        
+        Configuring WiFi connection
+
+        Open up the wpa_supplicant.conf file in the editor.
+
+        $ sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+        Again, some lines might already be present, just add the following.
+
+        network={
+        ssid="YOUR_NETWORK_NAME"
+        psk="YOUR_NETWORK_PASSWORD"
+        proto=RSN
+        key_mgmt=WPA-PSK
+        pairwise=CCMP
+        auth_alg=OPEN
+        }
+
+        The other parameters are network specific, I can't tell you what you need. If you boot Raspbian to desktop, you can launc the wpa_gui (WiFi config) application and click 'Scan'. You'll find a list that has your network too with all flags you need. To do this on a RPi A you'll have to disconnect your keyboard and connect your dongle once the scanning list is open.
+
+            proto
+                could be either RSN (WPA2) or WPA (WPA1).
+            key_mgmt 
+                could be either WPA-PSK (most probably) or WPA-EAP (enterprise networks)
+            pairwise 
+                could be either CCMP (WPA2) or TKIP (WPA1)
+            auth_alg 
+                is most probably OPEN, other options are LEAP and SHARED
+        
+        
+        
+        https://raspberrypi.stackexchange.com/questions/43566/raspberry-pi-3-internal-wifi-wont-connect-to-network
+        
+          escape strange chars in password :
+          
+            You escape a character by adding a '\' before it, so for example if your key was:
+
+               P@ssword"!
+
+            You would escape it like:
+
+               P\@ssword\"\!
+
+            Likewise, if you needed the character \ in your password, you would escape it by prefixing like \\.
+        
+        
+        https://coderwall.com/p/v290ta/raspberry-pi-wifi-setup-with-wpa2-psk-aes
+        
+           example for WPA2 :
+        
+        
+           /etc/wpa_supplicant/wpa_supplicant.conf:
+
+               ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+               update_config=1
+
+               network={
+               ssid="replace_with_your_ssid"
+               psk="replace_with_your_password"
+               proto=RSN
+               key_mgmt=WPA-PSK
+               pairwise=CCMP
+               group=CCMP
+               auth_alg=OPEN
+               }
+        
+        
+        https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md
+        
+        
+          scan for wifi networks:  sudo iwlist wlan0 scan    
+          config file:  /etc/wpa_supplicant/wpa_supplicant.conf .
+           => also has tips how to store password encrypted
+          
+          If you are using a hidden network, an extra option in the wpa_supplicant file, 
+          
+               scan_ssid, 
+          
+          may help connection.
+          
+          
+          
+          wpa-supplicant will normally notice within a few seconds that a change has occurred, and it will try and
+          connect to the network. If it does not, 
+          
+          restart the interface with 
+          
+              sudo wpa_cli reconfigure.
+
+          You can verify whether it has successfully connected using 
+          
+             ifconfig wlan0
+          
+          If the inet addr field has an address beside it, the Raspberry Pi has connected to the network.
+          
+  
+        https://askubuntu.com/questions/95676/a-tool-to-measure-signal-strength-of-wireless
+  
+          On the command line you can use 
+          
+           * iwconfig 
+                Displays status wireless connection.
+                Look in output for "Link Quality" and "Signal level" values
+        
+                When walking around with a netbook I often use this command which updates the output of iwconfig every second:
+
+                   watch -n1 iwconfig
+        
+           *  wavemon
+                 Console app with color display and lots of easy to read information.
+                (apt-get install wavemon)
+  
+  

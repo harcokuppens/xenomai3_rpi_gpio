@@ -1,0 +1,301 @@
+
+NOTE: the problems with compiling xenomai3 for rpi1 were fixed later
+      by using a different compiler. Seems that the arm compiler 
+      coming with ubuntu 14.04 generate unwanted thumb code which 
+      was illegal for the pi1. Solution was to use a different
+      compiler. This fix is not applied in this document because
+      I found that in for the pi1 there was already a more official
+      patch in the xenomai's ipipe git repository in a special
+      branch for the pi1.  
+       => see : ../install_xenomai-3-3.0.5_on_rpi1__ipipe_git.txt
+
+
+credits :
+--------
+ based on 
+  http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi
+ 
+  http://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/
+  http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3
+ and 
+   added my modifications to get gpio to work on rpi1 
+
+
+
+both ipipe patch and xenomai code can be downloaded separately at : http://xenomai.org/downloads/
+note: ipipe patch used to be included in xenomai, but isn't anymore ; see the README:
+ # http://git.xenomai.org/xenomai-3.git/tree/kernel/cobalt/arch/arm/README?h=v3.0.5
+ #  Get the interrupt pipeline code for the target kernel from
+ #  http://xenomai.org/downloads/ipipe/, or                                          <== use this
+ #  git://git.xenomai.org/ipipe.git
+
+
+built raspbian linux kernel with xenomai patch
+==============================================
+
+
+
+  git clone -b rpi-3.18.y git://github.com/raspberrypi/linux.git rpi-linux
+  git clone -b v3.0-rc4 git://git.xenomai.org/xenomai-3.git xenomai-3
+  
+  
+  wget http://download.gna.org/adeos/patches/v3.x/arm/ipipe-core-3.18.12-arm-1.patch
+
+
+
+# 0. prepare 
+# ------------
+
+export BUILDDIR=/var/tmp/rpi1kernel3
+# build kernel with NUMCORES
+export NUMCORES=4
+
+
+mkdir $BUILDDIR   # place where download and build everything  
+mkdir  $BUILDDIR/dist  # for ready to install files
+
+# 1. get sources 
+#---------------
+#
+# 1a. get raspbian linux rpi-3.18.y
+#
+cd $BUILDDIR
+git clone https://github.com/raspberrypi/linux.git
+cd  linux/
+git  checkout  rpi-3.18.y          # 3.18.16
+
+git checkout c963de6d8caec6278c0dde76831f9fdab5bace52      # checkout this specific version  => git log says it is 3.18.12
+git checkout -b 3.18.12   # creates branch   
+cd ..
+#
+# 1b. get xenomai source 
+wget http://git.xenomai.org/xenomai-3.git/snapshot/xenomai-3-3.0.5.tar.bz2
+tar -xjvf xenomai-3-3.0.5.tar.bz2
+#
+# 1c. get ipipe  patch 
+#wget http://xenomai.org/downloads/ipipe/v3.x/arm/ipipe-core-3.18.20-arm-11.patch
+
+# http://download.gna.org/adeos/patches/v3.x/arm/ipipe-core-3.18.12-arm-1.patch -> on website
+# http://xenomai.org/downloads/ipipe/v3.x/arm/older/ipipe-core-3.18.12-arm-4.patch   => newer version   
+wget http://xenomai.org/downloads/ipipe/v3.x/arm/older/ipipe-core-3.18.12-arm-4.patch
+
+# download   bcm patch for xenomai3 :  3.18.12-xenomai3-temp.patch 
+# at : https://drive.google.com/file/d/0B6GwSked9fL9RnU3b3pSajFZbUk/view
+# note: applies on files
+#   arch/arm/Kconfig      
+#   arch/arm/mach-bcm2708/bcm2708.c
+#   arch/arm/mach-bcm2708/bcm2708_gpio.c
+
+ 
+
+
+
+# 2.  apply kernel patches ( xenomai+ipipe, bcm)
+# ------------------------
+#
+# 2a. apply xenomai (and ipipe) patch to kernel
+# 
+# first check if the ipipe patch applies well: (because little bit different kernel)
+cd linux
+patch  --dry-run  -p1  <  ../ipipe-core-3.18.12-arm-4.patch
+# The argument --dry-run of the above execution allowed to verify if the patch is applied correctly without making changes.
+cd  ..
+
+# finally really apply both xenomai and ipipe patch to kernel
+xenomai-3-3.0.5/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-3.18.12-arm-4.patch
+
+
+# 2b. apply raspberry pi specific patch  to kernel
+# try bcm patch for xenomai3  
+cd linux
+patch  --dry-run  -p1  <  ../3.18.12-xenomai3-temp.patch
+# finally really apply bcm patch for xenomai3 
+patch  -p1  <  ../3.18.12-xenomai3-temp.patch
+cd ..
+
+
+
+ 
+
+ 
+ 
+
+ 
+# 3. configure linux kernel/module option
+# ---------------------------------------
+
+cd linux
+       
+
+# create default config for bcm2708  => different per rpi type!
+#  note default configs in :  ./arch/arm/configs/bcm*
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+# a default configuration for bcm2708 written to .config
+# specialize config for xenomai
+# install package needed for menuconfig :  apt-get  install libncurses5-dev
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+    CPU Power Management  --->
+      CPU Frequency scaling  --->
+        [ ] CPU Frequency scaling
+      CPU idle  --->
+        [ ] CPU idle PM support
+    Kernel Features  --->
+        [ ] Contiguous Memory Allocator
+        [ ] Allow for memory compaction
+    Kernel Hacking  --->
+        [ ] KGDB: kernel debugger
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+
+
+    Xenomai Cobalt --->
+         Drivers  --->
+                 Real-time GPIO drivers  --->
+                    <M> GPIO controller
+                    [*]   Support for BCM2835 GPIOs
+                    [*]   Enable GPIO core debugging features
+
+
+    note: in above  [ ]  means disable,  [X]  means enable
+
+
+
+cd ..
+        
+        
+        
+        
+        
+# 4. build kernel and modules in linux dir 
+# ----------------------------------------
+ 
+cd linux/ 
+# build
+export NUMCORES=4 
+time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+# -> real    6m45.452s
+# install in ../dist/ dir 
+time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
+
+cd ..
+
+
+
+# 5. built Xenomai user space part  ( kernel part is built with kernel above)
+$ ------------------------------
+
+## you need to have installed autoconf and libtool :
+# sudo apt-get install autoconf
+# sudo apt-get install libtool
+
+cd xenomai-3-3.0.5
+./scripts/bootstrap --with-core=cobalt –enable-debug=partial
+
+# for rpi2 : ./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp
+
+# for rpi1 :  note: no smp because only single core on rpi1
+# according webpage : ./configure CFLAGS="-mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard" LDFLAGS="-mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard" --host=arm-linux-gnueabihf --with-core=cobalt
+#   `-> gives immediately cpu error
+# instead do :
+#./configure CFLAGS="-march=armv6 -mfpu=vfp -mfloat-abi=hard" --host=arm-linux-gnueabihf  --with-core=cobalt
+
+#./configure CFLAGS="-march=armv6 -mfpu=vfp -mfloat-abi=hard" LDFLAGS="-march=armv6 -mfpu=vfp -mfloat-abi=hard" --host=arm-linux-gnueabihf  --with-core=cobalt
+
+#./configure --host=arm-linux-gnueabihf  --with-core=cobalt CFLAGS="-march=armv6 -mfpu=vfp -mfloat-abi=hard" LDFLAGS="-march=armv6 -mfpu=vfp -mfloat-abi=hard"
+
+
+# tip : https://stackoverflow.com/questions/16188228/arm-compiler-with-autoconf
+
+./configure --host=arm-linux-gnueabi --prefix=${CSTOOL_DIR}/linux_arm_tool
+  `-> gives problems with make install below " #error "Could not find current ARM architecture""
+  
+# emanual : ./configure --host=arm-linux-gnueabihf CFLAGS='-march=armv6' LDFLAGS='-march=armv6'  
+  
+#
+# note : http://xenomai.org/installing-xenomai-3-x/
+#          –enable-smp
+#              Turns on SMP support for Xenomai libraries.
+#
+#              Caution
+#                  SMP support must be enabled in Xenomai libraries when the client
+#                  applications are running over a SMP-capable kernel.
+
+mkdir ../dist/xenomai
+export DESTDIR=`realpath ../dist/xenomai`  # realpath because must be absolute path
+make  DESTDIR="$DESTDIR"  install
+
+
+
+6. copy build stuff in dist/ to raspbian sdcard 
+-----------------------------------------------
+
+# 0. install raspbian on sd card;  os x instructions : 
+
+
+      note: diskutil is os x program!!  => do on mac!!
+
+        diskutil list
+            identify the disk (not partition) of your SD card. e.g. disk4 (not disk4s1)
+        diskutil unmountDisk /dev/<disk# from diskutil>
+            e.g. diskutil unmountDisk /dev/disk4
+        sudo dd bs=1m if=<your image file>.img of=/dev/<disk# from diskutil>
+            e.g. sudo dd bs=1m if=2014-09-09-wheezy-raspbian.img of=/dev/disk4
+            (This will take a few minutes)
+            
+            
+
+# 1. mount sdcard
+#  become root otherwise you cannot access sdcard
+
+sudo su -  
+
+export BUILDDIR=/var/tmp/rpi1kernel3
+export SDCARD=/dev/sdb
+export MOUNTPOINT=/media/sdcard
+
+mkdir ${MOUNTPOINT}
+mount ${SDCARD}2 ${MOUNTPOINT}
+mount ${SDCARD}1 ${MOUNTPOINT}/boot
+
+
+cd $BUILDDIR
+
+# 2. copy Xenomai user space files to sd card
+#  
+cd dist/xenomai
+chown -R root:root *
+cp -a * ${MOUNTPOINT}/
+
+
+# 3. copy kernel and modules 
+#
+# 3a. cp kernel and device tree files from linux/ dir  to /boot/ directory on image
+cd linux/
+cp arch/arm/boot/zImage ${MOUNTPOINT}/boot/
+cp arch/arm/boot/dts/bcm27*.dtb ${MOUNTPOINT}/boot/
+rm -rf ${MOUNTPOINT}/boot/overlays/*
+cp arch/arm/boot/dts/overlays/*.dtb* ${MOUNTPOINT}/boot/overlays/
+
+# 3b. cp modules from dist/lib/modules to sd card
+cd ../
+cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
+
+# update config for new kernel and device tree
+# at end of /boot/config.txt add :
+
+    kernel=zImage
+    # for pi2
+    device_tree=bcm2709-rpi-2-b.dtb
+    # for pi3
+    #device_tree=bcm2710-rpi-3-b.dtb
+
+
+
+
+umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
+
+
+
+

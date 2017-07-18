@@ -1,0 +1,65 @@
+external interfaces raspberry pi
+================================
+
+
+
+http://www.raspberry-projects.com/pi/pi-hardware/raspberry-pi-model-b-plus/model-b-plus-io-pins
+
+
+     3.3V Output
+
+      External circuitry may draw up to a total of 50mA max current from the 3.3V Out pins (true for Model B so
+      presumably true for Model B+ but not confirmed as full schematic not yet available).
+
+       Is maximum current from 3.3V pin really 50mA?
+         https://www.element14.com/community/thread/19550
+
+    IO Pins
+
+      All IO pins are 3.3V, not 1.8V.  Pins are not 5V tolerant. 
+
+
+        http://elinux.org/RPi_Low-level_peripherals
+
+        => very good!!
+
+    Power-up State
+
+        Its likely all pins are set as inputs on power up (TBC).
+
+        I2C pins (e.g. Pj-3 and P8-5) are therefore high due to the pull up resistors on these pins.
+
+   Pull-Up & Pull-Down resistors
+
+        The GPIO ports include the ability to enable and disable internal pull-up or pull-down resistors from code.
+
+        Pull-up is 50K min – 65K max.
+         see: http://www.wikiwand.com/en/Pull-up_resistor
+
+        Pull-down is 50K min – 60K max. 
+
+       
+
+    I2C
+
+        1K8 pull up resistors are included on the RPi board so are not needed externally (true for Model B so
+        presumably true for Model B+ but not confirmed as full schematic not yet available).
+
+        Interfacing the RPi 3.3V I2C pins to a 5V device like an Arduino – see here.
+
+    SPI
+
+        The Chip Select signals are for up to two independent slave devices. It seems that with the SPI port enabled in
+        Raspbian both the CS0 and CS1 pins are assigned to it and therefore can't be used as IO (our assumption –
+        correct?)
+
+
+    PWM Pin
+
+        The PWM pin available on the GPIO header is shared with the Audio system (true for Model B so presumably true
+        for Model B+ – not confirmed as full schematic not yet available). This means that you can't use the PWM output
+        and play audio through the 3.5mm jack at the same time.
+
+ 
+ 
+ 

@@ -1,0 +1,382 @@
+
+context: discussion is about xenomai 2, but same applies still to xenomai 3
+
+
+https://www.mail-archive.com/xenomai-help@gna.org/msg07385.html
+
+
+
+[Xenomai-help] keyboard interrupt
+
+Harco Kuppens Tue, 16 Sep 2008 13:40:25 -0700
+
+    Hi,
+
+    I tried to make a demo program which showed how that user space task waiting for an interrupt with rt_intr_wait
+    automatically gets an increase in priority when the interrupt arrives so that it can be dealed with immediately.
+
+
+    In my program I use the keyboard interrupt IRQ=1. I have a priority task doing spinning for 3 seconds using 100% of
+    theCPU. During this spinning I want to test if a low priority task can still get an interrupt from the keyboard by
+    letting the end user type some letters on the keyboard when My program works but only the first interrupt gets caught
+    when the high priority task is running. The following interrupts are only dealed with when the high priority task is
+    done.
+
+    Probably because linux first has to finish the first interrupt?
+
+    I thought that the adeos pipeline kept interrupts on a hold between xenomai and linux, until xenomai has done its work.
+    But in my example it seems that the second interrupt has to wait for linux has finished handling the first interrupt.
+    That is really something you don't want.
+
+
+    Is my interpretation wrong, or do I something wrong in my code?
+
+    best regards
+    Harco Kuppens
+
+    ps. my code is in the attachment  : see  task_getting_high_interrupt_priority.c
+
+
+ Jan Kiszka Wed, 17 Sep 2008 14:36:19 -0700 
+
+    > Probably because linux first has to finish the first interrupt?
+
+
+    Exactly. You forward the IRQ to Linux, thus you rely on Linux for                  
+    dealing with the periphery (acking the IRQ there) and the final
+    end-of-IRQ signal.
+
+    > I thought that the adeos pipeline kept  interrupts on a hold between
+    > xenomai and linux, until xenomai has done its work. But in my example it
+    > seems that the second interrupt has to wait for linux has finished
+    > handling the first interrupt. That is really something you don't want.
+    > 
+    > Is my interpretation wrong, or do I something wrong in my code?
+
+    IRQ sharing between deterministic and non-deterministic code (here:
+    Xenomai and vanilla Linux) will never work, that's an inherent design
+    issue, nothing Xenomai or ipipe-specific.
+
+    Jan
+    
+    
+ Harco Kuppens Thu, 18 Sep 2008 02:02:44 -0700
+
+        Hi Jan,
+
+        Thank you for your answer! But I still have some things I do not really understand.
+
+
+        In Life with Adeos <http://www.xenomai.org/documentation/branches/v2.3.x/pdf/Life-with-Adeos-rev-B.pdf> I read :
+
+
+           The stage of the pipeline occupied by any given domain can be stalled, which means that the next incoming
+           interrupt will not be delivered to the domain's handler, and will be prevented from flowing down to the
+           lowest priority domain(s) in the same move. While a stage is stalled, pending interrupts accumulate in the
+           domain's interrupt log, and eventually get played when the stage is unstalled, by an internal operation
+           called synchronization.
+
+
+        and further on :
+
+           When a domain has finished processing all the pending interrupts it has received, it then calls a special
+           Adeos service which yields the CPU to the next domain down the pipeline, so the latter can process in turn
+           the pending events it has been notified of, and this cycle continues down to the lowest priority domain of
+           the pipeline.
+
+
+        So from reading this I would suspect that multiple IRQs could be buffered (= interrupt log) between Xenomai and
+        Linux so that Xenomai can finish it realtime jobs. Only when xenomai is done with its jobs the IRQs from the
+        buffer are passed to Linux But from your answer I suspect that it only holds for different IRQs, and when an
+        IRQ X is on the pipeline not another newer IRQ X can over the pipeline until the first one is dealed with.
+
+        Thus when the 'end-of-IRQ' signal is given.
+        Who however gives this 'end-of-IRQ' signal? linux or the pipeline?
+
+        What exactly is this 'end-of-IRQ' signal? Because interrupt are virtualized in the pipeline I would suspect
+        this is something used in the pipeline?
+
+
+            IRQ sharing between deterministic and non-deterministic code (here:
+            Xenomai and vanilla Linux) will never work, that's an inherent design
+            issue, nothing Xenomai or ipipe-specific.
+
+        with inherent design, I would guess you mean the intel hardware design I suppose? but than I would suspect that
+        the 'end-of-IRQ' signal is something in the hardware
+
+
+        please help me out this world of confusion :)
+
+        cheers
+        Harco
+
+
+
+ Jan Kiszka Thu, 18 Sep 2008 23:57:07 -0700 
+
+    > But from your answer I suspect that it only holds for different IRQs,
+    > and when an IRQ X is on the pipeline not another newer IRQ X can over
+    > the pipeline until the first one is dealed with.
+    > Thus when the 'end-of-IRQ' signal is given.
+
+
+    Yes. For correct handling of shared IRQs, _all_ associate IRQ handlers
+                                 ^^^^^^
+    must have been executed before the EOI can be sent. 
+    
+    The reason is this:
+
+        For level-triggered IRQs,
+        
+           all hardware devices that may have raised the IRQ line must be checked and told to lower it again before
+           sending EOI. Otherwise the IRQ will immediately be triggered again and you end up in an endless loop,
+           bricking your box.
+
+        For edge-triggered IRQs, 
+        
+           there problem is different. Here the shared IRQ handling algorithm is to consult all handlers in a loop until
+           they all reported "not for me" in a row. If you fail to do this, you risk loosing IRQs. Consider IRQ source
+           A and B. Now an IRQ is raised by B. First, the handler for A will be called. It return "not for me". Now it
+           happens that A also raised the IRQ right at this time. If you now simply log the IRQ for later handling by B
+           and send the EOI, you take away the chance for handle A to react on the IRQ. At best you create latency, at
+           worst A will never send an IRQ again...        -----------------------------
+                                                              |
+                                                              `-> IRQ is shared, CPU can check the IRQ is triggered for device A 
+                                                                  using device specific code. If handler A is not called
+                                                                  the interrupt stays triggered in the device specific status
+                                                                  line. So if handle not called when IRQ happened, then
+                                                                    - can be called then next time IRQ happens.
+                                                                      This IRQ maybe even caused by another device,
+                                                                      but device A is still trigger in its own status line
+                                                                      So can be handled then:  => handler IRQ later =>  latency 
+                                                                    - IRQ never happens again                       => IRQ missed
+                                                                  
+                                                                  
+                                                                  source: http://www.wikiwand.com/en/Interrupt#Level-triggered
+                                                                     the CPU may recheck the interrupt line status to determine whether any other devices also needs service 
+                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                                                          `-> just loop over all handlers for the IRQ
+                                                                                              each handler knows how to check whether its device is triggered
+                                                                                              with device specific code!
+                                                                                          
+        => also see: http://www.wikiwand.com/en/Interrupt#Types_of_interrupts !!   
+
+    [Hope someone feels motivated to move this explanation to our FAQ in the
+    wiki...]
+
+    > Who however gives this 'end-of-IRQ' signal? linux or the pipeline?
+
+    The last domain in the pipeline that listens to the IRQ.
+
+    > What exactly is this 'end-of-IRQ'  signal? Because interrupt are
+    > virtualized in the pipeline I would suspect  this is something used in
+    > the pipeline?
+
+    See above, this is a hardware dependency.
+
+    > 
+    >> IRQ sharing between deterministic and non-deterministic code (here:
+    >> Xenomai and vanilla Linux) will never work, that's an inherent design
+    >> issue, nothing Xenomai or ipipe-specific.
+    >>
+    >>   
+    > with inherent design, I would guess you mean the intel hardware design I
+    > suppose?
+    > but than I would suspect that the 'end-of-IRQ' signal is something in
+    > the hardware
+
+    The issue is architecture-independent, see above.
+
+    HTH,
+    Jan
+    
+    
+    
+    
+ Harco Kuppens Fri, 19 Sep 2008 07:09:07 -0700 
+
+    Jan Kiszka wrote:
+
+        Yes. For correct handling of shared IRQs, _all_ associate IRQ handlers
+        must have been executed before the EOI can be sent. The reason is this:
+
+        For level-triggered IRQs, all hardware devices that may have raised the
+        IRQ line must be checked and told to lower it again before sending EOI.
+        Otherwise the IRQ will immediately be triggered again and you end up in
+        an endless loop, bricking your box.
+
+    ok, a raised line does not the information how many devices could have raised them, so you have to handle them all
+    to prevent missing one. only after handling them all (they all are lowered) you can send 'end-of-IRQ' signal
+
+
+    thus when after handling one device all other devices have to be rechecked because in the meantime they could have raised the line
+
+        For edge-triggered IRQs, there problem is different. Here the shared IRQ
+        handling algorithm is to consult all handler in a loop until they all
+        reported "not for me" in a row. If you fail to do this, you risk loosing
+
+        IRQs. Consider IRQ source A and B. Now an IRQ is raised by B. First, the
+
+        handler for A will be called. It return "not for me". Now it happens
+        that A also raised the IRQ right at this time. If you now simply log the
+        IRQ for later handling by B and send the EOI, you take away the chance
+        for handle A to react on the IRQ. At best you create latency, at worst A
+        will never send an IRQ again...
+
+    so you should after handling B again have to call all handlers to see if they report all "not for me" ?
+
+    so you would call handler A twice, right?
+
+
+    Thus when finally when handled all device you send the 'end-of-IRQ' signal.
+
+    After reading the explanation above I suppose that when handling an IRQ X, there are no new entries for that IRQ X
+    stored in the PIC controller. So the next interrupt after the 'end-of-IRQ' signal will be another interrupt than
+    the one we just dealed.
+
+
+    at section 8.8.4 off the Intel APIC documentation /IA-32 Intel Architecture Software Developer's Manual, Volume 3A:
+    System Programming Guide, Part 1 <http://developer.intel.com/design/processor/manuals/253668.pdf>/ I read a very
+    clear piece of explaining text :    `-> https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf
+
+
+       The local APIC queues the fixed interrupts that it accepts in one of
+       two interrupt pending registers: the interrupt request register
+       (IRR) or in-service register (ISR). These two 256-bit read-only
+       registers are shown in Figure 8-20. The 256 bits in these registers
+       represent the 256 possible vectors; vectors 0 through 15 are
+       reserved by the APIC (see also: Section 8.5.2, "Valid Interrupt
+       Vectors").
+
+       The IRR contains the active interrupt requests that have been
+       accepted, but not yet dispatched to the processor for servicing.
+       When the local APIC accepts an interrupt, it sets the bit in the IRR
+       that corresponds the vector of the accepted interrupt. When the
+       processor core is ready to handle the next interrupt, the local APIC
+       clears the highest priority IRR bit that is set and sets the
+       corresponding ISR bit. The vector for the highest priority bit set
+       in the ISR is then dispatched to the processor core for servicing.
+
+       While the processor is servicing the highest priority interrupt, the
+       local APIC can send additional fixed interrupts by setting bits in
+       the IRR. When the interrupt service routine issues a write to the
+       EOI register (see Section 8.8.5, "Signaling Interrupt Servicing
+       Completion"), the local APIC responds by clearing the highest
+       priority ISR bit that is set. It then repeats the process of
+       clearing the highest priority bit in the IRR and setting the
+       corresponding bit in the ISR. The processor core then begins
+       executing the service routing for the highest priority bit set in
+       the ISR.
+
+       If more than one interrupt is generated with the same vector number,
+       the local APIC can set the bit for the vector both in the IRR and
+       the ISR. This means that for the Pentium 4 and Intel Xeon
+       processors, the IRR and ISR can queue two interrupts for each
+       interrupt vector: one in the IRR and one in the ISR. Any additional
+       interrupts issued for the same interrupt vector are collapsed into
+       the single bit in the IRR.
+
+       For the P6 family and Pentium processors, the IRR and ISR registers
+       can queue no more than two interrupts per priority level, and will
+       reject other interrupts that are received within the same priority
+       level.
+
+       If the local APIC receives an interrupt with a priority higher than
+       that of the interrupt currently in serviced, and interrupts are
+       enabled in the processor core, the local APIC dispatches the higher
+       priority interrupt to the processor immediately (without waiting for
+       a write to the EOI register). The currently executing interrupt
+       handler is then interrupted so the higher-priority interrupt can be
+       handled. When the handling of the higher-priority interrupt has been
+       completed, the servicing of the interrupted interrupt is resumed.
+
+
+
+    So another interrupt can be queued in the APIC  in the IRR register though.
+
+    But we just handled all devices for that IRQ, so I would say it could be skipped. Or not?
+
+
+
+    I'm also I little bit confused about the term "acknowledge", I couldn't find that word in the intel documentation.
+
+    In your previous mail you said that linux did the "acking".
+
+    In a book I found it means unblocking the PIC, but I would suppose not for the IRQ handled, but for all other
+    IRQ's. Because I understand now that no other IRQs of the same type cann't be handled until the 'end-of-IRQ' signal.
+
+
+    Thus what does 'acknowledege' exactly mean?
+
+
+
+    For everyone interested I also found a nice description about Level- and Edge triggered interrupts at wikipedia
+    confirming your story at :
+
+     http://en.wikipedia.org/wiki/Interrupt#Level-triggered
+
+
+    Thanks for all help.
+
+    cheers
+    Harco
+
+
+Jan Kiszka Sun, 21 Sep 2008 03:41:48 -0700
+  
+  
+    > Thus what does 'acknowledege' exactly mean?
+
+
+    That the CPU confirms the interrupt controller that it picked up a
+    specific IRQ event. Depending on the IRQ type, this triggers various
+    activities in the interrupt controller. For some IRQ types, this can
+    also be a nop.
+
+    Note that the APIC is only one of the countless interrupt controllers in
+    this universe, implementing only a few of the possible IRQ types. The
+    universe is large, so a lot of very strange interrupt controllers
+    exist... ;)
+    (You may want to study vanilla Linux genirq code, how it handles all the
+    IRQ types - ipipe is a special case, not immediately revealing the hw
+    requirements behind it.)
+
+    Jan
+
+
+Harco Kuppens Mon, 22 Sep 2008 02:54:16 -0700
+
+
+
+    ok, there is no single answer but it depends on the much differing hardware. It is good to keep that in mind in the
+    future! I shall try to look at the genirq code, will also be a good exercise to understand the linux kernel code in
+    more detail.
+
+
+    but although the interrupt controller hardware can differ in general the following conclusion keeps :
+
+
+       When you forward the IRQ to Linux, you repy on Linux for
+       dealing with the periphery (acking the IRQ there) and the final
+       end-of-IRQ signal.
+
+       The shared IRQ handling algorithm is to consult all handlers in a
+       loop until they all reported "not for me" in a row.
+
+       Thus for correct handling of shared IRQs, _all_ associate IRQ
+       handlers, also
+       those in Linux, must have been executed before the EOI can be sent.
+
+       IRQ sharing between deterministic and non-deterministic code (here:
+       Xenomai and vanilla Linux) will never work, that's an inherent design
+       issue, nothing Xenomai or ipipe-specific.
+       (because the handling of the linux interrupt, is in fact executing
+       code with none-realtime priority, which will delay the realtime
+       system in a unpredicatable way!)
+
+
+    Thanks for all help,
+    Harco
+
+
+

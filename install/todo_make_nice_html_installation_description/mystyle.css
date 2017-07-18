@@ -1,0 +1,23 @@
+pre {
+    background-color: #fafafa;
+    border: 1px solid #bbbbbb;
+    margin: 0 0 30px;
+    overflow: auto;
+    padding: 10px;
+    font: 1.1em "Courier New",Courier,Fixed;
+     /* font-weight: bold; */
+}
+body {
+        width: 1000px;
+    background-color: #f5f1e7; 
+   
+    font-family: Verdana,Arial,sans-serif;
+    font-size:0.8em ;
+    padding-bottom: 30px;
+    padding-left: 30px;
+    padding-top: 30px;
+    padding-left: 30px;
+    
+    margin-left: auto;
+       margin-right: auto;
+}

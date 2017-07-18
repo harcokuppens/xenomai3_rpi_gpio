@@ -1,0 +1,99 @@
+
+rtdm example  for gpio for rpi
+==============================
+
+=> gpio.h used  
+
+
+ https://github.com/pficheux/raspberry_pi/blob/master/Xenomai/RT_irq/user/xenomai_rpi_rtdm_gpio.c
+   => pficheux
+ 
+    user space program:  
+ 
+         /* IRQ thread */
+         void *thread_irq (void *dummy)
+         {
+           // Send ioctl command 2 to driver                => means wait in kernel space for interrupt!!
+           while (1) {
+             if (rt_dev_ioctl (fd, 2, 0) < 0)                     => ioctl in xenomai3 which is realtime posix variant
+               fprintf (stderr, "rt_dev_ioctl error!\n");
+             else {
+               clic++;
+               rt_printf ("*** got IRQ from driver!\n");
+             }
+           }
+         }
+ 
+        rt_dev_ioctl
+        
+        
+        => uses device file to communicate with device driver in user space
+  
+
+   about rt_dev_ioctl: 
+
+      http://www.cs.ru.nl/lab/xenomai/api/group__userapi.html
+         old rtdm api for xenomai2
+     
+          =>  rt_dev_ioctl
+ 
+ 
+      http://www.xenomai.org/documentation/xenomai-3/html/xeno3prm/group__rtdm__irq.html
+       new rtdm api  
+    
+        => NO  rt_dev_ioctl 
+    
+      root@xenomai3:~/des/xenomai# grep -r  rt_dev_ioctl *
+      root@xenomai3:~/des/xenomai# vim xenomai-3.0.2/include/trank/rtdm/rtdm.h
+ 
+         => bridge old an new rtdm api
+     
+    ==> so probably can port this  
+     
+
+
+  
+     
+kernel module:
+
+  static struct rtdm_device device = {
+   struct_version:         RTDM_DEVICE_STRUCT_VER,
+ 
+   device_flags:           RTDM_NAMED_DEVICE,
+   context_size:           sizeof(struct rpi_gpio_context),
+   device_name:            DEVICE_NAME,
+
+   open_rt:                NULL,
+   open_nrt:               rpi_gpio_open,
+
+   ops:{
+    close_rt:       NULL,
+    close_nrt:      rpi_gpio_close,
+  
+    ioctl_rt:       rpi_gpio_ioctl_rt,
+    ioctl_nrt:      NULL,
+  
+    read_rt:        NULL,
+    read_nrt:       NULL,
+
+    write_rt:       NULL,
+    write_nrt:      NULL,   
+    },
+
+   device_class:           RTDM_CLASS_EXPERIMENTAL,
+   device_sub_class:       RTDM_SUBCLASS_RPI_GPIO,
+   driver_name:            "rpi_gpio_rtdm",
+   driver_version:         RTDM_DRIVER_VER(0, 0, 0),
+   peripheral_name:        "RPI_GPIO RTDM",
+   provider_name:          "PF",
+   proc_name:              device.device_name,
+  };
+
+  
+ => use linux gpiolib methods to set up gpio pins,
+   but uses  rtdm_ method to set up handler for IRQ for that input pin
+   => handler signals event
+     on which in   ioctl method is waited  =>  called from realtime user space
+     
+     
+

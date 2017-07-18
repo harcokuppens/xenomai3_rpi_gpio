@@ -1,0 +1,56 @@
+
+https://www.reddit.com/r/raspberry_pi/comments/3u39ev/how_to_prevent_kernel_update/  
+
+which packages used by kernel?
+search installed packages which have /boot :
+  $ dpkg -S /boot
+  raspberrypi-kernel, raspberrypi-bootloader,  base-files : /boot
+
+  $ dpkg -S /boot
+  ..
+  raspberrypi-kernel: /boot/kernel.img
+  raspberrypi-kernel: /boot/kernel7.img
+  ..
+  
+  
+then hold to that package version :
+
+  $ apt-mark hold  raspberrypi-kernel raspberrypi-bootloader
+  
+  $ dpkg --get-selections | grep raspberrypi 
+  ..
+  raspberrypi-kernel            hold 
+  raspberrypi-bootloader        hold
+  ..
+  
+
+https://pi-ltsp.net/advanced/kernels.html
+
+Raspberry Pi kernels
+
+    The kernel for the Raspberry Pi can be found on the /boot partition (the FAT32 partition you can open on Windows, Mac and Linux).
+    
+    - For the Raspberry Pi 1 (B, B+, A, A+) it is called        kernel.img.
+    - For the Raspberry Pi 2 (B) it is called                   kernel7.img.
+
+    The kernel is one of the few bits of software that wasn't able to run on both the Raspberry Pi 1 CPU (ARM6) and the Raspberry Pi 2 (ARM7) with the same version.
+    Instead the 2 versions had to be compiled separately and the firmware selects the correct one depending on the hardware it detects on boot. 
+
+
+
+
+
+
+=> question : can I still have the same modules dir in /lib/modules ??
+      => think so, think ipipe and bcm patches don't affect module code
+      
+      
+      
+    if so, we can user kernel and kernel7 trick
+    however we still need also different xenomai user space utils because rpi1 is single core and rpi2/3 is multicore
+      => but that is xenomai specific and rpi couldn't forsee that, but we can set in ~/.bashrc the right
+         kernel path depending on value in /proc/device-tree/model  .... hmm /proc/cpu is maybe easier
+          to grep on bcm type
+          
+   
+

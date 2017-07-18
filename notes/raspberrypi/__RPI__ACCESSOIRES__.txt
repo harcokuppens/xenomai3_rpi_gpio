@@ -1,0 +1,69 @@
+ 
+
+         
+rpi
+----       
+   
+
+       
+        
+  microusb-kabel-met-aan-uit-schakelaar  
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-stroomvoorzieningen/microusb-kabel-met-aan-uit-schakelaar   
+     
+
+  usb serial connector (ues uart pins on pi : hardware pins 8 and 10  + pin 2  for +5V)
+    https://www.modmypi.com/adafruit-industries/adafruit-cables/adafruit-usb-cables/usb-to-ttl-serial-cable-debug--console-cable-for-raspberry-pi
+    
+    or hat 
+    https://www.modmypi.com/raspberry-pi/breakout-boards/ryanteck/ryanteck-raspberry-pi-debug-clip
+    
+     
+  open case  
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/officiele-raspberry-pi-3-behuizing  => top can open, sides can open       € 7,95
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/raspberry-pi-hat-behuizing-zwart   => doorzichtig draai deksel, echter for ide kabel deksel moet open staan  => also gives access to hat with breadboard
+    http://tinkersphere.com/raspberry-pi-accessories/375-raspberry-pi-3-case-enclosure-with-gpio-access.html
+    
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/adafruit-raspberry-pi-b-plus-pi-2-case-smoke-base-clear-top => € 8,95 doorzichtig desksel  met uitsparing gpio!
+                  `-> prefer  because good to connect and nice to see through clear top!!
+                  
+    https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-cases/multicomp-raspberry-pi-3-behuizing-zwart  € 6,50
+      => good connections (uitsparing gpio) => geen doorzichtig deksel              
+    
+    
+    lego behuizing : https://www.sossolutions.nl/smartipi-lego-behuizing-met-gopro-mount-1293
+    
+    
+    
+    
+    
+    
+    
+  hat with breadboard
+     => https://www.kiwi-electronics.nl/explorer-hat-voor-raspberry-pi
+
+  lithium battery  
+    `-=> power via hardware pins 2 (+5v)  and 14 (ground)  
+  
+         external battery pack :
+            https://www.kiwi-electronics.nl/raspberry-pi/raspberry-pi-stroomvoorzieningen
+       
+         battery:   https://www.pi-supply.com/product-category/power-supplies-and-batteries/    => need right charger        
+          => charger board : http://www.electrodragon.com/product/raspberry-pi-powerpack-battery-extension-board/#prettyPhoto
+          
+          hat : intergrates charger and battery :  http://www.gadgetexplained.com/2016/03/take-your-raspberry-pi-off-grid-with.html
+ 
+         http://forum.dexterindustries.com/t/lithium-polymer-batteries-for-brick-pi/1969/2
+             Is it possible to use a battery pack like this:
+
+                http://www.xtremehobby.ashop.com.au/p/1213700/turnigy-4000mah-3s-30c-lipo-pack.html18
+
+             With a charger:
+
+                http://www.xtremehobby.ashop.com.au/p/9061997/skyrc-e3-lipo-battery-charger.html10
+ 
+          
+  or just  use external usb powerbank => power via micro-usb connector
+    https://www.adafruit.com/product/1566
+    
+    
+    

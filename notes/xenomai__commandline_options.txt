@@ -1,0 +1,152 @@
+https://xenomai.org//2015/05/application-setup-and-init/#Standard_Xenomai_command_line_options
+
+list all options for a xenomai program:
+
+    ./<xenomai_program> --help
+
+
+Any application linked against the Xenomai libraries automatically recognizes a set of standard options that can be
+passed on the command line, which applies to any Xenomai-based program. There is nothing you need to add to your
+application code for these option switches to be interpreted and acted upon. For instance, the --dump-config switch is
+always recognized by an application, dumping the settings used for building the Xenomai libraries it is linked against:
+
+Xenomai/mercury v3.0-rc5 -- #e91216a (2015-05-12 17:58:01 +0200)
+CONFIG_MMU=1
+CONFIG_SMP=1
+CONFIG_XENO_ASYNC_CANCEL=1
+CONFIG_XENO_BUILD_ARGS=" '-prefix=/home/rpm/install/xenomai/mercury' '--disable-doc-install' '--enable-async-cancel' '--enable-lores-clock' '--enable-debug=full' '--enable-smp' '--enable-tls' '--with-core=mercury' '--enable-registry' '--enable-pshared' '--enable-maintainer-mode'"
+CONFIG_XENO_BUILD_STRING="x86_64-unknown-linux-gnu"
+CONFIG_XENO_COMPILER="gcc version 4.9.2 20150212 (Red Hat 4.9.2-6) (GCC) "
+CONFIG_XENO_DEBUG=1
+CONFIG_XENO_DEBUG_FULL=1
+CONFIG_XENO_DEFAULT_PERIOD=100000
+CONFIG_XENO_FORTIFY=1
+...
+CONFIG_XENO_LIBS_DLOPEN is OFF
+CONFIG_XENO_LORES_CLOCK_DISABLED is OFF
+CONFIG_XENO_RAW_CLOCK_ENABLED is OFF
+CONFIG_XENO_TLSF is OFF
+CONFIG_XENO_WORKAROUND_CONDVAR_PI is OFF
+
+
+
+The list of standard options is as follows:
+
+–registry-root=<path> 	
+
+    Tells Xenomai to root the object registry at the given path, instead of the default root (see the --enable-registry
+    switch from the configuration options).
+
+–session=<label> 	
+
+    Name of the session the new process will be part of (or create if not present). If --enable-pshared was given when
+    configuring the Xenomai libraries, this label allows multiple processes giving the same label at startup to share
+    objects created by members of the same session.
+
+    All shared objects are allocated from a global heap backed by
+    the main memory pool (see --mem-pool-size).
+
+–shared-registry 	
+
+    Exports the registry of the process to other users. If access is possible, also depends on permissions of the
+    registry path. By default, the registry is only accessible for the user that started the Xenomai process.
+
+–no-registry 	
+
+    This switch disables registry support at runtime. No real-time objects will be exported to the registry, despite the registry code was compiled in.
+
+–mem-pool-size=<size[K|M|G]> 	
+
+    The size the main memory pool backing the session’s heap, which can be suffixed by a K(ilobyte), M(egabyte) or
+    G(igabyte) binary multiplier. Most of the dynamic allocation requests issued from the Xenomai libraries are served
+    from this pool. In absence of suffix, the value is normally interpreted as a count of bytes, except if lower than
+    65536, see below.
+
+    Note
+    	
+        If the value is lower than 65536 with no suffix, it is interpreted as a count of kilobytes for backward
+        compatibility purpose with the former syntax. This work around may disappear anytime when transitioning to
+        Xenomai 3.0 final, so make sure to fix any launch script(s) accordingly. Typically, suffixing the current value
+        with a K multiplier would address the issue.
+
+    Caution
+    	The shared heap is living in the /tmpfs filesystem, and therefore consumes RAM space.
+
+–cpu-affinity=<cpu[,cpu]…> 	
+
+    The set of CPUs available for running Xenomai threads created by the application, in absence of explicit pinning of
+    such threads to a particular CPU when they are spawned. Defaults to any online CPU.
+    
+    The argument is a list of valid (i.e. online) CPU numbers separated by commas. This option may appear several times
+    on the command line, cumulating the settings.
+
+–main-prio=<priority> 	
+
+    Cobalt only. When xenomai_init() is called for bootstrapping the real-time services for the current process, the calling context is automatically turned into a Xenomai thread, managed by the Cobalt kernel. Normally, this call runs over the main() routine, hence the parameter name. By default, the current scheduling policy and priority are kept during the transition. + This parameter allows to force new scheduling parameters for the thread invoking xenomai_init() when it enters the Xenomai realm, according to the following rules:
+
+        if <priority> is zero, the calling thread will be assigned the SCHED_OTHER policy.
+        if <priority> is greater than zero, the calling thread will be assigned the SCHED_FIFO policy, and the given priority level.
+        if <priority> is negative, the scheduling parameters of the calling context will be kept unchanged (default case).
+
+–print-buffer-size=<num-bytes> 	
+
+    Cobalt only. When symbol wrapping is in effect (default case for applications based on Cobalt’s POSIX API), Xenomai
+    interposes on common output calls from the stdio support such as printf(3) fprintf(3) and puts(3), so that no delay
+    or loss of real-time guarantee is incurred by the caller.
+    
+    The underlying mechanism is based on relay buffers forming an output ring, filled in by real-time threads
+    locklessly, which are periodically flushed by a regular (non real-time) Linux helper thread to the process’s
+    destination stream (stdout, stderr or any other particular stream). + This parameter allows to set the size of a
+    typical relay buffer. By default, a relay buffer is 16k large.
+
+–print-buffer-count=<num-buffers> 	
+
+    Cobalt only. Use this parameter to set the total number of relay buffers (see –print-buffer-size). By default, 4 relay buffers are present in the output ring.
+
+–print-sync-delay=<ms> 	
+
+    Use this parameter to set the longest delay (in milliseconds) before the output pending into the relay buffers is synchronized (see –print-buffer-size). By default, the output ring is flushed each 100 milliseconds by the helper thread.
+
+–[no-]sanity 	
+
+    Turn on[/off] sanity checks performed by the Xenomai libraries, mostly during the application startup. Defaults to
+    the value set by the –enable-sanity switch when configuring (which is enabled by default).
+    
+    For instance, running Xenomai libraries built for a uni-processor system over a SMP kernel is detected by such checks.
+
+–verbose[=level] 	
+
+    Set verbosity to the desired level, or 1 if unspecified. The level argument may be interpreted differently
+    depending on the application, however –verbose=0 must mean fully quiet. The interpretation of higher levels is
+    application-specific. Defaults to 1.
+
+–silent
+–quiet 	
+
+Same as –verbose=0.
+
+–trace[=level] 	
+
+    Set tracing to the desired level, or 1 if unspecified. The level argument may be interpreted differently depending on the application, however –trace=0 must disable tracing. Level 1 allows tracing the Xenomai library bootstrap code. The interpretation of higher levels is application-specific. Defaults to 0.
+
+–version 	
+
+    Get the application and Xenomai version stamps. The program immediately exits with a success code afterwards.
+
+–dump-config 	
+
+    Dump the settings used for building the Xenomai libraries the application is linked against.
+
+–no-mlock 	
+
+    Mercury only. This switch disables the implicit mlock() call at init, normally used for locking the calling
+    process’s virtual address space into RAM, in order to avoid the extra latency induced by virtual memory paging.
+
+    This option does not apply to the Cobalt core, which requires
+    memory locking from all clients unconditionally.
+
+–help 	
+
+    Display the help strings. 
+
+

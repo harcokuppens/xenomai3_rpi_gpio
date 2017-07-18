@@ -1,0 +1,122 @@
+
+
+standard rpi image:
+  login using
+    username: pi  
+    password: raspberry
+
+https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/README.md
+
+http://www.wikiwand.com/en/Raspberry_Pi
+
+Broadcom chip   board               architecture 
+ 1.BCM2835       pi 1                 ARMv6Z 32 bit
+ 2 BCM2836 	     pi 2                 ARMv7-A 32 bit         quadcore cortex A7 (900 mhz)
+ 3 BCM2837       pi 2.1  and pi 3     ARMv8-A (32/64 bit)    quadcore cortex A53 (900 mhz on pi2, 1,2 Ghz on pi3)
+
+https://wiki.openwrt.org/toh/raspberry_pi_foundation/raspberry_pi
+
+Raspberry Pi SoCs
+Family 	SoC 	CPU 	GPU 	L2 Cache
+BCM2708 	BCM2835 	ARMv6 ARM1176JZF-S (Single Core) 	Videocore IV (Sys@400MHz 3D@250MHz) 	128KB
+BCM2709 	BCM2836 	ARMv7 Cortex-A7 (Quad Core) 	Videocore IV (Sys@400MHz 3D@250MHz) 	256KB
+BCM2710 	BCM2837 	ARMv8 Cortex-A53 (Quad Core) 	Videocore IV (Sys@400MHz 3D@300MHz) 	512KB 
+
+
+
+
+raspbian version
+-----------------
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=12471&p=134909
+
+Raspbian doesn't really have a version in the traditional sense. Rather, Raspbian is a rebuild of the Debian Wheezy
+armhf repository and the 1000's of packages that comprise the repository are updated from time to time. The more
+pertinent question is whether your install of Raspbian (or rather the packages that comprise your install of Raspbian)
+is up to date. The best way of keeping Raspbian up to date with the latest packages is to periodically run the
+following commands:
+
+    sudo apt-get update
+    sudo apt-get upgrade
+
+Different Raspbian images in the past are created against whatever packages were in the repository at that time.
+Running the two commands above will upgrade all installations of Raspbian to the latest packages no matter what image
+the original install was done from.
+
+
+http://www.meccanismocomplesso.org/en/how-to-raspberry-checking-raspbian-version-update-upgrade/
+
+  You can check the release of Raspbian, simply reading the content of the
+  os-release file. Or you can install lsb-release package and then run it to get
+  the version of the operating system. Instead, if you want to know the Kernel
+  version in your Raspberry Pi, you can use the uname command.
+
+    $ cat /etc/os-release
+
+
+
+specs
+---------------------
+
+ http://elinux.org/RPi_Hardware         overview table specs different pi's
+ http://elinux.org/RPi_HardwareHistory         different pi versions
+ http://elinux.org/RPi_Low-level_peripherals   gpio, internal pull up/down
+ 
+ http://www.mosaic-industries.com/embedded-systems/microcontroller-projects/raspberry-pi/gpio-pin-electrical-specifications
+ 
+
+
+
+
+runtime info pi 
+----------------
+
+
+          
+   /proc/device-tree/
+   
+          cat /proc/device-tree/compatible 
+          brcm,bcm2709
+          
+          
+          see device_tree.txt
+          
+            https://github.com/raspberrypi/linux/blob/rpi-3.18.y/arch/arm/boot/dts/bcm2709-rpi-2-b.dts
+
+             => contains source of  /boot/bcm2709-rpi-2-b.dtb
+
+
+              /dts-v1/;
+
+              /include/ "bcm2709.dtsi"
+
+              / {
+                compatible = "brcm,bcm2709";
+                model = "Raspberry Pi 2 Model B";
+
+                aliases {
+                    soc = &soc;
+                    spi0 = &spi0;
+                    i2c0 = &i2c0;
+                    i2c1 = &i2c1;
+                    i2s  = &i2s;
+                    gpio = &gpio;
+                    intc = &intc;
+                    leds = &leds;
+                    sound = &sound;
+              };
+
+              ...
+              
+   /proc/cpuinfo           
+   
+            http://raspi.tv/2013/rpi-gpio-basics-2-how-to-check-what-pi-board-revision-you-have
+            
+             cat /proc/cpuinfo |grep Hardware
+             Hardware    :   BCM2708                          => BCM2708   single kernel xenomai,  else  (BCM2709 or BCM2710) multi kernel xenomai
+             
+             => to see exact production version you have 
+             cat /proc/cpuinfo |grep Revision
+             
+              then lookup in   http://elinux.org/RPi_HardwareHistory  

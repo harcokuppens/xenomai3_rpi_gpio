@@ -1,0 +1,19 @@
+examples toggling gpio port
+----------------------------        
+
+      
+http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access
+   => memory mapping to gpio pins ==> directly turn them on/off
+
+   =>contains a basic .c example file to  toggle gpio pins  using the memory mapping of the gpio pins!!
+     see: http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access
+     
+   => contains an example using the wiringpi c library
+   
+      http://elinux.org/RPi_GPIO_Code_Samples#WiringPi  
+   
+
+   => http://elinux.org/RPi_GPIO_Code_Samples
+        contains more code examples for C+ python etc..
+        
+    

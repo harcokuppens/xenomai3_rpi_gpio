@@ -1,0 +1,98 @@
+https://codywu2010.wordpress.com/2015/09/27/isolcpus-numactl-and-taskset/
+
+isolcpus, numactl and taskset
+===============================
+        Posted on September 27, 2015	by codywu2010
+
+
+isolcpus
+--------
+
+isolcpus is one of the kernel boot params that isolated certain cpus from kernel scheduling, which is especially useful
+if you want to dedicate some cpus for special tasks with least unwanted interruption (but cannot get to 0) in a
+multi-core system.
+
+There is not too much details but the param is listed in kernel documents Kernel Parameters 
+   (src: https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt)
+
+    isolcpus= [KNL,SMP] Isolate CPUs from the general scheduler.
+    Format:
+    ,…,
+    or
+    –
+    (must be a positive range in ascending order)
+    or a mixture
+    ,…,-
+
+    This option can be used to specify one or more CPUs
+    to isolate from the general SMP balancing and scheduling
+    algorithms. You can move a process onto or off an
+    “isolated” CPU via the CPU affinity syscalls or cpuset.
+    begins at 0 and the maximum value is
+    “number of CPUs in system – 1”.
+
+    This option is the preferred way to isolate CPUs. The
+    alternative — manually setting the CPU mask of all
+    tasks in the system — can cause problems and
+    suboptimal load balancer performance. 
+
+IMPORTANT:
+
+  With the options set, by default all user processes are created with cpu affinity mask excluding the isolated cpus.
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To check whether the kernel is booted with isolcpus set simply check /proc/cmdline, 
+
+
+    $cat /proc/cmdline
+    BOOT_IMAGE=/boot/vmlinuz-3.16.0-44-generic root=UUID=.. ro find_preseed=/preseed.cfg auto noprompt priority=critical locale=en_US isolcpus=3 quiet
+
+Now all user processes should be scheduled free from cpu 3.
+
+
+when isolcpus=3 you can still bind a linux proces to cpu3, but you must do this with taskset.  Numactl doesn't work.
+---------------------------------------------------------------------------------------------------------------------
+
+Setting of isolcpus has one interesting side effect that numactl stopped working.
+We can bind to any other cpus but binding to cpu 3 would fail immediately.
+
+
+First we try to bind to cpu1 and cpu2 and we can see Cpus_allowed_list updated correctly:
+
+	
+    $ numactl --physcpubind=1 /bin/ksh -c "cat /proc/\$\$/status|grep Cpus_allowed"
+    Cpus_allowed:   00000000,00000002
+    Cpus_allowed_list:      1
+    
+    $ numactl --physcpubind=2 /bin/ksh -c "cat /proc/\$\$/status|grep Cpus_allowed"
+    Cpus_allowed:   00000000,00000004
+    Cpus_allowed_list:      2
+
+But if we try to bind to cpu3 it will fail:
+	
+    $ numactl --physcpubind=3 /bin/ksh -c "cat /proc/\$\$/status|grep Cpus_allowed"
+    libnuma: Warning: cpu argument 3 is out of range
+    
+    
+But we can still use taskset to bind it to cpu3:
+	
+    $taskset -c 3 /bin/ksh -c "cat /proc/\$\$/status|grep Cpus_allowed"
+    Cpus_allowed:   00000000,00000008
+    Cpus_allowed_list:      3    
+    
+ 
+because numactl first reads  the cpu affinity mask and use that to check whether the specified cpu list is valid or not 
+and only when that is valid will it apply the cpu affinity mask. => cpu 3 is not valid, so will not apply on cpu 3.
+
+But taskset directly goes and apply the affinity mask using syscall sched_setaffinity.
+
+Probably from users’ point of view, taskset‘s way is better.
+
+
+==> details  "taskset" see : 
+
+        hard_cpu_affinity__with__taskset.txt
+
+
+
+

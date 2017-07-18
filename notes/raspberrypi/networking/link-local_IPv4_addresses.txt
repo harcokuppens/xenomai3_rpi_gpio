@@ -1,0 +1,135 @@
+
+
+
+Link-local IPv4 addresses  (169.254.x.x)
+=========================
+
+    http://www.wikiwand.com/en/IP_address#/Address_autoconfiguration
+    
+         When the link-local IPv4 address block was reserved, no standards existed for mechanisms of address
+         autoconfiguration. Filling the void, Microsoft created an implementation that is called Automatic Private IP
+         Addressing (APIPA). APIPA has been deployed on millions of machines and has, thus, become a de facto standard
+         in the industry. In RFC 3927, the IETF defined a formal standard for this functionality, entitled Dynamic
+         Configuration of IPv4 Link-Local Addresses.
+   
+
+    http://www.wikiwand.com/en/Zero-configuration_networking
+      
+      
+      
+      Most IPv4 hosts use link-local addressing only as a last resort when a DHCP server is unavailable. 
+      => zeroconf first tries other ways such as dhcp, but if those fail it fails back to link-local
+
+     
+
+     There are some link-local IPv4 address implementations available:
+
+         Apple Mac OS and MS Windows have supported link-local addresses since 1998.[citation needed] Apple released its open-source implementation in the Darwin bootp package.
+         Avahi contains an implementation of IPv4LL in the avahi-autoipd tool.
+         Zero-Conf IP (zcip).[32]
+         BusyBox can embed a simple IPv4LL implementation.
+         Stablebox,[33] a fork from Busybox, offers a slightly modified IPv4LL implementation named llad.
+         Zeroconf,[34] a package based on Simple IPv4LL, a shorter implementation by Arthur van Hoff.[35]
+
+     The above implementations are all stand-alone daemons or plugins for DHCP clients that only deal with link-local
+     IP addresses. Another approach is to include support in new or existing DHCP clients:
+
+           Elvis Pfützenreuter has written a patch for the uDHCP client/server.[36]
+       ->  dhcpcd[37] is an opensource DHCP client for Linux and BSD that includes IPv4LL support. 
+          It is included as standard in NetBSD.
+            
+            
+            
+          => rasbpian uses "dhcpcd"
+          
+               
+     http://networkengineering.stackexchange.com/questions/28176/ipv6-nat-with-link-local-address
+       
+       
+            ipv6
+       
+                The IPv6 equivalent to what we know as "Private IPv4 addresses" is known as Unique Local Addresses (ULA):
+
+                    src: https://tools.ietf.org/html/rfc4193
+                    This document defines an IPv6 unicast address format that is globally unique and is intended for 
+                    local communications, usually inside of a site. These addresses are not expected to be routable on
+                    the global Internet.
+       
+       
+                HOWEVER, if there is going to be something NATed in IPv6 (despite best practices), it would be a ULA address to
+                a Global address. It surely won't be link-local address space.
+       
+       
+            ipv4 
+                Link-Local addresses (FE80::/10) exists only for local network communication... aka, you communicating with your
+                neighbor, and potentially your router. It is, by definition, not meant to be used to speak to anything on the
+                other side of a router. As such, intrinsincly, you should never come across or try to NAT a Link-Local address
+                to a Global address.
+         
+                 see: https://tools.ietf.org/html/rfc3927
+                 This document describes how a host may
+                    automatically configure an interface with an IPv4 address within the
+                    169.254/16 prefix that is valid for communication with other devices
+                    connected to the same physical (or logical) link.
+
+
+                 https://tools.ietf.org/html/rfc3927#section-7
+                        7.  Router Considerations
+
+                           A router MUST NOT forward a packet with an IPv4 Link-Local source or
+                           destination address, irrespective of the router's default route
+                           configuration or routes obtained from dynamic routing protocols.
+
+                           A router which receives a packet with an IPv4 Link-Local source or
+                           destination address MUST NOT forward the packet.  This prevents
+                           forwarding of packets back onto the network segment from which they
+                           originated, or to any other segment.
+          
+          
+      
+
+169.254.x.x different from 192.168.x.x 
+---------------------------------------
+ 
+ see :
+     http://www.wikiwand.com/en/Reserved_IP_addresses
+
+     http://www.wikiwand.com/en/Private_network
+   
+       
+           
+      
+implementations
+--------------
+
+  
+  - ifup ifdown /etc/network/interfaces    => debian/ubuntu
+  - dhcpcd       => rasbpain 
+     homepage : 
+        http://roy.marples.name/projects/dhcpcd/index
+        
+         dhcpcd
+            a DHCP and DHCPv6 client. It's also an IPv4LL (aka ZeroConf) client.    
+            
+            
+            In layman's terms, dhcpcd runs on your machine and silently configures your computer to work on the
+            attached networks without trouble and mostly without configuration.
+            
+
+
+used as fallback
+----------------
+
+  https://4sysops.com/archives/ipv6-tutorial-part-6-site-local-addresses-and-link-local-addresses/
+
+  Whenever automatic IP configuration through DHCP fails, Windows automatically assigns an autoconfiguration address in
+  the range 169.254.0.1 to 169.254.255.254, which allows the computer to communicate with other machines on the link.
+
+   see: https://technet.microsoft.com/en-us/library/cc778502%28v=ws.10%29.aspx
+ 
+  
+ => linux does the same  
+      * dhcpcd.conf even has an option to modify the exact fallback profile
+   
+    
+                    

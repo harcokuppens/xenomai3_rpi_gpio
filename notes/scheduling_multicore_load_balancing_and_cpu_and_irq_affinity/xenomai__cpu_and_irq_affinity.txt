@@ -1,0 +1,350 @@
+see also: rpi2_irq_affinity.txt
+
+
+tips
+====
+
+
+linux
+  lookup processes : top 
+  lookup irq :   /proc/interrupts
+  
+
+xenomai :
+
+ lookup realtime tasks : /proc/xenomai/sched/rt/threads  
+ lookup irq : /proc/xenomai/irq
+
+# /usr/xenomai/sbin/version
+Xenomai/cobalt v3.0.5
+
+# /usr/xenomai/sbin/corectl --status
+running
+
+man corectl 
+  => corectl - Cobalt core control interface   (start stop status)
+
+
+
+xenomai cpu affinity
+=======================
+
+
+setting cpu affinity xenomai rt task:
+--------------------------------------
+
+
+ *  /proc/xenomai/affinity       :  the global Xenomai cpu affinity   => default cpuset affinity each new RT task gets!
+   
+ *  cmdline option when starting task: –cpu-affinity=<cpu[,cpu]…> 
+
+            https://xenomai.org//2015/05/application-setup-and-init/#standard-app-options
+             see also :  ../xenomai_program_apis__commandline_options_and_xenoconfig.txt
+
+              –cpu-affinity=<cpu[,cpu]…> 	
+
+              The set of CPUs available for running Xenomai threads created by the application, in absence of explicit pinning of
+              such threads to a particular CPU when they are spawned. Defaults to any online CPU. The argument is a list of valid
+              (i.e. online) CPU numbers separated by commas. This option may appear several times on the command line, cumulating
+              the settings
+
+
+  * API
+
+
+        posix api:
+          linux: https://www.gnu.org/software/libc/manual/html_node/CPU-Affinity.html 
+  
+                    int sched_getaffinity (pid_t pid, size_t cpusetsize, cpu_set_t *cpuset)
+                    int sched_setaffinity (pid_t pid, size_t cpusetsize, const cpu_set_t *cpuset)
+          
+                  => same posix api used in xenomai
+  
+                also the helper macros (also used in xenomai)
+                  CPU_ZERO
+                  CPU_SET
+                  ..
+  
+          xenomai :  note in xenomai api I couldn't find sched_setaffinity however it is supported and it follows 
+                     standard posix syntax :        ~~~> maybe it just uses the standard linux posix call for it, because not realtime anyway ??
+                     see: http://man7.org/linux/man-pages/man2/sched_setaffinity.2.html
+
+
+        alchemy api : 
+
+         http://www.cs.ru.nl/lab/xenomai/api3/group__alchemy__task.html#gad92ea8c9fed3c5a3789538c9c8362c28
+
+
+        int rt_task_set_affinity 	( 	
+                RT_TASK *  	task,
+        		const cpu_set_t *  	cpus 
+        	) 	
+    
+           Set CPU affinity of real-time task.
+
+           This calls makes task affine to the set of CPUs defined by cpus.
+
+           Parameters
+               task	The task descriptor. If task is NULL, the CPU affinity of the current task is changed.
+               cpus	The set of CPUs task should be affine to.
+
+
+Dedicate cpu1 to the xenomai realtime task  WITHOUT linux on cpu1 !!
+---------------------------------------------------------------------
+https://xenomai.org/pipermail/xenomai/2015-February/033432.html & https://xenomai.org/pipermail/xenomai/2015-February/033430.html
+
+
+  1. echo 2 > /proc/xenomai/affinity       : set the global Xenomai affinity to CPU1
+  2. give "isolcpus=1" to the kernel so that Linux will not schedule anything else on CPU1.
+
+
+
+setting IRQ affinity to some cpu:
+--------------------------------------
+
+src : https://xenomai.org/pipermail/xenomai/2015-February/033430.html
+
+    Assuming the interrupt controller for your SoC is a GIC(Generic Interrupt Controller), 
+    unless you explicitly set the IRQ affinity, the GIC distributor will dispatch your
+    timing IRQ to CPU0 by default, like all other SPIs. ( SPI is probably : system peripheral interface)
+    
+    => I looked and yes : GPIO irq's on pi2 are assigned to CPU0
+
+
+easiest solution:
+    run interrupt handler on cpu0   
+    and other realtime tasks on other cpu's (if needed)
+    => don't need to change irq affinity!
+    
+ 
+  
+
+1. source :linux_irq_affinity.txt
+   
+    set on linux using 
+    
+      /proc/irq/IRQ_NUMBER/smp_affinity file
+
+
+     or in a kernel module you can just call the kernel API function
+    
+             irq_set_affinity(...) 
+    
+    directly. No need to go through /proc. See: http://lxr.free-electrons.com/source/kernel/irq/manage.c#L189  
+
+   
+
+2. http://www.cs.ru.nl/lab/xenomai/api3/group__cobalt__core__irq.html#ga1f60c3d81107d58d52e3c44d9f8e8a97
+
+     void xnintr_affinity 	( 	struct xnintr *  	intr,
+     		cpumask_t  	cpumask 
+     	) 		
+
+     Set processor affinity of interrupt.
+
+     Restricts the IRQ line associated with the interrupt descriptor intr to be received only on processors which bits are set in cpumask.
+
+     Parameters
+         intr	The address of the interrupt descriptor.
+         cpumask	The new processor affinity.
+
+     Note
+         Depending on architectures, setting more than one bit in cpumask could be meaningless.
+     
+     Tags
+         secondary-only    =>  in kernel task at linux priority (not realtime priority!!)
+           `-> see: http://www.cs.ru.nl/lab/xenomai/api3/group__cobalt__core.html
+         
+    => this is a Cobalt API call   => only possible in kernel space!!
+    
+     https://xenomai.org/introducing-xenomai-3/#_the_xenomai_3_architecture
+
+       => cobalt API only callable from kernel space     
+         
+
+
+
+short conclusion:
+   we can only change irq affinity in xenomai in kernel space with a kernel module using the function 
+     xnintr_affinity 
+   note: /proc/irq is linux only solution, and nothing similar in /proc/xenomai     => see below
+         and remember that irqs are not shared : either visibile in linux or in xenomai
+         
+        
+  
+when running isr example: 
+
+
+# cat sched/rt/threads
+CPU  PID    PRI      PERIOD     NAME
+  2  2170    40      -          IsrTask
+ 
+ => stop and run again :
+ 
+ 
+# cat sched/rt/threads
+CPU  PID    PRI      PERIOD     NAME
+  3  2266    40      -          IsrTask
+ 
+ 
+ => switches CPU per run!!  => random choosen cpu!!
+ 
+ 
+ 
+   
+  
+  # cat /proc/xenomai/irq
+    IRQ         CPU0        CPU1        CPU2        CPU3
+     97:      399526      143867       23976       73883         [timer/0]
+    503:           0           0           0           0         gpio23
+   1033:           0           0           0           0         [sync]
+   1034:           0           1           1           1         [timer-ipi]
+   1035:           0           1           1           1         [reschedule]
+   1036:           0           0           0           0         [virtual]
+   1040:           0           0           0          14         [virtual]     
+
+after some interrupts :
+
+ # cat /proc/xenomai/irq
+  IRQ         CPU0        CPU1        CPU2        CPU3
+   97:      400921      144223       24063       74026         [timer/0]
+  503:         593           0           0           0         gpio23
+ 1033:           0           0           0           0         [sync]
+ 1034:           0           1           1           1         [timer-ipi]
+ 1035:           0           1           1          55         [reschedule]
+ 1036:           0           0           0           0         [virtual]
+ 1040:           0           0           0          14         [virtual]
+
+
+
+# ls  /proc/irq/503/
+ls: cannot access /proc/irq/503/: No such file or directory
+
+ => 503 is realtime interrupt, which is not shared with linux, and therefore not in /proc   
+    
+
+
+stop isr program :
+
+# cat /proc/xenomai/irq
+  IRQ         CPU0        CPU1        CPU2        CPU3
+   97:      420857      148325       24626       75456         [timer/0]
+ 1033:           0           0           0           0         [sync]
+ 1034:           0           1           1           1         [timer-ipi]
+ 1035:           0           1           1          60         [reschedule]
+ 1036:           0           0           0           0         [virtual]
+ 1040:           1           0           0          14         [virtual]
+ 
+ 
+ => irq 503 not used anymore!
+ 
+ 
+ 
+ conclusion:
+   
+   * isr user program's realtime task  can run on different CPU then the irq is bound to,
+     because irq is catched in rtdm gpio driver and the user program waits on its
+     rtdm device file!!
+   * linux_irq_affinity.txt :
+   
+        => ISR is registered to IRQ,  and NOT to CPU
+        => an ISR for IRQ (an single IRQ can have multiple ISRs) can be executed of any of the CPUs
+           which are affined to the IRQ
+           
+       THUS:
+            IRQ not linked to specific CPU 
+            => an specific IRQ is handeled by ISR which can assigned
+               to any off the CPU's to which the IRQ is affined
+              
+              
+       
+       
+
+           
+        => on ARM
+        
+           from linux_irq_affinity.txt 
+           
+             SoC having ARM Multi core architectures have the interrupts assigned by default to Core 0.  CPU0
+
+             however on pi :
+             
+             - for linux:
+               root@raspberrypi:~ # cat /proc/irq/default_smp_affinity
+               f
+               
+               => all cpu's
+              
+             - for xenomai :
+                   above examples shows all interrupts come into cpu0
+                   however could be just because cpu0 was idle?
+                   
+                   anyway when using  rtdm device file you are not bothered with irq anymore,
+                   just the right device file  => driver abstracts away from irq  => NICE!!
+                   
+        update: see  rpi2_irq_affinity.txt
+                 which says the pi2 has no vectored interrupt controller
+                 but can only in the arm7 cpu set a register which sets
+                 a single cpu who gets all interrupts. (though you can change this register of course)
+                
+           
+                     
+
+
+---------------
+      If the task on cpuX needs to handle an interrupt Y then you must sure that 
+      the affinity of interruptY is also cpuX otherwise the task would never receive it!!
+      If interruptY affinity is another cpu where no interrupt handle is setup for this
+      interrupt, then the interrupt is just lost!  (not handled)
+
+
+
+
+
+helper functions: cpu affinity
+=================
+
+ 
+void set_affinity_cpu(RT_TASK *task, int cpu) {
+    cpu_set_t cpus;
+    CPU_ZERO(&cpus);          
+    CPU_SET(cpu,&cpus);          
+    rt_task_set_affinity(task,&cpus);  
+}
+void set_affinity_all(RT_TASK *task) {
+    cpu_set_t cpus;
+    CPU_ZERO(&cpus);          
+    CPU_SET(0,&cpus);          
+    CPU_SET(1,&cpus);          
+    CPU_SET(2,&cpus);          
+    CPU_SET(3,&cpus);          
+    rt_task_set_affinity(task,&cpus);  
+} 
+
+
+note: used in output_driven_irq.c 
+
+    rt_task_create(&isr_task, "IsrTask", 0, 60, 0);
+	rt_task_create(&blink_task, "BlinkTask", 0, 50, 0);
+	rt_task_create(&hello_task, "HelloTask", 0, 40, 0);
+
+
+  // set_affinity_cpu(&hello_task,1);  // ok, makes hello world run in parallel
+
+  // problem: cannot change cpu affinity of blink or isr task without something going wrong, unclear why
+  //            probably has to do with irq => If not fixed, I noticed isr_task and blink_task get same cpu ( both same, but cpu number can differ)
+  //set_affinity_cpu(&isr_task,3);
+  //set_affinity_cpu(&blink_task,0);  
+
+   // note: default affinity is all cpu's, but I notice that all task's still get the same cpu, however per run the cpu number can change, but per run
+   //       all tasks have same cpu number
+
+    // task to start tasks
+	rt_task_create(&startTasks, "StartTask", 0, 99, 0);
+	rt_task_start(&startTasks, &runStartTasks, NULL);
+
+
+
+
+
+

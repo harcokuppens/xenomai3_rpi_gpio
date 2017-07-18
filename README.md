@@ -1,36 +1,35 @@
 # xenomai3_rpi_gpio
 
 
+overview
+--------
 
-gpio documentation :
----------------------
+notes:   
+  contains all notes I made during my investigation of getting xenomai 3 working on pi1,pi2,pi3 
+  which contains lots of topics :
+      - xenomai2 versus xenomai3  and legacy notes
+      - apis's compiling and posix wrapping
+      - rtdm and gpio(linux vs xenomai)
+      - interrupts 
+      - cpu and irq load balancing and scheduling (linux vs xenomai)
+  I call this sections notes and not documentation, because it contains also a lots of information copied from other sources
+  for which I always place an url as reference.      
+  
+  Disclaimer:
+    I also written down notes myself as I think it works, but there can be mistakes!
+      
+           
+circuits
+   overview of drawing and simulator tools used to create the models in this folder
+   general documentation about electronic circuits, eg. pullup/pulldown, and there safety
+   several circuit drawings from which some can be emulated
+   NOTE: using the combined model one can test all examples in this repository!
 
-   https://www.raspberrypi.org/documentation/hardware/raspberrypi/gpio/README.md
+examples   
+   several examples to illustrate gpio input/output and interrupts
+   linux and xenomai examples  ( for xenomai both userspace and kernel space examples)
+      
 
-     
-    GPIO   
-       There are 3 GPIO banks on BCM2835.
-
-       Each of the 3 banks has its own VDD input pin. On Raspberry Pi, all GPIO banks are supplied from 3.3V. 
-       Connection of a GPIO to a voltage higher than 3.3V will likely destroy the GPIO block within the SoC
-
-
-    Interrupts
-
-        Each GPIO pin, when configured as a general-purpose input, can be configured as an interrupt source to the ARM. Several interrupt generation sources are configurable:
-
-            Level-sensitive (high/low)
-            Rising/falling edge
-            Asynchronous rising/falling edge
-
-        Level interrupts maintain the interrupt status until the level has been cleared by system software (e.g. by servicing the attached peripheral generating the interrupt).
-
-        The normal rising/falling edge detection has a small amount of synchronisation built into the detection. At the system clock frequency, the pin is sampled with the criteria for generation of an interrupt being a stable transition within a 3-cycle window, i.e. a record of "1 0 0" or "0 1 1". Asynchronous detection bypasses this synchronisation to enable the detection of very narrow events.
-
-
-pin layout
-----------
-
-  http://www.jameco.com/Jameco/workshop/circuitnotes/raspberry_pi_circuit_note_fig2a.jpg  
-
-  https://pinout.xyz/#
+install
+   descriptions how to install xenomai3 on the pi1 or the pi2/3
+   and some usefull startup tips and scripts to make a convenient image for the pi

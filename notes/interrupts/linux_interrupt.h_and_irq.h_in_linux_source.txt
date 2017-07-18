@@ -1,0 +1,69 @@
+linux_interrupt.h_and_irq.h_in_linux_source.txt
+-----------------------------------------------
+
+
+cd /usr/src/linux-headers-3.13.0-63 ; vim include/linux/interrupt.h include/linux/irq.h -o
+
+
+
+linux/interrupt.h
+
+#define IRQF_TRIGGER_NONE   0x00000000
+#define IRQF_TRIGGER_RISING 0x00000001
+#define IRQF_TRIGGER_FALLING    0x00000002
+#define IRQF_TRIGGER_HIGH   0x00000004
+#define IRQF_TRIGGER_LOW    0x00000008
+#define IRQF_TRIGGER_MASK   (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW | \
+                 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
+#define IRQF_TRIGGER_PROBE  0x00000010
+
+
+include/linux/irq.h
+http://lxr.free-electrons.com/source/include/linux/irq.h#L619
+
+
+IRQ line status.
+* Bits 0-7 are the same as the IRQF_* bits in linux/interrupt.h
+ *
+ * IRQ_TYPE_NONE        - default, unspecified type
+ * IRQ_TYPE_EDGE_RISING     - rising edge triggered
+ * IRQ_TYPE_EDGE_FALLING    - falling edge triggered
+ * IRQ_TYPE_EDGE_BOTH       - rising and falling edge triggered
+ * IRQ_TYPE_LEVEL_HIGH      - high level triggered
+ * IRQ_TYPE_LEVEL_LOW       - low level triggered
+ * IRQ_TYPE_LEVEL_MASK      - Mask to filter out the level bits
+ * IRQ_TYPE_SENSE_MASK      - Mask for all the above bits
+ * IRQ_TYPE_DEFAULT     - For use by some PICs to ask irq_set_type
+ *                to setup the HW to a sane default (used
+ *                                by irqdomain map() callbacks to synchronize
+ *                                the HW state and SW flags for a newly
+ *                                allocated descriptor).
+ 
+
+
+IRQ_TYPE_PROBE
+ 54  * IRQ_TYPE_PROBE               - Special flag for probing in progress
+ 55  *
+ 56  * Bits which can be modified via irq_set/clear/modify_status_flags()
+ 57  * IRQ_LEVEL                    - Interrupt is level type. Will be also
+ 58  *                                updated in the code when the above trigger
+ 59  *                                bits are modified via irq_set_irq_type()
+ 60  * IRQ_PER_CPU                  - Mark an interrupt PER_CPU. Will protect
+ 61  *                                it from affinity setting
+ 62  * IRQ_NOPROBE                  - Interrupt cannot be probed by autoprobing
+ 63  * IRQ_NOREQUEST                - Interrupt cannot be requested via
+ 64  *                                request_irq()
+ 65  * IRQ_NOTHREAD                 - Interrupt cannot be threaded
+ 66  * IRQ_NOAUTOEN                 - Interrupt is not automatically enabled in
+ 67  *                                request/setup_irq()
+ 68  * IRQ_NO_BALANCING             - Interrupt cannot be balanced (affinity set)
+ 69  * IRQ_MOVE_PCNTXT              - Interrupt can be migrated from process context
+ 70  * IRQ_NESTED_THREAD            - Interrupt nests into another thread
+ 71  * IRQ_PER_CPU_DEVID            - Dev_id is a per-cpu variable
+ 72  * IRQ_IS_POLLED                - Always polled by another interrupt. Exclude
+ 73  *                                it from the spurious interrupt detection
+ 74  *                                mechanism and from core side polling.
+ 75  * IRQ_DISABLE_UNLAZY           - Disable lazy irq disable
+ 
+ 
+ 

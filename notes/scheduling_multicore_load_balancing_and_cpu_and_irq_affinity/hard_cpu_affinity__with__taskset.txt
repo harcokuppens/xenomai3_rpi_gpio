@@ -1,0 +1,121 @@
+http://www.wikiwand.com/en/Processor_affinity
+
+
+
+Processor affinity, or CPU pinning, enables the binding and unbinding of a process or a thread to a central processing
+unit (CPU) or a range of CPUs, so that the process or thread will execute only on the designated CPU or CPUs rather
+than any CPU. This can be viewed as a modification of the native central queue scheduling algorithm in a symmetric
+multiprocessing operating system.
+
+
+
+ 
+http://linuxcommand.org/man_pages/taskset1.html
+NAME
+
+       taskset - retrieve or set a processes’s CPU affinity
+
+
+SYNOPSIS
+
+       taskset [options] [mask | list ] [pid | command [arg]...]
+
+
+
+DESCRIPTION
+
+       taskset  is  used to set or retrieve the CPU affinity of a running pro-
+       cess given its PID or to launch a new COMMAND with a given  CPU  affin-
+       ity.   CPU affinity is a scheduler property that "bonds" a process to a
+       given set of CPUs on the system.  The Linux scheduler  will  honor  the
+       given  CPU  affinity  and  the  process will not run on any other CPUs.
+       Note that the Linux scheduler also supports natural CPU  affinity:  the
+       scheduler attempts to keep processes on the same CPU as long as practi-
+       cal for performance reasons.  Therefore, forcing a specific CPU  affin-
+       ity is useful only in certain applications.
+
+       The CPU affinity is represented as a bitmask, with the lowest order bit
+       corresponding to the first logical CPU and the highest order bit corre-
+       sponding  to  the  last logical CPU.  Not all CPUs may exist on a given
+       system but a mask may specify more CPUs than are present.  A  retrieved
+       mask  will  reflect only the bits that correspond to CPUs physically on
+       the system.  If an invalid mask is given (i.e., one that corresponds to
+       no  valid  CPUs on the current system) an error is returned.  The masks
+       are typically given in hexadecimal.  For example,
+
+       0x00000001
+              is processor #0
+
+       0x00000003
+              is processors #0 and #1
+
+       0xFFFFFFFF
+              is all processors (#0 through #31)
+
+       When taskset returns, it is guaranteed that the given program has  been
+       scheduled to a legal CPU.
+
+
+OPTIONS
+
+       -p, --pid
+              operate on an existing PID and not launch a new task
+
+       -c, --cpu-list
+              specifiy  a  numerical  list of processors instead of a bitmask.
+              The list may contain multiple items,  separated  by  comma,  and
+              ranges.  For example, 0,5,7,9-11.
+
+       -h, --help
+              display usage information and exit
+
+       -V, --version
+              output version information and exit
+
+
+
+USAGE
+
+       The  default  behavior  is  to  run a new command with a given affinity
+       mask:
+              taskset [mask] -- [command] [arguments]
+
+       You can also retrieve the CPU affinity of an existing task:
+              taskset -p [pid]
+
+       Or set it:
+              taskset -p [mask] [pid]
+
+
+
+
+see also:
+  https://www.cyberciti.biz/tips/setting-processor-affinity-certain-task-or-process.html
+  
+
+
+ 
+ $ taskset
+ Usage: taskset [options] [mask | cpu-list] [pid|cmd [args...]]
+
+ Options:
+  -a, --all-tasks         operate on all the tasks (threads) for a given pid
+  -p, --pid               operate on existing given pid
+  -c, --cpu-list          display and specify cpus in list format
+  -h, --help              display this help
+  -V, --version           output version information
+
+ The default behavior is to run a new command:
+     taskset 03 sshd -b 1024
+ You can retrieve the mask of an existing task:
+     taskset -p 700
+ Or set it:
+     taskset -p 03 700
+ List format uses a comma-separated list instead of a mask:
+     taskset -pc 0,3,7-11 700
+ Ranges in list format can take a stride argument:
+     e.g. 0-31:2 is equivalent to mask 0x55555555
+
+ For more information see taskset(1). 
+  
+

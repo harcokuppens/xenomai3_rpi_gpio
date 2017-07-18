@@ -1,0 +1,32 @@
+pinctrl subsystem in linux
+===========================
+
+from: raspberry_pi__gpio_memory_mapping.txt 
+  - you can low level read/write memory to control gpio ports
+  - however pinctrl library in linux helps you to do this more easily
+
+
+https://www.kernel.org/doc/Documentation/pinctrl.txt
+
+
+the pin control subsystem in Linux
+
+ Pinctrl is framework provided in the kernel for accessing PIN's
+ 
+ 
+ Definition of PIN CONTROLLER:
+
+ - A pin controller is a piece of hardware, usually a set of registers, that
+   can control PINs. It may be able to multiplex, bias, set load capacitance,
+   set drive strength, etc. for individual pins or groups of pins.
+ 
+ 
+ 
+=> pinctrl helps you drive a pin controller instead of doing all memory mapped IO yourself!!
+ 
+ 
+ 
+ for gpio pins of the  bcm2835 chip a special pinctrl driver(drives specific pin controller) is ready available using the pinctrl framework :
+  
+   ./drivers/pinctrl/bcm/pinctrl-bcm2835.c   => uses pinctl framework to implement a gpiochip ( standard interface you need to implement for gpio chip)
+

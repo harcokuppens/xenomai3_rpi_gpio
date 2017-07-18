@@ -1,0 +1,356 @@
+
+=>  final solution how to best connect to rpi
+
+ 
+     hot switching rpi between 
+       * rpi connection to laptop (no outside network reachable from rpi) 
+
+             no outside network needed
+             use direct link to pc/laptop  with link-local fallback to  ip=169.254.0.2 
+             configured in /etc/dhpcpcd.conf  (fallback used if via dhcp one could not find an ip on outside network)
+       
+       * rpi connection to outside network  => get ip somewhere  ( from monitor or some dyndns kind of solution) 
+           
+            if outside network is needed on rpi -> only then connect to real network 
+            then use connected monitor or ethergids to find out ip  
+            or dynamic ip
+            
+             use dyndns to fetch ip of rpi
+                 http://www.techjawab.com/2013/06/setup-dynamic-dns-dyndns-for-free-on.html
+                  => use http://freedns.afraid.org/  free service
+                  => use https://github.com/troglobit/inadyn   inadyn client on rpi to connect to service
+
+             note: also made solution with email to mailinator, but then you still have to visit the mailinator site
+                   with dyndns you have a name which never changes !!
+             
+            
+    note: no reboot of rpi needed to switch to different connection because
+          hotplugging does automatically setup the connection again
+          when reconnecting!
+          
+           => IMPORTANT: for link-local static setup we should use dhcpcd fallback
+                    because with /boot/cmdline.txt trick it will only be set on boot
+                    and not when hotplugging 
+      
+                    
+
+
+
+    
+========================================================================================================================
+     direct connection rpi and pc/laptop
+========================================================================================================================
+
+ - pc usb host -> rpi micro-usb slave :  NOT POSSIBLE because micro usb only for power!
+ 
+         http://raspberrypi.stackexchange.com/questions/8587/can-you-transfer-data-through-the-microusb
+
+
+             The Raspberry Pi A & B are powered through the microUSB port. If the Raspberry Pi is plugged into a computer instead of
+             a power transformer, could you send data through that connection?
+
+             No. The microUSB port is power only -- the other pins are not connected
+ 
+ - pc usb host -> rpi usb host :  NOT POSSIBLE, because both host (need master slave) 
+ - pc usb host -> rpi usb slave :
+       https://www.raspberrypi.org/documentation/hardware/raspberrypi/usb/README.md
+         usb otg rpi
+       
+       => seems no solution ??  
+          see: http://raspberrypi.stackexchange.com/questions/271/can-i-use-raspberry-pi-as-a-usb-peripheral-device
+          
+ - pc usb  -> rpi pins (tty)  : slow and need special cable
+
+ - pc utp  ->  rpi utp   :   WORKS!!  (see below)  => is ADVICED!
+ 
+ 
+
+
+pc utp  ->  rpi utp  :  ADVICED
+====================
+
+cable needed:
+  http://stackoverflow.com/questions/16040128/hook-up-raspberry-pi-via-ethernet-to-laptop-without-router
+  You don't need a cross-over cable. You can use a normal network cable since the Raspberry Pi LAN chip is smart enough
+  to reconfigure itself for direct network connections. Cheers
+
+
+
+ two possible configs:
+ 
+   A) dhcp server running on your machine which gives connected machine the ip
+        => happens on mac_osx/windows machine when turning on "internet connection sharing" 
+           of your machines network connection to the specific  utp port which slave machine is connected
+           
+           Problem: 
+              "internet connection sharing" doesn't work with protected wifi  
+              
+        => see internet_connection_sharing__eg._on_a_laptop_share_wifi_network_connection__to__machine_connected_to_laptop_via_its_(usb)_ethernet_connector.txt
+   
+
+      examples :   
+         1) http://www.instructables.com/id/Direct-Network-Connection-between-Windows-PC-and-R/  
+            => runs manually  DHCP Server  on pc ethernet port which gets fixed to 192.168.2.1
+  
+         2) http://www.instructables.com/id/How-to-connect-raspberry-pi-to-laptop-display/?ALLSTEPS
+            => use windows "internet connection sharing (ICS)"
+                              `-> sets up dhpc server and stuff for you automatically ( is 1) automatic )
+   
+   B) fallback to   link-local ip4 automatic setup
+   
+      => use B) because easiests, setting up dhcp is an hassle and  link-local is meaned 
+         for only local machine to machine connection!!
+     
+     
+      note: don't use kernel boot param to fix link-local ip (add ip=169.254.0.2  to /boot/cmdline.txt) 
+            because that is only set on boot, we won't it also to work when hotplugging the rpi to the pc after it has been
+            connected to the real network without needing to do reboot!!!
+
+
+
+
+fallback solution:       if dhcp fails then  use link-local to ip 169.254.0.2
+-> configured in /etc/dhcpcd.conf
+=================
+
+
+using: dhcpd tool   ( and ifupdown tool in parallel  ,  dhcpcd for extX and ifdown for wlan )
+-------------------
+IMPORTANT: 
+       ifupdown tool still used for wlan but doesn't configure eth0 anymore
+       => so ifdowntool doesn't do anything with eth0 interfaces
+       dhcpcd tool running parallel and does eth0 interfaces setup   
+   
+
+   for raspbian jessie minimal:    dhcpcd tool used (instead of ifupdown tool)
+  
+
+      /etc/network/interfaces :     => original unchanged file!!  (no changes needed)
+      
+            $ sudo cat /tmp/dis2/etc/network/interfaces
+            # interfaces(5) file used by ifup(8) and ifdown(8)
+
+            # Please note that this file is written to be used with dhcpcd
+            # For static IP, consult /etc/dhcpcd.conf and 'man dhcpcd.conf'
+
+            # Include files from /etc/network/interfaces.d:
+            source-directory /etc/network/interfaces.d
+
+            auto lo
+            iface lo inet loopback
+
+            iface eth0 inet manual
+
+            allow-hotplug wlan0
+            iface wlan0 inet manual
+                wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+            allow-hotplug wlan1
+            iface wlan1 inet manual
+                wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+    
+    
+          => nothing setup for eth0  => MANUAL!!!
+        
+
+
+    /etc/dhcpcd.conf      => add below to this file to configure fallback instead of static link local by setting link local in /boot/cmdline.txt
+    
+        # define static profile
+        profile static_eth0
+        static ip_address=169.254.0.2
+        static routers=169.254.0.1
+        static domain_name_servers=131.174.30.69 131.174.224.4 131.174.117.20
+
+        # fallback to static profile on eth0
+        interface eth0
+        fallback static_eth0
+
+
+
+
+using: ifupdown tool
+-------------------
+
+ config file : /etc/network/interfaces
+
+
+ source:   
+   
+   https://www.raspberrypi.org/forums/viewtopic.php?f=36&t=15133
+    
+    I use my RPi in 2 network configurations :
+
+      1- Connected to a local network via a router (DHCP is fine)
+      2- Connected directly to the laptop using crossover cable (need to set a static IP)
+
+    I would like to configure the networking onto raspbian to try first to get an IP address via DHCP , 
+    then if DHCP fails (e.g. in situation #2) use a pre-defined static IP.
+    
+    
+    solution : 
+      you can just give it a 2nd IP address statically  in the  /etc/network/interfaces file
+    
+    
+     an example of my /etc/network/interfaces file:
+    ----------
+    auto lo
+        iface lo inet loopback
+        iface eth0 inet dhcp                              => do dhcp for eth0
+                                         
+                                                          => no auto  eth0   -> means not started on boot, only by hotplugging
+
+    auto eth0:1                                           => fallback config if 
+    iface eth0:1 inet static
+        address 123.123.123.123
+        netmask 255.255.255.0
+    ----------
+   
+   
+   
+
+        
+   note: we cannot boot from network, then hotplug into laptop to quickly check ip rpi, and then plug back into
+         network because when hotplugin into laptop it looses connection and does eth0 hotplug setup
+         (failing dhcp and only having static fallback)
+       
+           
+   
+   note: http://serverfault.com/questions/583587/whats-the-difference-between-eth01-and-2nd-eth0
+ 
+      eth0:1 alias style is deprecated and should not be used on modern systems.
+       => instead use eth0
+
+
+
+   final solution for rasbpian version used by emmanuel  using  ifupdown tool
+   
+
+      auto lo
+      iface lo inet loopback
+
+      #iface eth0 inet manual
+      auto eth0                                                   => enable eth0 setup on boot
+      allow-hotplug eth0                                          => enable hotpluggin eth0 setup
+      iface eth0 inet dhcp  
+      
+      
+      #auto eth0:1                                                => deprecated 
+      #iface eth0:1 inet static
+      #       address 169.254.0.2
+      #       netmask 255.255.0.0
+      #       gateway 169.254.0.1
+      #       dns-nameservers 131.174.30.69 131.174.224.4 131.174.117.20
+      #       dns-search science.ru.nl
+
+      
+
+      iface eth0 inet static                                   => instead of old eth0:1
+            address 169.254.0.2
+             netmask 255.255.0.0
+             gateway 169.254.0.1                                           => gateway is host which also gets link-local address random, unless manually fixed on host for nat ip forwarding
+             dns-nameservers 131.174.30.69 131.174.224.4 131.174.117.20
+             dns-search science.ru.nl
+       
+
+
+
+      auto wlan0
+      allow-hotplug wlan0
+      iface wlan0 inet manual
+      wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+      auto wlan1
+      allow-hotplug wlan1
+      iface wlan1 inet manual
+      wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+  
+
+
+
+
+notes
+=======
+
+note: ipv6 not by default enable on rpi
+
+     https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=15886
+       
+       Raspbian (August image) has no IPv6 enabled by default. Can someone explain why?
+
+       To solve this, I used "sudo nano /etc/modules", added "ipv6" at the end, and rebooted.
+       
+       Fact is most people have no need for ip6
+       
+    
+      
+
+ssh from pi to lilo : 
+ ssh -vv  -o PreferredAuthentications=password harcok@131.174.30.57
+ ssh -vv  -o PreferredAuthentications=password harcok@lilo.science.ru.nl
+
+=> explicit set to password because  otherwise tries other connecting methods which are slow on pi!
+
+
+
+
+
+
+
+
+    
+
+
+emails
+------
+
+
+Hoi,
+
+Ik heb de volgende beschrijving gevonden :
+
+  https://pihw.wordpress.com/guides/direct-network-connection/
+
+als de rpi is geconfigureerd met een vast ip,  (169.254.0.2)
+dan zou het met standaard dynamische geconfigureerde ethernet adapter out of the box moeten werken.
+Dat wil zeggen :
+  - connect rpi met je laptop via een normale utp kabel ( cross wordt automatisch herkend)
+  - ssh  169.254.0.2
+      en je hebt connectie met je rpi
+als we dan nog een smb server draaien dan kunnen we ook makkelijk bij de bestanden via een file explorer en onze eigen editor op de laptop gebruiken.
+
+Het is wel vereist dat je een utp connectie op je laptop hebt.
+
+Nadeel is wel dat je de door het ip van de rpi vast te leggen dat je de rpi niet meer aan het universiteits netwerk kunt aansluiten.
+Echter een sd kaartje is snel verwisseld, en dus een mogelijke configuratie ook.
+
+groeten
+Harco 
+
+
+mail: internet sharing wifi to rpi on usb-utp=ethernet doesn't work
+
+
+    ik heb het even met  de rpi1 die ik op mijn kamer had liggen geprobeerd,
+    en het werkt op mijn macbook air out of the box! Super makkelijk!
+
+    Ik heb toevallig een usb naar ethernet adapter voor mijn macbook air omdat deze geen vaste utp connector heeft.(laptop is te plat).
+    Dus ik kan nu met mijn laptop tegelijkertijd met de raspberri pi als met de rest van het internet via wifi connecten.
+    Dit zou je dus ook met een laptop kunnen doen. Als een laptop geen utp
+    connector heeft ( of een pc geen vrije utp connector) dan kun je met
+    een usb naar ethernet adapter alsnog via usb met de rpi connecten. (net zoals ik met mijn macbook heb gedaan).
+
+    Het is nu wel zo dat ik vanaf de rpi alleen met de laptop/pc kan communiceren, maar niet met de buitenwereld. 
+    Normaal zal dat ook niet nodig zijn. Maar kan soms handig zijn voor updates of dergelijke.
+    Waarschijnlijk kan ik dit nog wel via internet sharing van mijn wifi connectie voor elkaar krijgen,
+    maar momenteel weigert mijn macbook de protected wifi connect te sharen met mijn usb to ethernet adapter.
+    Moet nog uitzoeken hoe dat precies op te lossen is, want dit lijkt me
+    een beetje paranoide beveiliging van mijn mac dat de wifi weigert te delen met een pc die ik zelf direct heb geconnect.
+
+    groeten
+    Harco
+
+
+
+
