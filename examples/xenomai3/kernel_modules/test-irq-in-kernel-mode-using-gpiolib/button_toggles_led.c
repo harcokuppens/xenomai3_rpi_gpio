@@ -38,7 +38,7 @@ static int handler_interruption(rtdm_irq_t * irq)
 static int __init example_init (void)
 {
 	int err,cpu,irq_number;
-        cpumask_t cpumask;
+        //cpumask_t cpumask;
 
     cpu=5;
     

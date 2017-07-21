@@ -100,6 +100,16 @@ patch  --dry-run  -p1  <  ../ipipe-core-4.1.18-arm-9.patch
 patch  --dry-run  -p1  <  ../ipipe-core-4.1.18-arm-9.fixed.patch
 cd  ..
 # finally really apply both xenomai and ipipe patch to kernel
+
+IMPORTANT:
+   edit xenomai-3-3.0.5/scripts/prepare-kernel.sh 
+   and change the 'ln -sf' command into a 'cp' command
+   => instead of soft linking the xenomai files in the linux src tree
+      we now copy them!!  
+   => this is needed for 'make deb-pkg' in the linux kernel source tree
+      which otherwise makes packages with broken links!! (see linux headers below)
+
+
 xenomai-3-3.0.5/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.1.18-arm-9.fixed.patch
 
 
@@ -184,8 +194,38 @@ cd linux/
 # build
 time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
 # -> real    6m45.452s
+
 # install in ../dist/ dir 
 time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
+
+cd ..
+
+# EXTRA: install linux headers with Makefiles to build kernel modules on the pi itself
+#--------------------------------------------------------------------------------------
+#        note: 
+#          'make headers_install' installs only the headers, the Makefiles needed to build a kernel module are not there
+#          however with 'make deb-pkg' next to binary kernel packages it builds also a  linux-headers package
+#          which contains both headers and makefiles needed to build kernel modules. So we build this package 
+#          and copy it to the pi, and install it as a debian package on the pi
+
+cd linux/
+export NUMCORES=4 
+export KBUILD_DEBARCH=armhf 
+make ARCH=arm -j $NUMCORES  CROSS_COMPILE=arm-linux-gnueabihf-  deb-pkg
+
+# copy the file  'linux-headers-4.1.21-v7+_4.1.21-v7+-3_armhf.deb' to the pi 
+# then on the pi run :
+
+   dpkg -i linux-headers-4.1.21-v7+_4.1.21-v7+-3_armhf.deb
+
+   # it seems that the scripts in the linux headers itself are not cross-compiled to arm, (intel instead)
+   # so to use them to build kernel modules we first need to compile them as arm binaries, to
+   # do this we can call 'make modules_prepare' which calls 'make scripts' . 
+   cd /usr/src/linux-headers-4.1.21-v7+/
+   # run following make command, which can give some errors, which should be ignored be giving it the -i option
+   make -i modules_prepare   
+   # building kernel modules should work fine now!  
+
 cd ..
 
 
@@ -284,7 +324,9 @@ cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
     #device_tree=bcm2710-rpi-3-b.dtb
 
 
-
+# update: if you just rename the just installed file '/boot/zImage' to '/boot/kernel7'  then you don't need to edit
+#         /boot/config.txt because the bootscript on the raspberry pi finds out it is running on pi2 or pi3 and the
+#         automatically boots '/boot/kernel7' .    Note: on pi0 or pi1 it boots '/boot/kernel' instead!
 
 umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
 

@@ -1,0 +1,245 @@
+
+whats the difference between usr include linux and the include folder in linux
+------------------------------------------------------------------------------
+
+https://stackoverflow.com/questions/9094237/whats-the-difference-between-usr-include-linux-and-the-include-folder-in-linux
+
+question
+
+  What's the difference between /usr/include/linux and the include folder in linux kernel source?
+  On a freshly installed Ubuntu , i found kernel headers in both /usr/include/linux , and
+  /usr/src/kernel-version-headers/include/linux
+
+
+Answer
+
+  They are very different; the /usr/include/linux headers are the headers that were used when compiling the system's
+  standard C library. They are owned by the C library packaging, and updated in lockstep with the standard C library.
+  They exist to provide the userland interface to the kernel, as understood and "brokered"1 by the C library.
+
+  The /usr/src/linux-headers-$(uname -r)/include/linux headers are used via the /lib/modules/$(uname -r)/build symbolic
+  links. They are owned by the kernel headers packages and updated in lockstep with the kernel. These are a subset of
+  the kernel headers and enough of the Kbuild system required to build out-of-tree kernel modules. These files
+  represent the kernel internals -- modules must build against these if they are to properly understand in-memory
+  objects. See the kernel's Documentation/kbuild/modules.txt file for some details.
+
+     
+   
+   
+
+preparing  linux-headers dir (or full kernel source) for  external kernel compilation
+--------------------------------------------------------------------------------------
+   
+  https://wiki.archlinux.org/index.php/Compile_kernel_module
+   you need in the  linux-headers directory  (stripped source)
+    .config         : configuration params kernel build
+    Module.symvers  : contains a list of all exported symbols from a kernel build. 
+                      src: https://www.quora.com/What-is-the-purpose-of-Module-symvers-in-Linux
+                      
+                      The Module.symvers is (re)generated when you (re)compile modules. Run make modules,
+                      and you should get a Module.symvers file at the root of the kernel tree.
+                      src:https://unix.stackexchange.com/questions/24704/how-to-generate-module-symvers
+     
+                       https://www.kernel.org/doc/Documentation/kbuild/modules.txt
+                        
+                         2. How to Build External Modules
+
+                        To build external modules, you must have 
+                         - a prebuilt kernel available that contains 
+                         - the configuration and header files used in the build.
+                         - Also, the kernel must have been built with modules enabled. 
+                         
+                        If you are using a distribution kernel, there will be a package for the kernel you
+                        are running provided by your distribution.  (linux-headers package => contains config and Module.symvers)
+
+                        An alternative is to use the "make" target "modules_prepare." This will                                      => make modules_prepare
+                        make sure the kernel contains the information required. The target
+                        exists solely as a simple way to prepare a kernel source tree for
+                        building external modules.
+
+                        NOTE: "modules_prepare" will not build Module.symvers even if
+                        CONFIG_MODVERSIONS is set; therefore, a full kernel build needs to be
+                        executed to make module versioning work.                           => you need make the kernel and make the modules!!
+                                                                                              because Module.symvers is build with target "make modules"
+                        
+                        => note: linux-headers  package contains  .config and Module.symvers  and root Makefile
+                          e.g. see :
+                            https://packages.debian.org/jessie/amd64/linux-headers-3.16.0-4-amd64/filelist
+                             /usr/src/linux-headers-3.16.0-4-amd64/.config
+                             /usr/src/linux-headers-3.16.0-4-amd64/.kernelvariables
+                             /usr/src/linux-headers-3.16.0-4-amd64/Makefile
+                             /usr/src/linux-headers-3.16.0-4-amd64/Module.symvers
+                             ...
+                              mainly .h files!
+                        
+  
+  
+ => use "make clean" to cleanup old builds but with keeping  .config and Module.symvers :
+ ------------------------------------------------------------------------------------------
+ 
+   https://www.kernel.org/doc/makehelp.txt
+   
+      Cleaning targets:
+        clean		  - Remove most generated files but keep the config and              => preserves .config and Module.symvers
+                          enough build support to build external modules
+        mrproper	  - Remove all generated files + config + various backup files       => deletes  .config and Module.symvers and build scripts
+                 $ make mrpoper
+                 CLEAN   scripts/basic
+                 CLEAN   scripts/dtc
+                 CLEAN   scripts/genksyms
+                 CLEAN   scripts/kconfig
+                 CLEAN   scripts/mod
+                 CLEAN   scripts
+                 CLEAN   include/config usr/include include/generated arch/arm/include/generated
+                 CLEAN   .config .config.old Module.symver
+              
+        distclean	  - mrproper + remove editor backup and patch files
+   
+   
+
+
+http://www.incentivespro.com/forum/viewtopic.php?t=214
+
+first got error building module :
+  scripts/basic/fixdep: scripts/basic/fixdep: 1: Syntax error: word unexpected (expecting ")")
+
+
+tip:  to run in linux headers : 
+
+   make modules_prepare
+
+   => so seems this is 'modules_prepare' phase when wrong when building the  linux-headers package
+      so we rebuild it. 
+      Note: I discovered that linux-headers directory contains compiled programs in the scripts/
+            which are compiled as intel binary instead of arm binary  => something went wrong with crosscompiling!
+      
+
+    root@raspberrypi:/usr/src/linux-headers-4.1.21-v7+ # make modules_prepare
+      HOSTCC  scripts/basic/fixdep
+      HOSTCC  scripts/basic/bin2c
+      HOSTCC  scripts/kconfig/conf.o
+      HOSTCC  scripts/kconfig/zconf.tab.o
+      HOSTLD  scripts/kconfig/conf
+    scripts/kconfig/conf  --silentoldconfig Kconfig
+      CHK     include/config/kernel.release
+      UPD     include/config/kernel.release
+      CHK     include/generated/uapi/linux/version.h
+      CHK     include/generated/utsrelease.h
+      UPD     include/generated/utsrelease.h
+    make[1]: *** No rule to make target 'arch/arm/tools/gen-mach-types', needed by 'include/generated/mach-types.h'.  Stop.
+    arch/arm/Makefile:307: recipe for target 'archprepare' failed
+    make: *** [archprepare] Error 2
+ 
+   => 'make modules_prepare' failed       => ( subtarget "make prepare" failed,see below)
+   
+   note: 
+     in linux headers dir 
+     
+         $ ls linux/arch/arm/tools/
+         Makefile
+          
+     in original kernel source dir (from which I generated linux headers package) :
+     
+         $ ls linux/arch/arm/tools/
+         gen-mach-types  mach-types  Makefile
+ 
+     => target cannot be build because it misses the source files!
+       note: If you add those files it will go right! 
+ 
+ 
+then building module I got different error :
+  
+      MODPOST
+      scripts/mod/modpost: scripts/mod/modpost: 1: Syntax error: word unexpected (expecting ")")
+
+  => because scripts/basic/fixdep is rebuild that error is gone!
+
+
+Finally found solution:
+     
+first hacky solution:
+   
+  https://forum.armbian.com/index.php?/topic/59-compiling-the-external-module/
+  
+   make headers_check; make headers_install ; make scripts
+   
+   
+   => did  
+         make headers_check;                        => not needed
+         make scripts   => ended with some error
+           root@raspberrypi:/usr/src/linux-headers-4.1.21-v7+ # make scripts
+             HOSTCC  scripts/dtc/dtc.o
+             HOSTCC  scripts/dtc/flattree.o
+             HOSTCC  scripts/dtc/fstree.o
+             HOSTCC  scripts/dtc/data.o
+             HOSTCC  scripts/dtc/livetree.o
+             HOSTCC  scripts/dtc/treesource.o
+             HOSTCC  scripts/dtc/srcpos.o
+             HOSTCC  scripts/dtc/checks.o
+             HOSTCC  scripts/dtc/util.o
+             HOSTCC  scripts/dtc/dtc-lexer.lex.o
+             HOSTCC  scripts/dtc/dtc-parser.tab.o
+             HOSTLD  scripts/dtc/dtc
+             HOSTCC  scripts/genksyms/genksyms.o
+             HOSTCC  scripts/genksyms/parse.tab.o
+             HOSTCC  scripts/genksyms/lex.lex.o
+             HOSTLD  scripts/genksyms/genksyms
+             CC      scripts/mod/empty.o
+             HOSTCC  scripts/mod/mk_elfconfig
+             MKELF   scripts/mod/elfconfig.h
+             HOSTCC  scripts/mod/modpost.o
+             CC      scripts/mod/devicetable-offsets.s
+             GEN     scripts/mod/devicetable-offsets.h
+             HOSTCC  scripts/mod/file2alias.o
+             HOSTCC  scripts/mod/sumversion.o
+             HOSTLD  scripts/mod/modpost
+             HOSTCC  scripts/kallsyms
+             HOSTCC  scripts/pnmtologo
+             HOSTCC  scripts/conmakehash
+             HOSTCC  scripts/sortextable
+           scripts/sortextable.c:31:32: fatal error: tools/be_byteshift.h: No such file or directory
+            #include <tools/be_byteshift.h>
+         
+     => however after step 2 I could compile my kernel module!!     
+   
+   
+
+   
+   probably because you rebuild :
+     root@raspberrypi:/usr/src/linux-headers-4.1.21-v7+ # ls -l scripts/basic/fixdep
+     -rwxr-xr-x 1 root root 10268 Jul 15 14:22 scripts/basic/fixdep
+     root@raspberrypi:/usr/src/linux-headers-4.1.21-v7+ # ls -l scripts/mod/modpost
+     -rwxr-xr-x 1 root root 64308 Jul 15 14:41 scripts/mod/modpost
+   
+     
+   note: "make scripts" ended with error, you could fix this by  
+          src:  https://forum.armbian.com/index.php?/topic/59-compiling-the-external-module/
+              I commented following lines in Makefile:
+
+                # hostprogs-$(CONFIG_BUILDTIME_EXTABLE_SORT) += sortextable
+                # HOSTCFLAGS_sortextable.o = -I$(srctree)/tools/include
+        
+        
+     
+final solution: just use
+    
+    make -i modules_prepare      
+    
+                
+     => 'make modules_prepare' requires 'make scripts'
+       from Makefile :
+       
+        # Target to prepare building external modules
+        PHONY += modules_prepare
+        modules_prepare: prepare scripts
+     
+     => -i ignores error and continues building
+        and then it recompiles both fixdep and modpost!!
+        
+       note: above errors in build  (archprepare and sortextable )  are not important for 
+             building external modules,
+             so quickest fix is just to ignore them and continue rebuilding the scripts needed
+             for kernel compilation by using make with the -i option!
+             
+             
+

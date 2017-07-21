@@ -118,6 +118,15 @@ tar -xjvf xenomai-3-3.0.5.tar.bz2
 #
 #  apply xenomai  patch to kernel
 # 
+
+IMPORTANT:
+   edit xenomai-3-3.0.5/scripts/prepare-kernel.sh 
+   and change the 'ln -sf' command into a 'cp' command
+   => instead of soft linking the xenomai files in the linux src tree
+      we now copy them!!  
+   => this is needed for 'make deb-pkg' in the linux kernel source tree
+      which otherwise makes packages with broken links!! (see linux headers below)
+
 xenomai-3-3.0.5/scripts/prepare-kernel.sh  --linux=ipipe/  --arch=arm 
 
 
@@ -198,10 +207,42 @@ cd ipipe/
 export NUMCORES=4 
 time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
 # -> real    6m45.452s
+
 # install in ../dist/ dir 
 time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
 
+
 cd ..
+
+# EXTRA: install linux headers with Makefiles to build kernel modules on the pi itself
+#--------------------------------------------------------------------------------------
+#        note: 
+#          'make headers_install' installs only the headers, the Makefiles needed to build a kernel module are not there
+#          however with 'make deb-pkg' next to binary kernel packages it builds also a  linux-headers package
+#          which contains both headers and makefiles needed to build kernel modules. So we build this package 
+#          and copy it to the pi, and install it as a debian package on the pi
+
+cd linux/
+export NUMCORES=4 
+export KBUILD_DEBARCH=armhf 
+make ARCH=arm -j $NUMCORES  CROSS_COMPILE=arm-linux-gnueabihf-  deb-pkg
+
+# copy the file  'linux-headers-<version>_armhf.deb' to the pi 
+# then on the pi run :
+
+   dpkg -i linux-headers-<version>_armhf.deb
+
+   # it seems that the scripts in the linux headers itself are not cross-compiled to arm, (intel instead)
+   # so to use them to build kernel modules we first need to compile them as arm binaries, to
+   # do this we can call 'make modules_prepare' which calls 'make scripts' . 
+   cd /usr/src/linux-headers-<version>/
+   # run following make command, which can give some errors, which should be ignored be giving it the -i option
+   make -i modules_prepare   
+   # building kernel modules should work fine now!  
+
+cd ..
+
+
 
  
 
@@ -227,7 +268,7 @@ export  LDFLAGS=" -marm -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard"
 cd xenomai-3-3.0.5
 ./scripts/bootstrap 
  
-./configure  --host=arm-bcm2708hardfp-linux-gnueabi --with-core=cobalt --with-core=cobalt –enable-debug=partial
+./configure  --host=arm-bcm2708hardfp-linux-gnueabi  --with-core=cobalt –enable-debug=partial
 #                    `-> different compiler 
 
 # 
@@ -276,8 +317,13 @@ cd xenomai-3-3.0.5
 #        warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #    
 # 
+#    * with 
+#         ./configure  --host=arm-bcm2708hardfp-linux-gnueabi --with-core=mercury 
+#      you build xenomai for mercury instead
+#         
 #  IMPORTANT:
 #    -  I compiled the kernel with the gcc arm compiler coming with ubuntu 14.04 which seems to go alright
+#        see: https://www.raspberrypi.org/documentation/linux/kernel/building.md
 #    -  I only compiled xenomai src (user space tools/libraries) with the alternative compiler
    
       
@@ -351,6 +397,9 @@ cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
     # for pi3
     # device_tree=bcm2710-rpi-3-b.dtb
 
+# update: if you just rename the just installed file '/boot/zImage' to '/boot/kernel'  then you don't need to edit
+#         /boot/config.txt because the bootscript on the raspberry pi finds out it is running on pi1 or pi0 and the
+#         automatically boots '/boot/kernel' .    Note: on pi2 or pi3 it boots '/boot/kernel7' instead!
 
 
 

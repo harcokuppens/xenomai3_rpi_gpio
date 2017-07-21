@@ -33,5 +33,5 @@ clean:
 else
     # called from kernel build system: just declare what our modules are
     obj-m := button_toggles_led.o
-    xeno_button_toggles_led-y :=  button_toggles_led.o 
+    #xeno_button_toggles_led-y :=  button_toggles_led.o 
 endif

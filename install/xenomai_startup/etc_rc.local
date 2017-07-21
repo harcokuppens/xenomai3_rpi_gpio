@@ -12,22 +12,39 @@
 # By default this script does nothing.
 
 # Print the IP address
+prefix="[ **** ] /etc/rc.local:"
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
-  printf "My IP address is %s\n" "$_IP"
+  printf "$prefix My IP address is %s\n" "$_IP"
 fi
+
+model=`cat /proc/device-tree/model`
+compatible=`cat /proc/device-tree/compatible`
+printf "$prefix model: $model\n"
+printf "$prefix compatible: $compatible\n"
 
 # xenomai initialization
 if grep BCM2708 /proc/cpuinfo >/dev/null
 then 
-  echo use /usr/xenomai_pi1 as /usr/xenomai  
-  ln -nsf /usr/xenomai_pi1 /usr/xenomai  
+  echo "$prefix use /usr/xenomai_pi1_cobalt as /usr/xenomai"
+  ln -nsf /usr/xenomai_pi1_cobalt /usr/xenomai  
 else 
-  echo use /usr/xenomai_pi2 as /usr/xenomai  
-  ln -nsf /usr/xenomai_pi2 /usr/xenomai  
+  echo "$prefix use /usr/xenomai_pi2_cobalt as /usr/xenomai"  
+  ln -nsf /usr/xenomai_pi2_cobalt /usr/xenomai  
 fi
 
 modprobe xeno_gpio
+
+# by default turn clock leds off (clock exercise)
+# leds are connected to gpio pins 2 3 4 17 27 22 10 9
+echo "$prefix set output value 0 on gpio pins  2 3 4 17  27 22 10 9"
+for d in 2 3 4 17 27 22 10 9
+do 
+  gpio -g mode $d out
+  gpio -g write $d 0
+done
+
+/bin/bash /etc/profile.d/dyndns.sh &
 
 exit 0
 
