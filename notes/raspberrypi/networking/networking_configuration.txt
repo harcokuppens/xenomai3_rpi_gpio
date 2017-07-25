@@ -1,3 +1,12 @@
+ http://raspberrypi.stackexchange.com/questions/39785/dhcpcd-vs-etc-network-interfaces
+
+
+  with the change from Wheezy to Jessie (and in a broader sense with the adoption of systemd) 
+  the configuration of `dhcpcd.conf' and 'wpa_supplicant.conf' will be the norm and the 'interfaces' file will be left to it's own devices.
+
+  => use 
+       dhcpcd.conf (eth) and
+       wpa_supplicant.conf (wlan)
 
 
 ifupdown tool
@@ -18,9 +27,8 @@ ifupdown tool
   http://raspberrypi.stackexchange.com/questions/39785/dhcpcd-vs-etc-network-interfaces
 
 
-  with the change from Wheezy to Jessie (and in a broader sense with the adoption of systemd) the
-  configuration of `dhcpcd.conf' and 'wpa_supplicant.conf' will be the norm and the 'interfaces' file will be left to
-  it's own devices.
+  with the change from Wheezy to Jessie (and in a broader sense with the adoption of systemd) 
+  the configuration of `dhcpcd.conf' and 'wpa_supplicant.conf' will be the norm and the 'interfaces' file will be left to it's own devices.
  
 
 

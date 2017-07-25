@@ -1,4 +1,5 @@
 network_prefix="131.174"
+lan_prefix="192.168"
 dyndns_url="http://www.cs.ru.nl/lab/dyndns/"
 
 get_mac_for_interface() 
@@ -20,18 +21,21 @@ getipfrommac ()
 # only allow setting ip within network which starts with network_prefix set
 setmac2ip ()
 {
-    if [[ "$2" =~ ^$network_prefix ]]  
+    if [[ "$2" =~ ^$network_prefix || "$2" =~ ^$lan_prefix ]]  
     then
          curl "$dyndns_url?mac=$1&ip=$2&cmdline=1" 2>/dev/null
     fi 
 }
 
-
-
 update_dyndns_for_interface() {
     interface=$1
-    ip=$(get_ip_for_interface $interface)
+    if ! ifconfig $interface >& /dev/null
+    then 
+       echo "interface:$interface not defined"
+       return
+    fi
     mac=$(get_mac_for_interface $interface)
+    ip=$(get_ip_for_interface $interface)
     
     # notes: 
     # ip=$(hostname -I)  => displays all interfaces ip's
