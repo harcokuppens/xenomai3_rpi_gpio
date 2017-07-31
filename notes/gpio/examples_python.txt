@@ -1,0 +1,41 @@
+example python programs using and explaining gpio
+-------------------------------------------------
+      
+src:  http://raspi.tv/rpi-gpio
+  RPi.GPIO Documentation and Tutorials
+    
+
+    RPi.GPIO Basics series
+
+            RPi.GPIO basics 1 – how to check what RPi.GPIO version you have (15) July 11, 2013
+            RPi.GPIO basics 2 – how to check what Pi board Revision you have (26) July 12, 2013
+            RPi.GPIO basics 3 – How to Exit GPIO programs cleanly, avoid warnings and protect your Pi (43) July 13, 2013
+            RPi.GPIO basics 4 – Setting up RPi.GPIO, numbering systems and inputs (15) July 14, 2013
+            RPi.GPIO basics 5 – Setting up and using outputs with RPi.GPIO (13) July 15, 2013
+            RPi.GPIO basics 6 – Using inputs and outputs together with RPi.GPIO – pull-ups and pull-downs (18) July 17, 2013
+            RPi.GPIO basics 7 – RPi.GPIO cheat sheet and pointers to RPi GPIO advanced tutorials (12) July 19, 2013
+
+    RPi.GPIO more advanced
+
+        Interrupts (needs RPi.GPIO 0.5.2+)
+
+            Background and simple interrupt: How to use interrupts with Python on the Raspberry Pi and RPi.GPIO
+            Threaded callback: How to use interrupts with Python on the Raspberry Pi and RPi.GPIO – part 2
+            Multiple threaded callback: How to use interrupts with Python on the Raspberry Pi and RPi.GPIO – part 3
+            Edge Detection: Detecting both rising and falling edges with RPi.GPIO
+            Port setup Function checking
+            GPIO mode checking with GPIO.getmode()
+
+        Software PWM
+
+        From 0.5.2a onwards, RPi.GPIO has software PWM. Below are two links. One describes its basic usage and the other is a practical application for dimming LEDs and controlling motor speed.
+
+            PWM: RPi.GPIO 0.5.2a now has software PWM – How to use it
+            PWM practical: How to use soft PWM in RPi.GPIO 0.5.2a pt 2 – led dimming and motor speed control
+
+     
+ 
+ 
+
+some of above manuals are combined in a pdf :
+  raspi.tv-RPiGPIO_basics_and_interrupts.pdf
