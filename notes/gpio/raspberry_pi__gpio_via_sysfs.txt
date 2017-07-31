@@ -1,0 +1,54 @@
+https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
+
+  Paths in Sysfs
+  --------------
+  
+  There are three kinds of entries in /sys/class/gpio:
+
+     -	Control interfaces used to get userspace control over GPIOs;
+
+     -	GPIOs themselves; and
+
+     -	GPIO controllers ("gpio_chip" instances).
+  
+  
+  The control interfaces are write-only:
+
+      /sys/class/gpio/
+
+      	"export" ... Userspace may ask the kernel to export control of
+  		a GPIO to userspace by writing its number to this file.
+
+
+      	"unexport" ... Reverses the effect of exporting to userspace.
+
+
+  	Examples:  
+    
+        "echo 19 > /sys/class/gpio/export" 
+           will create a "gpio19" nodefor GPIO #19, if that's not requested by kernel code.
+
+  		"echo 19 > /sys/class/gpio/unexport" 
+           will remove a "gpio19" node exported using the "export" file.  
+           
+           
+
+  http://wiringpi.com/the-gpio-utility/
+    you can also use the gpio command coming with the wiringpi library 
+    to give /sys/class/gpio mode commands
+   
+         $ gpio -g export 19  in 
+         $ gpio exports
+         GPIO pins exported:
+           19: in 
+         $ gpio -g  unexport 19
+         $ gpio unexportall
+         
+     note:  The optional -g flag causes pin numbers to be interpreted as BCM_GPIO pin numbers rather than standard wiringPi pin numbers.
+      
+         $ gpio readall
+          
+          => reads all pins and shows their numbering!  (gpio pin numbers are on outer column)
+
+
+           
