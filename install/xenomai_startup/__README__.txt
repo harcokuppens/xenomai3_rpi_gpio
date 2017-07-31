@@ -64,5 +64,16 @@ installation
 
 
 
+dynamic update ip at boot to server and look it up at a webserver
+-----------------------------------------------------------------
+
+at https://github.com/harcokuppens/dyndns you can download a dynamic dns
+client script to run at boot of the raspberry pi, and a php server script
+where you can lookup the ip of a raspberry pi.
+
+For details see: https://github.com/harcokuppens/dyndns
+
+
+
 
  
