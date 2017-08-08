@@ -1,4 +1,59 @@
 
+https://github.com/pficheux/raspberry_pi/tree/master/Xenomai  2.6/2,4   
+
+the following examples on this repository
+
+    xenomai_rpi_gpio	GPIO control with Xenomai (user-space only)  
+    kernel_hello		"Hello World" RTDM module
+    kernel_hb		RTDM heartbeat with LED (adapted for RPi)
+    RT			RTDM driver example for RPi GPIO (RT domain)
+    RT_NRT			RTDM driver example for RPi GPIO (RT + NRT domain)
+    RT_irq			Same with RDTM irq handling
+
+
+ RT_irq	=> good example of writing an RTDM driver
+
+other old example: http://www.acadis.org/pages/captain.at/driver-example
+
+
+
+memory map goes through /dev/mem which is not realtime
+------------------------------------------------------
+
+https://xenomai.org/pipermail/xenomai/2016-November/036863.html
+
+The process for opening a special device file through Cobalt is as follows:
+
+1. the open() wrapper in lib/cobalt/rtdm.c is called by the application,
+as a result of wrapping the overloaded POSIX symbols (ld's --wrap
+option, see output of xeno-config --ldflags --posix).
+
+2. the open() wrapper first invokes the Cobalt core with the file path
+("/dev/mem" in this case), for determining whether the associated device
+is managed by RTDM. If so, RTDM returns a valid file descriptor to the
+caller. This should not match your use case.
+
+3. otherwise, lib/cobalt hands the request over the glibc by calling the
+real open(). This should happen in the /dev/mem case.
+
+When mapping, the same process happens for the mmap() routine. If the
+file descriptor passed to mmap() belongs to RTDM, Cobalt's mmap handler
+in kernel/cobalt/posix/io.c receives the request. Otherwise, the mmap()
+wrapper from lib/cobalt/rtdm.c hands the request over the regular glibc
+call.
+
+In your case, I would expect step 2 to fail for RTDM since it does not
+manage /dev/mem, and the subsequent mmap() to be fully handled by the
+regular kernel via a glibc call. You may want to track down the issue
+starting from mmap_pgoff() in mm/mmap.c, down to the mmap_mem() in
+drivers/char/mem.c.
+
+-- 
+Philippe.
+
+
+
+
 rtdm example  for gpio for rpi
 ==============================
 

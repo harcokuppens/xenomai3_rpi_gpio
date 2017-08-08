@@ -1,0 +1,28 @@
+in program clock with text: sometimes the next alarm is programmed before the previous alarm
+      => in theory rt_alarm_start should reprogram previous alarm
+      
+          src: http://www.cs.ru.nl/lab/xenomai/api3/group__alchemy__alarm.html
+          
+          rt_alarm_start()
+            Start an alarm.
+
+            This routine programs the trigger date of an alarm object.
+            
+            This service overrides any previous setup of the expiry date and reload interval for the alarm.
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             
+          rt_alarm_stop()
+             int rt_alarm_stop 	( 	RT_ALARM *  	alarm	) 	
+
+             Stop an alarm.
+
+             This routine disables an alarm object, preventing any further expiry until it is re-enabled via rt_alarm_start().            
+                         
+      =>  but something goes wrong with  rt_alarm_start
+          we suddenly get many alarms   => program crashes
+        
+        
+        
+      fix : do rt_alarm_stop  before each rt_alarm_start
+            I guess overriding with rt_alarm_start is BUGGY, so you better can first stop it completely and restart it!
+

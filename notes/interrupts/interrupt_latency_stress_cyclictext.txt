@@ -1,0 +1,56 @@
+http://linuxrealtime.org/   the Linux Real Time Manual
+http://linuxrealtime.org/index.php/Appendix_A_-_Optimizing_Example_-_P2041#chapter
+ 
+ 
+When someone states the goal to "optimize a specific Linux target for real-time" and provides a benchmark result, it is
+very important to be clear on what capabilities the measured system actually has. Benchmark results may be interesting
+to read, but they are only valid and relevant if they are somewhat comparable with each other and if the setup is
+relevant for real-world use cases.
+ 
+ 
+In Reality, "Real-Time" is Not Only About Interrupt Latency   => the whole chain must be taken into account
+
+   In a real-time system, the characteristic behavior of the entire operating system is very important. To start with,
+   a deterministic response time from an external event until the application is invoked is what we normally refer to
+   when talking about real-time characteristics of an operating system. This implies not only the interrupt latency,
+   but also the event chain until the application gets scheduled.
+
+   Since a chain is not stronger than its weakest link, it is also important to provide a deterministic runtime
+   environment for the entire application execution flow so that it can respond within the specified operational
+   deadline on system level. This implies that also the task scheduler and the resource handling API in the OS must
+   behave in a deterministic way.
+
+   When designing a system for high-throughput performance, the goal is to keep down the average latency, while
+   designing a real-time system aims to keep the worst-case latency under a specified limit. As a consequence, the
+   design of a system required to be both high-performing and real-time capable must take both the average and maximum
+   latency into account, and this is something we will strive for in this application note.
+ 
+
+ 
+Benchmark Description
+
+    The worst-case latency benchmark uses a combination of [1]cyclictest and
+    [2]stress. The values of the buffer sizes used in the stress scenarios are
+    chosen in order both to generate much stress load on network via NFS
+    traffic in the hdd test, and also in the attempt to resemble a real live
+    embedded application. The values are presented in the table below.
+
+                    Table A.1 Details of Stress Test Scenarios
+    +------------------------------------------------------------------------+
+    | Scenario | Corresponding stress Options and Arguments                  |
+    |----------+-------------------------------------------------------------|
+    | hdd      | ./stress -d 4 -hdd-bytes 1M                                 |
+    |----------+-------------------------------------------------------------|
+    | vm       | ./stress -m 4 -vm-bytes 4096                                |
+    |----------+-------------------------------------------------------------|
+    | full     | ./stress -c 4 -i 4 -m 4 -vm-bytes 4096 -d 4 -hdd-bytes 4096 |
+    +------------------------------------------------------------------------+
+
+
+    The benchmark runs one stress instance per core in parallel with the
+    cyclictest program:
+
+          ./cyclictest -S -m -p99 -l 100000
+ 
+ 
+ 
