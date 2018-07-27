@@ -1,17 +1,78 @@
-PREFER:  "own dns server" solution below
 
 
 
-simplest solution:
+
+how to easily setup the connection between a rpi and a laptop in the lab 
+------------------------------------------------------------------------
+
+requirements:
+ - must be easy and quick (no configuration hassle)
+ - we want a single image for all raspberry pi's  => no unique hostnames on the pi's
  
-  direct_connection_between_pc_rpi.txt   
+ 
+ 
+ 
+investigate solutions: 
+ 
+ 1) use zeroconf  when directly connecting the rpi and laptop using an utp cable 
+          `-> automatically configure network connection 
+     
+     => see : /home/harcok/doc/help/systeembeheer/services/netwerk_tcpip/connect_two_computers_directly_via_utp/zeroconf_solution.txt
+          
+     => uses
+        zeroconf's IPv4LL address resolution : fetch automatically  169.x.x.x  link-local ip address
+        zeroconf's : mDNS name resolution :  <hostname>.local -> link-local ip addres 
+     
+         see: /home/harcok/doc/help/systeembeheer/services/netwerk_tcpip/zeroconf.txt
+         
+         
+     You don't need a cross-over cable:
+       http://stackoverflow.com/questions/16040128/hook-up-raspberry-pi-via-ethernet-to-laptop-without-router
+       You don't need a cross-over cable. You can use a normal network cable since the Raspberry Pi LAN chip is smart enough
+       to reconfigure itself for direct network connections. Cheers
 
+     
+     
+    disadvantages: 
+       -> not all laptops have utp connector anymore, so they must have an utp adapter
+       -> zeroconf per os still different, so compatibility problems between different os's occur  
+          eg. for windows you need to install "bonjour for windows for printing services" to get mDNS running!        
+       -> zeroconf IPv4LL for linux not always by default activate as fallback when dhcp fails       
+       -> each rpi needs different hostname => images should vary!!
+       
 
-alternatives are by using network:
- * use dynamic dns
+     SEE: direct_connection_between_pc_rpi.txt   
+          => here we use static local link resolution  so that pi always has same IP  => convenient!!
+              `-> zeroconf not needed => setup is static!!
+          => don't use <hostname>.local but just fixed IP for pi!!
+               -> so using same image for every pi is no problem!!
+                  
+         ONE problem remains :
+            not all laptops have utp connector anymore, so they must have an utp adapter
+ 
+ 
+2) use zeroconf on same local (WIFI) network:   
+         `-> automatically configure network connection 
+     => uses
+        zeroconf's IPv4LL address resolution : fetch automatically  169.x.x.x  link-local ip address
+        zeroconf's : mDNS name resolution :  <hostname>.local -> link-local ip addres 
+
+        see: /home/harcok/doc/help/systeembeheer/services/netwerk_tcpip/zeroconf.txt
+
+      both pc and rpi are connected to same local network 
+      then zeroconf lets you access rpi by its hostname
+      Disadadvantages
+       -> zeroconf per os still different, so compatibility problems between different os's occur  
+          eg. for windows you need to install "bonjour for windows for printing services" to get mDNS running!        
+       -> zeroconf IPv4LL for linux not always by default activate as fallback when dhcp fails                                
+       -> each rpi needs different hostname => images should vary!!
+       -> both need on same local network => so laptop must also on same local network
+          note: if using wifi we could use our own wifi local network ( because  bringing rpi3 on eduroam requires account!! )
+
+ 3) use dynamic dns  on same local (WIFI) network:                                                               
        problem: using external dyndns server requires that each image different
 
-       solution:  "own dns server"
+      SOLUTION:  "own dns server"
          however by making my own dns server and some batch scripts I
          can make each image the same and using its own specific mac address
          publish its ip address. Which other pc's can easily fetch with
@@ -19,12 +80,30 @@ alternatives are by using network:
           => see ../../install/dyndns/
               implemented a simple dyndns server in php which uses the pi's unique mac-address
               to register its ip  =>  same image can be used for many pi's !!
+  
+       => no problems left!!
+         even using wifi is much easier , no utp cable connection needed!!
          
- 
- * use zeroconf : both pc and rpi are connected to same local network 
-                  then zeroconf lets you access rpi by its hostname
-                  Disadadvantages:
-                   -> each rpi needs different hostname => images should vary!!
-                   -> both need on same local network => so no eduroam connect laptops
-                      note: bringing rpi3 on eduroam requires account!! 
-
+          note: direct link over utp cable is more interesting when needing a  fast connection for file copying!
+                but in our case we don't need that.
+          
+         
+  
+solution 3 used in lab:   (no zeroconf needed, because for zeroconf we still need unique hostname's per pi! => different images!)
+------------------------
+  - wifi router providing wireless local 192 network with simple password (product name of router in lab)
+  - which does NAT to give local clients access to outside network,
+  - however they are not addressable from the outside which means:
+      * clients are safe from outside attacks
+      * to communicate from laptop/pc with pi, the laptop/pc must also be on
+        local wifi network (not eduroam)
+  - use my own dyndns php server script : http://cs.ru.nl/lab/dyndns/index.php
+    to let users find ip-address of a pi using its mac-address
+    note:
+      * pi subscribes  mac-address->ip-address to this server on every boot
+      * on pi is sticker which says what is mac address is
+    => so pi doesn't need to be connected to a monitor or utp cable
+       it only  needs power, and then it automatically connects to local wifi
+       network and publish its ip on the dyndns server so it can be easily be
+       access by other machines on the same local wifi network
+  

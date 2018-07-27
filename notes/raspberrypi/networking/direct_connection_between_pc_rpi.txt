@@ -1,31 +1,7 @@
-
-=>  final solution how to best connect to rpi
-
- 
-     hot switching rpi between 
-       * rpi connection to laptop (no outside network reachable from rpi) 
-
-             no outside network needed
-             use direct link to pc/laptop  with link-local fallback to  ip=169.254.0.2 
-             configured in /etc/dhpcpcd.conf  (fallback used if via dhcp one could not find an ip on outside network)
-       
-       * rpi connection to outside network  => get ip somewhere  ( from monitor or some dyndns kind of solution) 
-           
-            if outside network is needed on rpi -> only then connect to real network 
-            then use connected monitor or ethergids to find out ip  
-            or dynamic ip
-            
-             use dyndns to fetch ip of rpi
-                 http://www.techjawab.com/2013/06/setup-dynamic-dns-dyndns-for-free-on.html
-                  => use http://freedns.afraid.org/  free service
-                  => use https://github.com/troglobit/inadyn   inadyn client on rpi to connect to service
-
-             note: also made solution with email to mailinator, but then you still have to visit the mailinator site
-                   with dyndns you have a name which never changes !!
              
             
-    note: no reboot of rpi needed to switch to different connection because
-          hotplugging does automatically setup the connection again
+    note: no reboot of rpi needed to switch to from connection normal dhcp connection and direct connections  because
+          hotplugging (when replugging utp cable) does automatically setup the connection again
           when reconnecting!
           
            => IMPORTANT: for link-local static setup we should use dhcpcd fallback
@@ -61,18 +37,13 @@
           
  - pc usb  -> rpi pins (tty)  : slow and need special cable
 
- - pc utp  ->  rpi utp   :   WORKS!!  (see below)  => is ADVICED!
+ - pc utp  ->  rpi utp   :   WORKS!!  (see below)               => is ADVICED!
  
  
 
 
-pc utp  ->  rpi utp  :  ADVICED
+pc utp  ->  rpi utp  : 
 ====================
-
-cable needed:
-  http://stackoverflow.com/questions/16040128/hook-up-raspberry-pi-via-ethernet-to-laptop-without-router
-  You don't need a cross-over cable. You can use a normal network cable since the Raspberry Pi LAN chip is smart enough
-  to reconfigure itself for direct network connections. Cheers
 
 
 
@@ -96,22 +67,27 @@ cable needed:
             => use windows "internet connection sharing (ICS)"
                               `-> sets up dhpc server and stuff for you automatically ( is 1) automatic )
    
-   B) fallback to   link-local ip4 automatic setup
+   B) fallback to link-local ip4 automatic STATIC setup
    
       => use B) because easiests, setting up dhcp is an hassle and  link-local is meaned 
          for only local machine to machine connection!!
      
+
+        fallback solution means:       if dhcp fails then  use link-local to ip 169.254.0.2
+        -> configured in /etc/dhcpcd.conf SEE BELOW
+
      
       note: don't use kernel boot param to fix link-local ip (add ip=169.254.0.2  to /boot/cmdline.txt) 
             because that is only set on boot, we won't it also to work when hotplugging the rpi to the pc after it has been
             connected to the real network without needing to do reboot!!!
 
+      note: normally you would  do fallback to link local address  DYNAMICALLY with zeroconf's 'avahi-autoipd'  IPv4LL address resolution service!!
+             => see /home/harcok/doc/help/systeembeheer/services/netwerk_tcpip/connect_two_computers_directly_via_utp/zeroconf_solution.txt
+      
 
 
-
-fallback solution:       if dhcp fails then  use link-local to ip 169.254.0.2
--> configured in /etc/dhcpcd.conf
-=================
+ad B. fallback to link-local ip4 automatic STATIC setup
+=========================================================
 
 
 using: dhcpd tool   ( and ifupdown tool in parallel  ,  dhcpcd for extX and ifdown for wlan )
@@ -153,12 +129,12 @@ IMPORTANT:
           => nothing setup for eth0  => MANUAL!!!
         
 
-
-    /etc/dhcpcd.conf      => add below to this file to configure fallback instead of static link local by setting link local in /boot/cmdline.txt
+                                                  ,->  -> for more recent raspberry pi's IPv4LL is by default enabled so DYNAMICALL you get some 169.254.x.x address (2^16 possibilities)
+    /etc/dhcpcd.conf      => add below (NOT the default) to this file to configure fallback instead of static link local by setting link local in /boot/cmdline.txt
     
         # define static profile
         profile static_eth0
-        static ip_address=169.254.0.2
+        static ip_address=169.254.0.2                                 => fallback to link local address  STATICALLY done!!  => advantage : you know the ip of the PI!!
         static routers=169.254.0.1
         static domain_name_servers=131.174.30.69 131.174.224.4 131.174.117.20
 
@@ -166,11 +142,37 @@ IMPORTANT:
         interface eth0
         fallback static_eth0
 
+      => see also https://wiki.archlinux.org/index.php/dhcpcd
+      
+      
+  note: normally you would  do fallback to link local address  DYNAMICALLY with zeroconf's 'avahi-autoipd'  IPv4LL address resolution service!!
+        you do this by commenting out noipv4ll in   /etc/dhcpcd.conf   => by default it does IPv4LL !!! 
+        see : http://manpages.ubuntu.com/manpages/zesty/man5/dhcpcd.conf.5.html
+          noipv4ll
+                  Don't attempt to obtain an IPv4LL address if we failed to get one
+                  via DHCP.  See RFC 3927.
+         => IMPORTANT: for details see /home/harcok/doc/help/systeembeheer/services/netwerk_tcpip/connect_two_computers_directly_via_utp/zeroconf_solution.txt
+         
+         -> for more recent raspberry pi's IPv4LL is by default enabled  so   DYNAMICALL you get some 169.254.x.x address 
+            note: network mask is 255.255.0.0  => so 255*255 = 65k possibilities of ip  if not fixed!!
+            so many possibilities for an ip, but you can use mDNS from zeroconf and then 
+            you just can do : 
+            
+                   ssh  root@raspberrypi.local
+            
+            HOWEVER: for lab it can be easier to do static ipv4ll assignment as shown above because then you know the ip !!
+                     because for lab not all laptops maybe support mDNS (for windows you need to install 'bonjour for windows') so 
+                     it can be easier to do static ipv4ll assignment because then you know the ip 
+                    
+                   => we connect directly so no one else can communicate with the pi,
+                      but if would put all the pi's on the same network then static ip assignment fails => all same ip!! ERROR   
+         
+                  
 
 
 
 using: ifupdown tool
--------------------
+====================
 
  config file : /etc/network/interfaces
 

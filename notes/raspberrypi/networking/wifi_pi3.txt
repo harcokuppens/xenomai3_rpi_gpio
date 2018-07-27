@@ -1,3 +1,6 @@
+  
+   instructions to set up rpi3 as wifi-access point : https://learn.adafruit.com/setting-up-a-raspberry-pi-as-a-wifi-access-point/overview
+  
   => wifi 
       http://weworkweplay.com/play/automatically-connect-a-raspberry-pi-to-a-wifi-network/
         
@@ -9,14 +12,14 @@
 
         Again, some lines might already be present, just add the following.
 
-        network={
-        ssid="YOUR_NETWORK_NAME"
-        psk="YOUR_NETWORK_PASSWORD"
-        proto=RSN
-        key_mgmt=WPA-PSK
-        pairwise=CCMP
-        auth_alg=OPEN
-        }
+            network={
+            ssid="YOUR_NETWORK_NAME"
+            psk="YOUR_NETWORK_PASSWORD"
+            proto=RSN
+            key_mgmt=WPA-PSK
+            pairwise=CCMP
+            auth_alg=OPEN
+            }
 
         The other parameters are network specific, I can't tell you what you need. If you boot Raspbian to desktop, you can launc the wpa_gui (WiFi config) application and click 'Scan'. You'll find a list that has your network too with all flags you need. To do this on a RPi A you'll have to disconnect your keyboard and connect your dongle once the scanning list is open.
 
