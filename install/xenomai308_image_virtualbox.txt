@@ -456,6 +456,8 @@ https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kern
                      then just press ENTER (choose default)
 
 
+  for more info see  section 'background info: some notes about modules config' below.
+
 modify this config file as required for good working xenomai    
 ------------------------------------------------------------
  
@@ -1071,5 +1073,148 @@ background info: about how to translate config options to 'make menuconfig' opti
                   CONFIG options mentioned above         
  
  
+
+background info: some notes about modules config
+-------------------------------------------------  
+  
+  https://kernelnewbies.org/Linux_2_6_32#head-11f54cdac41ad6150ef817fd68597554d9d05a5f
+
+  
+  
+    Most people uses the kernel shipped by distros - and that's good. But some people like to compile their own kernels
+    from kernel.org, or maybe they like following the Linux development and want to try it. Configuring your own kernel,
+    however, has become a very difficult and tedious task - there're too many options, and some times userspace software
+    will stop working if you don't enable some key option. You can use a standard distro .config file, but it takes too
+    much time to compile all the options it enables.
+
+    To make the process of configuration easier, a new build target has been added: make localmodconfig. It runs "lsmod"
+    to find all the modules loaded on the current running system. It will read all the Makefiles to map which CONFIG
+    enables a module. It will read the Kconfig files to find the dependencies and selects that may be needed to support a
+    CONFIG. Finally, it reads the .config file and removes any module "=m" that is not needed to enable the currently
+    loaded modules. With this tool, you can strip a distro .config of all the unuseful drivers that are not needed in our
+    machine, and it will take much less time to build the kernel. There's an additional "make localyesconfig" target, in
+    case you don't want to use modules and/or initrds.
+      
+  
+  
+  http://superuser.com/questions/146544/how-to-configure-a-linux-kernel-based-on-the-modules-currently-in-use
+  
+  How to configure a Linux kernel based on the modules currently in use?    
+
+    If you're using Linux 2.6.32 and above, you may want to check out the "localmodconfig" make target. It does pretty
+    much what you ask—it determines what modules you have running, and generates a .config making sure those modules
+    are built. The "localyesconfig" target will compile those modules statically into the kernel rather than creating
+    modules.
+
+    More info available here: Easy local kernel configuration.
+    
+    
+    => https://wiki.archlinux.org/index.php?title=Modprobed-db&redirect=no
+    
+    
+http://unix.stackexchange.com/questions/253245/what-does-make-localmodconfig-do/253248
+
+    From the kernel README:
+
+        "make localmodconfig" 
+        
+           Create a config based on current config and loaded modules (lsmod). Disables any module option that is not
+           needed for the loadedmodules.
+
+        To create a localmodconfig for another machine, store the lsmod of that machine into a file and pass it in as a
+        LSMOD parameter.
+
+                       target$ lsmod > /tmp/mylsmod
+                       target$ scp /tmp/mylsmod host:/tmp
+
+                       host$ make LSMOD=/tmp/mylsmod localmodconfig
+
+        The above also works when cross compiling.
+
+         "make localyesconfig" Similar to localmodconfig, except it will convert
+                               all module options to built in (=y) options.
+
+
+    
+https://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/ch07s03.html
+
+    Once you have a working configuration, the only thing that is necessary is to update it with any new options that
+    have been added to the kernel since the last release. To do this, the make oldconfig and make silentoldconfig
+    options should be used.
+    
+
+    make oldconfig 
+      takes the current kernel configuration in the .config file, and updates it based on the new kernel release. 
+    
+    To do this, it prints out all configuration questions, and provides an answer for them if the option is
+    already handled in the configuration file. If there is a new option, the program stops and asks the user what the
+    new configuration value should be set to. After answering the prompt, the program continues on until the whole
+    kernel configuration is finished.
+
+   make silentoldconfig works exactly the same way as oldconfig does, but it does not print anything to the screen,
+   unless it needs to ask a question about a new configuration option.
+   
+   Usually, when upgrading between different versions of the stable releases, no new configuration options are added,
+   as this is supposed to be a stable kernel series. If this happens, there are no new questions that need to be
+   answered for the kernel configuration, so the program continues successfully without any need for user intervention
+   
+   => https://rtt-lwr.readthedocs.io/en/latest/rtpc/xenomai3.html
+        Take the actual working config :
+
+        yes "" | make oldconfig
+
+        
+
+
+make help
+
+
+     Configuration targets:
+       config	  - Update current config utilising a line-oriented program
+       nconfig         - Update current config utilising a ncurses menu based
+                         program
+       menuconfig	  - Update current config utilising a menu based program
+       xconfig	  - Update current config utilising a Qt based front-end
+       gconfig	  - Update current config utilising a GTK+ based front-end
+       oldconfig	  - Update current config utilising a provided .config as base
+       localmodconfig  - Update current config disabling modules not loaded
+       localyesconfig  - Update current config converting local mods to core
+       silentoldconfig - Same as oldconfig, but quietly, additionally update deps
+       defconfig	  - New config with default from ARCH supplied defconfig
+       savedefconfig   - Save current config as ./defconfig (minimal config)
+       allnoconfig	  - New config where all options are answered with no
+       allyesconfig	  - New config where all options are accepted with yes
+       allmodconfig	  - New config selecting modules when possible
+       alldefconfig    - New config with all symbols set to default
+       randconfig	  - New config with random answer to all options
+       listnewconfig   - List new options
+       olddefconfig	  - Same as silentoldconfig but sets new symbols to their
+                         default value
+       kvmconfig	  - Enable additional options for kvm guest kernel support
+       xenconfig       - Enable additional options for xen dom0 and guest kernel support
+       tinyconfig	  - Configure the tiniest possible kernel
+       
+
+
+http://unix.stackexchange.com/questions/253245/what-does-make-localmodconfig-do/253248
+
+    From the kernel README:
+
+        "make localmodconfig" 
+        
+           Create a config based on current config and loaded modules (lsmod). Disables any module option that is not
+           needed for the loadedmodules.
+           
+           
+
+So 'make localmodconfig' requires a current config to be able to run,
+so first run 'make olddefconfig' to get the default config and then run 'make localmodconfig' :
+
+   
+     make olddefconfig         # Update current config utilising a provided .config as base (if no .config found, looks in /boot for config)
+                               # and sets new symbols to their default value
+     make localmodconfig       # to keep number of modules to compile and include small  => small image!!
+             `-> note: still can give some questions for some NEW options
+                       then just press ENTER (choose default)       
 
 
