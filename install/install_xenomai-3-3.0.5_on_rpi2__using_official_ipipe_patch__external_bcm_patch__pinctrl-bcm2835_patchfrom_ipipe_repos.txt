@@ -27,9 +27,54 @@ credits :
      #  git://git.xenomai.org/ipipe.git
 
 
-built raspbian linux kernel with xenomai patch
-==============================================
+https://courses.linuxchix.org/kernel-hacking-2002/08-overview-kernel-source.html
+ -> overview of directory hierarchy in source of linux kernel
+ 
+ 
 
+
+  arch/
+
+      All the architecture specific code is in this directory and in the include/asm-<arch> directories. Each
+      architecture has its own directory underneath this directory. For example, the code for a PowerPC based computer
+      would be found under arch/ppc. You will find low-level memory management, interrupt handling, early
+      initialization, assembly routines, and much more in these directories.
+
+     => below in step 2b. we patch arm architecture
+      
+         # 2b. apply raspberry pi specific patch  to kernel  (patch of Mathieu Rondonneau specific for rpi2 bcm-2709 )
+         #    http://www.blaess.fr/christophe/files/article-2016-05-22/patch-xenomai-3-on-bcm-2709.patch
+         # patch applies on files :  (applies purely in kernel, doesn't effect drivers )
+         #  arch/arm/Kconfig
+         #  arch/arm/mach-bcm2709/armctrl.c
+         #  arch/arm/mach-bcm2709/bcm2708_gpio.c
+         #  arch/arm/mach-bcm2709/bcm2709.c
+         #  arch/arm/mach-bcm2709/include/mach/entry-macro.S
+
+  drivers/
+
+      As a general rule, code to run peripheral devices is found in subdirectories of this directory. This includes
+      video drivers, network card drivers, low-level SCSI drivers, and other similar things. For example, most network
+      card drivers are found in drivers/net. Some higher level code to glue all the drivers of one type together may or
+      may not be included in the same directory as the low-level drivers themselves.
+  
+     => below in step 2c we patch driver code for pinctrl for rpi specific:
+     
+          # 2c. apply a patched version of pinctrl-bcm2835.c from the official ipipe patch from the specific branch vendors/raspberry/ipipe-4.1
+          #     https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+          #    for the  rpi1 which uses the same gpio-chip as the rpi2 to the source :
+          # patch applies on files :
+          #     linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c 
+      
+
+built raspbian linux kernel with xenomai patch         
+==============================================   
+
+# ingredients:
+# - xenomai-3-3.0.5 
+# - raspbian linux 4.1.y                                                           \
+# - ipipe-core-4.1.18-arm-9.fixed.patch                                             | -> all 4.1 !!
+# - pinctrl-bcm2835.c  from rpi specific branch 'vendors/raspberry/ipipe-4.1'      /
 
 # 0. prepare 
 # ------------
@@ -75,12 +120,13 @@ wget  http://www.blaess.fr/christophe/files/article-2016-05-22/patch-xenomai-3-o
 #  arch/arm/mach-bcm2709/bcm2709.c
 #  arch/arm/mach-bcm2709/include/mach/entry-macro.S
 #
-# 1e. a patched version of pinctrl-bcm2835.c from the official ipipe patch
-#     for the  rpi1 which uses the same gpio-chip as the rpi2 :
-wget -O pinctrl-bcm2835.c  http://git.xenomai.org/ipipe.git/plain/drivers/pinctrl/bcm/pinctrl-bcm2835.c?h=vendors/raspberry/ipipe-4.1
-#         `-> part of kernel (doesn't effect drivers)
+# 1e. a patched version of pinctrl-bcm2835.c from the official ipipe patch but from the specific branch vendors/raspberry/ipipe-4.1
+#     for the  rpi1 which uses the same gpio-chip as the rpi2 : 
+#wget -O pinctrl-bcm2835.c  http://git.xenomai.org/ipipe.git/plain/drivers/pinctrl/bcm/pinctrl-bcm2835.c?h=vendors/raspberry/ipipe-4.1
+wget -O pinctrl-bcm2835.c https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+#        
 
-# 2.  apply kernel patches ( xenomai+ipipe, bcm  )
+# 2.  apply kernel patches ( xenomai+ipipe, bcm( arch/arm/mach-bcm2709/.. and linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c   )
 # ------------------------
 #
 # 2a. apply xenomai (and ipipe) patch to kernel
@@ -111,7 +157,7 @@ IMPORTANT:
 
 
 xenomai-3-3.0.5/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.1.18-arm-9.fixed.patch
-
+# `-> xenomai script which does patch               `-> kernel source where patch applied     `-> ipipe patch file for kernel source
 
 # 2b. apply raspberry pi specific patch  to kernel  (patch of Mathieu Rondonneau specific for rpi2 bcm-2709 )
 #
@@ -122,7 +168,7 @@ patch  -p1  <  ../patch-xenomai-3-on-bcm-2709.patch  --dry-run
 patch  -p1  <  ../patch-xenomai-3-on-bcm-2709.patch  
 cd ..
  
-# 2. apply a patched version of pinctrl-bcm2835.c from the official ipipe patch
+# 2c. apply a patched version of pinctrl-bcm2835.c from the official ipipe patch from the specific branch vendors/raspberry/ipipe-4.1
 #    for the  rpi1 which uses the same gpio-chip as the rpi2 to the source :
 command cp   pinctrl-bcm2835.c  linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c 
 #   `-> to disable interactive mode and to force overwrite

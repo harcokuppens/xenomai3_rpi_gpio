@@ -1,0 +1,1075 @@
+
+
+
+
+notes:
+* to find out ip address of guest os from host run in guest os:
+
+    $ ip address
+    
+     => the ip address starts with 192.168.
+        (in the host only network,  nat network uses as prefix 10.0.)
+      
+* host must have VT-x/AMD-v hardware virtualization enabled in BIOS
+  otherwise image won't boot in virtualbox
+  
+  
+
+http://www.simplerobot.net/2018/06/build-realtime-xenomai-3-kernel-for_3.html
+https://rtt-lwr.readthedocs.io/en/latest/rtpc/xenomai3.html
+
+VIRTUALBOX: install debian stretch  (minimal install, no desktop)
+==================================================================
+
+sources 
+ * xenomai3_rpi_gpio/install/xenomai302_image_virtualbox.txt  -> for installation
+ * xenomai2.4_intelpc/install_xenomai/config_debian_for_easy_usage.txt  -> for easy configuration 
+ 
+ 
+Install debian os in virtualbox
+===============================
+
+
+http://www.wikiwand.com/en/List_of_Debian_releases 
+==> take stable debian version : https://en.wikipedia.org/wiki/Debian_version_history#Release_table
+     
+      at april 2019:   current stable :  	Stretch 	17 June 2017   (debian 9)
+ 
+
+downloaded :   
+  https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-9.8.0-amd64-netinst.iso
+ => use this standard image for minimal install => just don't select desktop!!
+   see: https://www.howtoforge.com/tutorial/debian-minimal-server/  
+
+=> in virtual box:
+
+     * add new machine 
+     
+          os: linux 64bit
+          memory size : 1024MB (default)
+          disk size :  8GB  (default)   => note: dynamically size, so dvi file is initially smaller
+                        VDI , dynamically allocated
+  
+  => jsut start machine in  virtualbox => then asks for installation cd
+  
+  => at boot installation cd
+  
+     now follow instructions from https://www.howtoforge.com/tutorial/debian-minimal-server/
+     
+     IMPORTANT:  choose advanced options => choose  "install"    (not expert install, nor graphical install)
+  
+  => choose standards for regional and keyboard settings
+  
+  => hostname: xenomai3
+     root password: r3@lt1m3
+     
+     username   : des
+     password: r3@lt1me
+     
+     
+     timezone : just pick default
+ 
+ 
+     partioning method: 
+       - guided - use entire disk  (no LVM) 
+       - all files in one partition
+    
+     -> it now starts installing the base system
+  
+        
+   now we follow instructions from: https://www.howtoforge.com/tutorial/debian-minimal-server/2/ 
+    
+      => choose local mirror
+      => Sofware selection:   => see https://wiki.debian.org/tasksel  
+      
+           -> deselect  "Desktop"
+           -> deselect  "printer server" 
+           => only select    
+                "SSH server"
+                "standard system utilities" 
+              
+                 http://unix.stackexchange.com/questions/90523/what-packages-are-installed-by-default-in-debian-is-there-a-term-for-that-set
+       
+       => install grub bootloaded /dev/sda        
+      install
+
+
+mouse support (no clipboard sharing)
+-------------------------------------    
+  https://virtualboxes.org/doc/installing-guest-additions-on-debian/
+    
+    Follow these steps to install the Guest Additions on your Debian virtual machine:
+
+        Login as root;
+        Update your APT database with: apt-get update;
+      => NOT DONE: (want to keep image small)  Install the latest security updates with: apt-get upgrade;
+        Install required packages with: apt-get install build-essential module-assistant;
+        Configure your system for building kernel modules by running: m-a prepare;
+        Click on Install Guest Additions… from the Devices menu, then run: mount /media/cdrom.
+        Run: sh /media/cdrom/VBoxLinuxAdditions.run, and follow the instructions on screen.
+    
+   add mouse support in terminal console :
+     
+       apt-get install gpm      
+  
+  note: no shared clipboard  
+       https://superuser.com/questions/1114819/how-do-i-copy-paste-into-a-minimal-installation-of-centos-on-virtualbox
+      
+          bash has no clipboard i.e. you can't copy/paste from/to a console-only system
+   
+        => even with guest additions I cannot copy and paste!
+    
+        => also see: https://forums.virtualbox.org/viewtopic.php?t=37956
+            discusses gpm at the end, and says sharing clipboard of gpm with host also doesn't work
+
+
+
+configuration for easy usage from host
+======================================
+
+
+we are going to install a base debian guest os which we configure so 
+that we can easily
+  * ssh login as root from the host without needing a password  => easy login and make/run programs
+  * samba mount /root dir  => easy access in host to files with local mount so that we can use the editor of choice 
+                              in the host to edit the files
+
+utilities
+---------
+
+editors: 
+    apt-get install vim
+    apt-get install nano
+    apt-get install joe  
+for time sync: rdate -s time-srv.science.ru.nl    
+    apt-get install rdate  
+    
+   
+
+networking
+----------
+
+ by default virtualbox configures a NAT network with which the guest os can access the internet, but outside hosts
+ cannot access the guest os.
+ 
+ solution:
+    https://forums.virtualbox.org/viewtopic.php?f=8&t=55766
+     question: How to ssh into a guest using NAT?
+     answer: Add a second adapter set to host-only or use port forwarding in NAT.
+     
+      => I use the simple solution of just adding a second host-only adapter!
+         then 
+         - with NAT: guest os can go on the internet, but machines on the internet cannot open connection to guest os
+         - with host-only:  host os can connect to guest os
+
+ then start virtualbox and do
+ 
+     1. run:
+ 
+        $ ip address
+        1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1
+            link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+            inet 127.0.0.1/8 scope host lo
+               valid_lft forever preferred_lft forever
+            inet6 ::1/128 scope host
+               valid_lft forever preferred_lft forever
+        2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+            link/ether 08:00:27:3d:af:53 brd ff:ff:ff:ff:ff:ff
+            inet 10.0.2.15/24 brd 10.0.2.255 scope global enp0s3
+               valid_lft forever preferred_lft forever
+            inet6 fe80::a00:27ff:fe3d:af53/64 scope link
+               valid_lft forever preferred_lft forever
+        3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+            link/ether 08:00:27:4b:8a:21 brd ff:ff:ff:ff:ff:ff
+ 
+ 
+       => the  nat network is configured with inet 10.0.2.15/24 
+          however the hostonly network not yet
+      
+    2. configure hostonly network config in debian by editing /etc/network/interfaces so that it looks like       
+ 
+
+         $ cat /etc/network/interfaces
+         # This file describes the network interfaces available on your system
+         # and how to activate them. For more information, see interfaces(5).
+
+         source /etc/network/interfaces.d/*
+
+         # The loopback network interface
+         auto lo
+         iface lo inet loopback
+
+         # The virtualbox NAT network interface
+         allow-hotplug enp0s3
+         iface enp0s3 inet dhcp
+
+         # The virtualbox hostonly network interface
+         allow-hotplug enp0s8
+         iface enp0s8 inet dhcp
+ 
+    3. then start "enp0s8"  network interface (will be done automatically at boot onwards)
+    
+       $ ifup enp0s8
+       
+       
+     now   "ip address" will list the ip adress of the hostonly ip address under "enp0s8"   which you 
+           can use to login from host to guest os !
+           
+         eg. 
+         $ ip address
+         ... 
+         3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+             link/ether 08:00:27:4b:8a:21 brd ff:ff:ff:ff:ff:ff
+             inet 192.168.56.100/24 brd 192.168.56.255 scope global enp0s8
+                valid_lft forever preferred_lft forever
+             inet6 fe80::a00:27ff:fe4b:8a21/64 scope link
+                valid_lft forever preferred_lft forever  
+                
+        
+          => ip: 192.168.56.100
+          
+       https://nl.wikipedia.org/wiki/IP-adres#Speciale_adressen           
+          10.0.0.0/8, 172.16.0.0/12 en 192.168.0.0/16
+              De volgens RFC 1918 voor privé-netwerken gereserveerde reeksen van IP-adressen          
+
+ 
+
+empty root passwd
+------------------
+
+/etc/shadow
+    has line like :
+      root:323435ae2:14032:0:99999:7:::
+    make 2e field empty :
+      root::14032:0:99999:7:::
+
+  -> now root has empty passwd
+
+
+
+remove authentication from virtual consoles  => ctrl-alt-F1..12  ()
+-------------------------------------------
+
+in /lib/systemd/system/getty@.service
+    ...
+    ExecStart=-/sbin/agetty   --noclear %I $TERM
+    ...
+add "--autologin root" option :
+    ...
+    ExecStart=-/sbin/agetty  --autologin root --noclear %I $TERM        
+    ...
+    
+    
+ssh root access without passwd
+-------------------------------
+
+
+edit  /etc/ssh/sshd_config so that :
+
+    PasswordAuthentication yes
+    PermitRootLogin yes
+    PermitEmptyPasswords yes
+    UsePAM no
+
+
+
+=> now you can login from you host into your virtualbox guest os with just 
+
+     $ ssh root@192.168.56.100
+     Last login: Fri Apr  5 05:57:48 2019 from 192.168.56.1
+     root@xenomai308:~#
+     
+   we are automatically logged in, not even asked for password     
+
+
+
+samba server root homedir mount without passwd
+----------------------------------------------
+
+apt-get install samba
+
+smbpasswd -a root    # use empty password, so no authorization is needed
+# edit  /etc/samba/smb.conf
+# -> at homes section : set  'read only' to 'no'
+
+/etc/init.d/samba restart
+
+
+    
+sudo
+-----    
+note: with CTRL-AlT-F[1-6]  you can switch between several consoles
+
+give des user sudo access
+
+                apt-get install sudo
+                
+                => then use vim to give 'des' user full access in /etc/sudoers
+
+
+Install xenomai 3.0.8
+======================
+    
+kernel source
+--------------
+
+
+ login as "root" user
+        
+            
+         
+http://ask.xmodulo.com/install-full-kernel-source-debian-ubuntu.html
+  
+  
+  Install Full Kernel Source on Debian
+
+  Before downloading kernel source, install dpkg-dev, which contains a suite of development tools needed to build
+  Debian source packages. Among other things, dpkg-dev contains dpgk-source tool which can extract a Debian source
+  package and automatically apply patches.
+  
+  $ sudo apt-get install dpkg-dev
+
+  Next, run the following command to download full kernel source.
+  $ apt-get source linux-image-$(uname -r)
+ 
+
+  Along with the full kernel source (linux_X.X.XX.orig.tar.xz), any available kernel patches
+  (linux_X.X.X+XXX.debian.tar.xz) and source control file (linux_XXXX.dsc) will also be downloaded and stored in the
+  current directory. The .dsc file instructs how the patches are applied to the kernel sources.
+
+  Upon the completion of download, the above command will automatically invoke dpkg-source tool, which will unpack the
+  downloaded kernel source in the current directory, and apply downloaded patches according to .dsc file.
+
+  The final full kernel source tree will be available in the current directory as "linux-X.X.XX".
+           
+                
+  
+   also see https://kernel-handbook.alioth.debian.org/ch-common-tasks.html
+
+
+
+
+   => 'apt-get source linux-image-$(uname -r)' gets linux as source package 
+      note: 
+       * instead of 'linux-image-4.9.0-8-amd64" , which uname -r gives,  
+            debian gives use a later 4.9.144-3 vanilla kernel source  with then another tgz file 
+            with on it the debian patches appliec!
+        
+      * when patching it gives Warning messages about unsandboxed downloads  => you can ignore this
+        https://bugs.launchpad.net/ubuntu/+source/synaptic/+bug/1522675
+         Warning messages about unsandboxed downloads  
+
+           This is a cosmetic issue. The warning message is just that— a warning. Though the message comes up, there is no
+           problem with the install/upgrade happening like normal. That said, feel free to ignore it. It will get fixed, but
+           it's nowhere near as urgent as bugs that actually result in the wrong behavior rather than just a simple extra
+           message.    
+           
+   => result:   vanilla kernel 4.9.144  with debian patches 4.9.144-3.1-debian applied in folder 
+        
+         /root/linux-4.9.144/    
+     
+
+build linux kernel with xenomai3  
+--------------------------------
+    
+     # goto source dir 
+     cd /root/linux-4.9.144/  
+     
+     # patch kernel 
+     wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+     tar -xjvf xenomai-3.0.8.tar.bz2
+     wget https://www.xenomai.org/downloads/ipipe/v4.x/x86/ipipe-core-4.9.146-x86-8.patch
+     xenomai-3.0.8/scripts/prepare-kernel.sh --arch=x86_64  --ipipe=ipipe-core-4.9.146-x86-8.patch
+ 
+     # => succeeded without problems
+ 
+     
+                        SIDE NOTE: by accident used arm patch instex x86 patch -> we needed to patch the ipipe patch :                    
+                           => $ xenomai-3.0.8/scripts/prepare-kernel.sh --arch=x86_64  --ipipe=ipipe-core-4.9.51-arm-4.patch | less
+                              -> lookup which hunks in which files failed
+      
+                              checking file drivers/tty/serial/amba-pl011.c
+                              Hunk #1 succeeded at 2205 (offset 21 lines).
+                              Hunk #2 succeeded at 2249 (offset 21 lines).
+                              Hunk #3 succeeded at 2284 (offset 21 lines).
+                              Hunk #4 succeeded at 2345 (offset 21 lines).
+                              Hunk #5 FAILED at 2357.
+                              1 out of 5 hunks FAILED
+      
+      
+                              checking file include/linux/i8253.h
+                              Hunk #2 FAILED at 21.    
+    
+                            => manually fixed the patch (by just adding some lines in patch which were added in newer version of source)
+                               and run :
+       
+                                 xenomai-3.0.8/scripts/prepare-kernel.sh --arch=x86_64  --ipipe=ipipe-core-4.9.51-arm-4.fixed.patch 
+         
+         
+https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kernels
+         
+
+
+ yes ""| make oldconfig    # get default options  => it copies /boot/config-4.9.0-8-amd64  to ~/.config as starting point
+ make localmodconfig       # to keep number of modules to compile and include small  => small image!!
+ 
+ 
+ 
+    NOTE: if you run 'make menuconfig' or without an .config in the current dir 
+          it copies /boot/config-4.9.0-8-amd64  to ~/.config as starting point 
+    
+     exactly the 
+          same : get a default config from /boot :
+          
+            root@xenomai308:~/linux-4.9.144# make menuconfig
+            scripts/kconfig/mconf  Kconfig
+            #
+            # using defaults found in /boot/config-4.9.0-8-amd64
+            #
+            configuration written to .config
+            ...
+  
+  
+            
+            
+ # install ncurses library to be able to run console gui for kernel configuration  (make menuconfig)   
+ apt-get  install libncurses5-dev
+ # run kernel configuration tool (gui in terminal)
+ $ make  menuconfig    # if .config exist in current dir, then takes this as starting point
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ generate minimal default config file:
+-------------------------------------- 
+ 
+ 
+   make olddefconfig         # Update current config utilising a provided .config as base (if no .config found, looks in /boot for config)
+                             # and sets new symbols to their default value
+   make localmodconfig       # to keep number of modules to compile and include small  => small image!!
+           `-> note: still can give some questions for some NEW options
+                     then just press ENTER (choose default)
+
+
+modify this config file as required for good working xenomai    
+------------------------------------------------------------
+ 
+ src: https://rtt-lwr.readthedocs.io/en/latest/rtpc/xenomai3.html
+     
+      
+  Recommended options:
+
+  * General setup
+    --> Local version - append to kernel release: -xenomai-3.0.8
+    --> Timers subsystem
+        --> High Resolution Timer Support (Enable)
+  * Xenomai/cobalt
+    --> Sizes and static limits
+      --> Number of registry slots (512 --> 4096)
+      --> Size of system heap (Kb) (512 --> 4096)
+      --> Size of private heap (Kb) (64 --> 256)
+      --> Size of shared heap (Kb) (64 --> 256)
+      --> Maximum number of POSIX timers per process (128 --> 512)       
+  * Power management and ACPI options
+    --> CPU Frequency scaling
+        --> CPU Frequency scaling (Disable)
+    --> ACPI (Advanced Configuration and Power Interface) Support
+        --> Processor (Disable)
+    --> CPU Idle
+        --> CPU idle PM support (Disable)
+  * Processor type and features  (long list -> scroll with arrows through list, and follow below order of instructions!)
+    --> Enable maximum number of SMP processors and NUMA nodes (Disable)
+    // Ref : http://xenomai.org/pipermail/xenomai/2017-September/037718.html
+    --> Processor family
+        --> Core 2/newer Xeon (if "cat /proc/cpuinfo | grep family" returns 6, set as Generic otherwise)
+    // Xenomai will issue a warning about CONFIG_MIGRATION, disable those in this order
+    --> Transparent Hugepage Support (Disable)
+    --> Allow for memory compaction (Disable)
+    --> Contiguous Memory Allocation (Disable)
+    --> Allow for memory compaction
+    --> Page Migration (Disable)
+   
+  *  Device Drivers                                                                                                                                                                             │
+     -> Input device support                                                                                                                                                                     │
+         -> Generic input layer (needed for keyboard, mouse, ...)                (INPUT [=y])                                                                                                                     │
+         -> Miscellaneous devices                                             (INPUT_MISC [=y])   
+                ->  PC Speaker support (Disable)
+         
+         note: disabling 'PC Speaker support' is not needed for xenomai 3 anymore, but to be sure we do it       
+
+  * File systems
+     -> CD-ROM/DVD Filesystems
+         -> ISO 9660 CDROM file system support  (enable as module by pressing 'm')
+         -> UDF file system support  (enable as module by pressing 'm')
+
+ This configuration matches with what is specified at the xenomai wiki at:
+        https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kernels says :
+ see below sections to verify this :        
+    * section(see below): background info: verify config options
+    * section(see below): background info: about how to translate config options to 'make menuconfig' options
+  
+
+
+fix debian specific problem in kernel source code:
+---------------------------------------------------
+
+  problem:  when building with 'make bzImage' we get error:
+       
+       
+         arch/x86/entry/common.c: In function ‘do_syscall_64’:
+         arch/x86/entry/common.c:292:38: error: ‘__SYSCALL_MASK’ undeclared (first use in this function)
+           ret = ipipe_handle_syscall(ti, nr & __SYSCALL_MASK, regs);
+                                               ^~~~~~~~~~~~~~
+         arch/x86/entry/common.c:292:38: note: each undeclared identifier is reported only once for each function it appears in scripts/Makefile.build:309: recipe for target 'arch/x86/entry/common.o' failed
+        
+ 
+ 
+          => seems the debian patch 'debian/patches/features/x86/x86-make-x32-syscall-support-conditional.patch' 
+            on the standard linux kernel removes the definition  for __SYSCALL_MASK
+   
+            however ipipe patch uses it, so put it back for ipipe by adding in arch/x86/include/asm/unistd.h
+             # ifdef CONFIG_X86_X32_ABI
+             #  define __SYSCALL_MASK (~(__X32_SYSCALL_BIT))
+             # else
+             #  define __SYSCALL_MASK (~0)
+             # endif
+    
+         when the 'debian/patches/features/x86/x86-make-x32-syscall-support-conditional.patch' is applied
+         that patch removes in arch/x86/include/asm/unistd.h the  define __SYSCALL_MASK  which is 
+         in the original kernel source in kernel.org. 
+        
+   solution: 
+           
+         We can fix this by adding the following lines from
+          https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/x86/include/asm/unistd.h?h=v4.9.144 
+          
+
+          # ifdef CONFIG_X86_X32_ABI
+          #  define __SYSCALL_MASK (~(__X32_SYSCALL_BIT))
+          # else
+          #  define __SYSCALL_MASK (~0)
+          # endif
+          
+         to /arch/x86/include/asm/unistd.h 
+         
+         
+  
+ 
+build kernel and modules
+-------------------------
+  
+  apt-get install bc  # needed for build 
+  
+  make bzImage
+  make modules
+    
+    
+ 
+ 
+ 
+install kernel    
+--------------
+
+install: 
+  
+  make install          => install kernel   => should be added to grub
+  make modules_install  => install module
+ 
+verify :  
+    root@xenomai308:~/linux-4.9.144# ls /boot
+    System.map-4.9.0-8-amd64	  config-4.9.144-xenomai-3.0.8	initrd.img-4.9.144-xenomai-3.0.8
+    System.map-4.9.144-xenomai-3.0.8  grub				vmlinuz-4.9.0-8-amd64
+    config-4.9.0-8-amd64		  initrd.img-4.9.0-8-amd64	vmlinuz-4.9.144-xenomai-3.0.8
+     
+    root@xenomai308:~/linux-4.9.144# ls /lib/modules/
+    4.9.0-8-amd64  4.9.144-xenomai-3.0.8
+    
+    root@xenomai308:~/linux-4.9.144# uname -a
+    Linux xenomai308 4.9.0-8-amd64 #1 SMP Debian 4.9.144-3.1 (2019-02-19) x86_64 GNU/Linux 
+     
+     => still running old kernel => after reboot boots new kernel
+    
+ 
+ 
+ => need to resize  VDI image, then needed  with gparted live cd to resize partiions
+ => error booting xenomai kernel:
+      reinstalled kernel  with:  make install 
+      rebuild grub:  update-grub    
+      
+
+
+reboot:       
+ 
+  $ reboot 
+ 
+ 
+check xenomai running: 
+
+   $ dmesg | grep -i xenomai
+   I-pipe: head domain Xenomai registered.
+   [Xenomai] Cobalt vX.Y.Z enabled
+ 
+   $ /proc/xenomai/version
+   3.0.8
+   $ cat /proc/xenomai/irq
+     IRQ         CPU0
+   33024:           0         [sync]
+   33025:           0         [reschedule]
+   33026:        4206         [timer/0]
+   33027:           0         [timer-ipi]
+   33091:           0         [virtual]
+ 
+ 
+build xenomai user space
+------------------------
+
+
+  
+  
+Installing the Xenomai libraries and tools  for a cobalt core  (not mercury core)
+
+
+   # as root:
+   cd ~/linux-4.9.144/xenomai-3.0.8/
+   ./configure --with-core=cobalt --enable-smp --enable-pshared
+   make install
+  
+ 
+ 
+
+notes: 
+    - you must choose between cobalt or mercury  => both not possible
+        src: https://gitlab.denx.de/Xenomai/xenomai/wikis/Installing_Xenomai_3
+        says: 
+
+            One of the two available real-time cores is selected at build
+            time. The dual kernel core is codenamed Cobalt, the native Linux
+            implementation is called Mercury.
+
+        further on the page it says: 
+        
+           --with=core=<type>
+
+              Indicates which real-time core you want to build the support
+              libraries for, namely cobalt or mercury. This option
+              defaults to cobalt.
+
+ 
+ 
+    - if we would have used mercury instead then we didn't need to compile a new kernel
+       we only would need to build  and the xenomai libraries and tools with the commands (as root):
+        
+          $ wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+          $ tar -xjvf xenomai-3.0.8.tar.bz2
+          $ cd xenomai-3.0.8
+          $ ./configure --with-core=mercury --enable-smp --enable-pshared
+          $ make install
+         
+          => would be all!!
+          
+        
+        background src:  https://gitlab.denx.de/Xenomai/xenomai/wikis/Installing_Xenomai_3
+                 Installing the Mercury core
+
+                     For Mercury, you need no Xenomai-specific kernel support so far,
+                     beyond what your host Linux kernel already provides. Your kernel
+                     should at least provide high resolution timer support
+                     (CONFIG_HIGH_RES_TIMERS), and likely complete preemption
+                     (PREEMPT_RT) if your application requires short and bounded
+                     latencies.
+
+
+                     Kernels with no real-time support can be used too, likely for basic
+                     debugging tasks, and/or running applications which do not have strict
+                     response time requirements.
+
+
+                     Therefore, unlike with Cobalt, there is no additional steps for
+                     preparing and/or configuring the kernel for Mercury.
+                    
+ 
+    - Prerequisites (src: https://gitlab.denx.de/Xenomai/xenomai/wikis/Installing_Xenomai_3)
+
+        Generic requirements (both cores)
+
+            GCC must have support for legacy atomic builtins (__sync form).
+
+            GCC should have a (sane/working) support for TLS preferably,
+            although this is not mandatory if building with --disable-tls.
+
+            => hmmm, assume for modern debian os the gcc has this support
+
+            If you plan to enable the user-space registry support
+            (i.e. --enable-registry), then CONFIG_FUSE_FS must be enabled in
+            the target kernel running the real-time applications. In addition,
+            the FUSE development libraries must be available from the toolchain.
+             => checks out to be ok for /boot/config-4.9.0-8-amd64
+    
+       Cobalt-specific requirements
+
+           The kernel version must be 3.10 or better.
+
+           An interrupt pipeline (I-pipe) patch must be available for your
+           target kernel. You can find the official patches issued by the
+           Xenomai project there.
+           Only patches from the ipipe-core series are appropriate, legacy
+           patches from the adeos-ipipe series are not.
+
+           A timestamp counter (TSC) is required from running on a x86_32
+           hardware. Unlike with Xenomai 2.x, TSC-emulation using a PIT
+           register is not available.
+
+
+       Mercury-specific requirement
+
+           There is no particular requirement for Mercury setups, although
+           using a NPTL-based glibc or uClibc is recommended.
+
+ 
+   
+Testing the real-time system (both cores)
+----------------------------
+
+   First, run the latency test:
+
+     $ /usr/xenomai/bin/latency 
+ 
+   If the latency test succeeds, you should try next to run the xeno-test test in order to assess the worst-case
+   latency of your system. Try:
+
+      $ /usr/xenomai/bin/xeno-test --help
+     
+     e.g. run:
+     
+      $ /usr/xenomai/sbin/autotune
+        # https://www.xenomai.org/documentation/xenomai-3/html/man1/autotune/
+        # autotune is a utility to determine the best calibration values (aka gravity triplet) for the core clock timer.
+      
+      $ /usr/xenomai/bin/xeno-test 
+        # runs latency test with dohell running
+
+ note: in virtual box the latencies are pretty big:
+       `-> compare with numbers at https://rtt-lwr.readthedocs.io/en/latest/rtpc/xenomai3.html
+       -> reason: host os is not realtime, and guest os is emulated!! 
+       
+    root@xenomai308:~# /usr/xenomai/bin/latency
+    == Sampling period: 100 us
+    == Test mode: periodic user-mode task
+    == All results in microseconds
+    warming up...
+    RTT|  00:00:01  (periodic user-mode task, 100 us period, priority 99)
+    RTH|----lat min|----lat avg|----lat max|-overrun|---msw|---lat best|--lat worst
+    RTD|     -4.174|     32.786|   1214.864|     166|     0|     -4.174|   1214.864
+    RTD|     -2.542|     33.070|   1608.277|     329|     0|     -4.174|   1608.277
+    RTD|     -2.446|     33.005|    910.531|     472|     0|     -4.174|   1608.277
+    RTD|     -2.574|     33.738|   1520.911|     658|     0|     -4.174|   1608.277
+    RTD|     -2.539|     32.222|   1050.681|     808|     0|     -4.174|   1608.277
+    RTD|     -2.619|     33.621|    967.333|     990|     0|     -4.174|   1608.277
+    RTD|     -2.529|     33.232|   1270.590|    1167|     0|     -4.174|   1608.277
+    RTD|     -2.517|     31.868|    912.137|    1325|     0|     -4.174|   1608.277
+    RTD|     -2.800|     31.775|   1732.645|    1470|     0|     -4.174|   1732.645
+    RTD|     -2.516|     34.905|   1301.294|    1727|     0|     -4.174|   1732.645
+    RTD|     -4.840|     31.995|    751.128|    1871|     0|     -4.840|   1732.645
+    RTD|     -2.559|     32.397|   1527.835|    2048|     0|     -4.840|   1732.645
+    RTD|     -2.600|     31.267|    946.540|    2157|     0|     -4.840|   1732.645
+    RTD|     -6.257|     33.453|   1457.262|    2356|     0|     -6.257|   1732.645
+    RTD|     -5.405|     32.227|    706.917|    2471|     0|     -6.257|   1732.645
+    RTD|     -6.304|     31.637|    885.255|    2638|     0|     -6.304|   1732.645
+    RTD|     -2.617|     33.482|   1022.055|    2776|     0|     -6.304|   1732.645
+    RTD|     -2.447|     32.193|   1299.167|    2927|     0|     -6.304|   1732.645
+    RTD|     -2.561|     31.967|    611.059|    3028|     0|     -6.304|   1732.645
+    RTD|     -4.797|     31.647|    858.305|    3176|     0|     -6.304|   1732.645
+    RTD|     -2.476|     32.662|    986.476|    3305|     0|     -6.304|   1732.645
+              `-> should run /usr/xenomai/sbin/autotune first to fix negative values!
+
+
+
+reinstall guest additions for new xenomai kernel
+-------------------------------------------------
+
+  https://virtualboxes.org/doc/installing-guest-additions-on-debian/
+    
+    Follow these steps to install the Guest Additions on your Debian virtual machine:
+
+        Login as root;
+        Update your APT database with: apt-get update;
+      => NOT DONE: (want to keep image small)  Install the latest security updates with: apt-get upgrade;
+        Install required packages with: apt-get install build-essential module-assistant;
+        Configure your system for building kernel modules by running: m-a prepare;
+        Click on Install Guest Additions… from the Devices menu, then run: mount /media/cdrom.
+        Run: sh /media/cdrom/VBoxLinuxAdditions.run, and follow the instructions on screen.
+        
+     thus as root run: 
+        m-a prepare
+        mount /media/cdrom
+        sh /media/cdrom/VBoxLinuxAdditions.run 
+        reboot    
+
+install ex1 getting_started
+---------------------------
+
+mkdir ex01_getting_started
+cd ex01_getting_started/
+ echo 'see http://www.cs.ru.nl/lab/xenomai/ and http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/' > README.txt
+wget http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/ex01a.c
+wget http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Makefile
+make
+./ex01a
+
+
+on boot set some default bash profile for xenomai
+-------------------------------------------------
+
+$ cat > /etc/profile.d/xenomai.sh
+printf "\n"
+# show version
+/usr/xenomai/sbin/version
+
+# fix paths for xenomai
+export PATH=$PATH:/usr/xenomai/bin
+export LD_LIBRARY_PATH=/usr/xenomai/lib/
+
+# add some aliases convenient for xenomai
+alias xeno-stat="cat /proc/xenomai/sched/stat"
+alias xeno-threads="cat /proc/xenomai/sched/threads"
+alias xeno-rt-threads="cat /proc/xenomai/sched/rt/threads"
+alias xeno-interrupts="cat /proc/xenomai/irq"
+alias xeno-version=/usr/xenomai/sbin/version
+alias xeno-autotune=/usr/xenomai/sbin/autotune
+alias xeno-latency=/usr/xenomai/bin/latency
+<CTRL-D>
+
+
+
+
+
+make image smaller
+------------------
+ src: http://www.jaysonrowe.com/2013/08/compacting-virtualbox-vdi.html
+ 
+  * shutdown the virtual machine
+  * mark the disk within virtualbox as solid state drive!
+  * on host run:
+  
+     VBoxManage storageattach xenomai3.0.8_debian9.8.0 --storagectl "SATA" --port 0 --discard o 
+  
+  * boot virtual machine 
+  * on guest run:
+  
+       fstrim -v /
+       
+  
+  * shutdown the virtual machine
+  
+  * on host run:
+      
+      cd <dir_containing_vdi_file> 
+      VBoxManage modifyhd xenomai3.0.8_debian9.8.0.vdi --compact       
+     
+     => final xenomai3.0.8_debian9.8.0.vdi is 1,9 GB
+     
+7zip virtualbox image with its xmlconfig file in a 7z file for distribution   
+---------------------------------------------------------------------------  
+   cd <dir_containing_vdi_file>/..
+   7z a xenomai3.0.8_debian9.8.0.7z  <dir_containing_vdi_file>
+   
+  => distribute xenomai3.0.8_debian9.8.0.7z  (400MB) 
+   
+   
+background info
+================   
+
+background info: verify config options
+--------------------------------------
+
+                
+  root@xenomai308:~/linux-4.9.144# cat .config | grep -e CONFIG_CPU_IDLE -e CONFIG_INPUT_PCSPKR -e CONFIG_ACPI_PROCESSOR -e CONFIG_CPU_FREQ -e CONFIG_INTEL_IDLE -e CONFIG_MIGRATION -e CONFIG_PCI_MSI
+  # CONFIG_MIGRATION is not set
+  # CONFIG_ACPI_PROCESSOR is not set
+  # CONFIG_CPU_FREQ is not set
+  # CONFIG_CPU_IDLE is not set
+  CONFIG_PCI_MSI=y
+  # CONFIG_INPUT_PCSPKR is not set
+ 
+   => CONFIG_PCI_MSI not disable
+ 
+ 
+        src:  https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kernels says :
+        
+           CONFIG_PCI_MSI
+
+               This option may be enabled, provided the following operations on
+               interrupt lines are always done from a mere Linux context, aka
+               secondary mode, and never from the real-time mode:
+
+                   hooking/requesting
+                   releasing
+                   enabling/unmasking
+                   disabling/masking
+
+               Practically, the requirement above translates into calling
+               rtdm_irq_request(), rtdm_irq_free(), rtdm_irq_enable(),
+               rtdm_irq_disable() exclusively from a non-rt handler in any RTDM
+               driver. This includes the →open(), →close() and →ioctl_nrt()
+               handlers.
+   
+            => ok seems, acceptable to leave CONFIG_PCI_MSI=y, we don't are going to do any gpio/interrupt stuff on
+               virtual box image anyway!
+ 
+       from make menuconfig : 
+      
+            Symbol: PCI_MSI [=y]                                                                                            │
+             │ Type  : boolean                                                                                                 │
+             │ Prompt: Message Signaled Interrupts (MSI and MSI-X)                                                             │
+             │   Location:                                                                                                     │
+             │     -> Bus options (PCI etc.)                                                                                   │
+             │ (1)   -> PCI support (PCI [=y])                                                                                 │
+             │   Defined at drivers/pci/Kconfig:11                                                                             │
+             │   Depends on: PCI [=y]                                                                                          │
+             │   Selects: GENERIC_MSI_IRQ [=y]                                                                                 │
+             │   Selected by: ARM_GIC_V2M [=n] && PCI [=y] || 
+                    ARMADA_370_XP_IRQ [=n] && PCI [=y] || 
+                      ALPINE_MSI [=n] && PCI [=y] || 
+                      AMD_IOMMU [=y] && IOMMU_SUPPORT [=y] && X86_64 [=y] && PCI [=y] && ACPI [=y]
+             │
+       
+         => so need to disable lot of options before I can disable PCI_MSI
+         
+         
+         => so KISS: stick to  to leave CONFIG_PCI_MSI=y, 
+            we don't are going to do any gpio/interrupt stuff on virtual box image anyway!
+ 
+
+background info: about how to translate config options to 'make menuconfig' options
+-------------------------------------------------------------------------------------
+
+
+ 
+ src:  https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kernels
+   
+    first note:
+
+        => assume debian installation has in its kernel config the cpu  configuration so general so that 
+           it will run on the most common hardware with x86_64 (amd64) architecture 
+        
+        => by default TSC enabled
+               /boot/config-4.9.0-8-amd64 has in '# Processor type and features' section :
+                CONFIG_X86_TSC=y   
+    
+    then the wiki says :
+       
+         CONFIG_APM  => not there, probably not in debian kernel  (was also in previous xenomai build for virtualbox)
+             -> src: https://www.tldp.org/HOWTO/Ecology-HOWTO/ecology-howto-power-management.html
+                  Most modern PCs support the ACPI, Older hardware with APM
+                  So CONFIG_APM is not there because we have new hardware with ACPI, and 
+                  and APM is replaced by it.     
+    
+         CONFIG_ACPI_PROCESSOR=m -> n 
+ 
+         CONFIG_CPU_FREQ=m  -> n   
+         CONFIG_CPU_IDLE=m -> n
+ 
+         CONFIG_INTEL_IDLE=m -> n
+         CONFIG_INPUT_PCSPKR=m -> n    (Say Y here if you want the standard PC Speaker to be used for bells and whistles.)
+                                         `-> src https://gitlab.denx.de/Xenomai/xenomai/wikis/Configuring_For_X86_Based_Dual_Kernels
+                                              from this url I understand probably not needed to be disabled, but I play safe and disable it.
+         CONFIG_PCI_MSI=m -> n
+ 
+         CONFIG_MIGRATION=m -> n     
+          => because 'make menuconfig' says :
+     
+                 [*] Xenomai/cobalt (NEW)  --->                                                                
+                        *** WARNING! Page migration (CONFIG_MIGRATION) may increase ***                            
+                        *** latency. ***
+     
+
+     
+         
+    however how to set these config options?
+    
+    It is  adviced not to edit .config directly but instead use 'make menuconfig'.
+    The reason is that are dependencies defined between options (in kconfig files)
+    and these are upholded by the 'make menuconfig' tool. If you edit
+    manually you could break these dependencies, and the compilation of the kernel
+    may fail because of this dependency breakage.
+    
+    How to translate config options which menu option: 
+          You can determine using search with '/' character in 'make menuconfig'
+          for a config option and then the result shows you where in the menu
+          the config option is!   
+ 
+    problem: using 'make menuconfig' I cannot disable   CONFIG_CPU_IDLE 
+            how to solve this => solution follows in example below 
+                               => in short: you need to first to disable another configoption
+                                            which makes CONFIG_CPU_IDLE automatically enabled
+             
+ 
+      example:
+            / search CPU_IDLE in 'make menuconfig'   gives :
+    
+            Symbol: CPU_IDLE [=n]                                                                                           │
+              │ Type  : boolean                                                                                                 │
+              │ Prompt: CPU idle PM support                                                                                     │
+              │   Location:                                                                                                     │
+              │     -> Power management and ACPI options                                                                        │
+              │ (1)   -> CPU Idle                                                                                               │
+              │   Defined at drivers/cpuidle/Kconfig:3                                                                          │
+              │   Depends on: !ARCH_OMAP4 || !IPIPE [=y]                                                                        │
+              │   Selects: CPU_IDLE_GOV_LADDER [=n] && CPU_IDLE_GOV_MENU [=n]                                                   │
+              │   Selected by: ACPI_PROCESSOR_IDLE [=n] && ACPI [=y]   
+                   `=> if both ACPI and ACPI_PROCESSOR_IDLE are enabled, then
+                       CPU_IDLE is automatically enabled
+                       => to disable it, you must first disable one of the 
+                          two options. We don't want to disable ACPI entirely
+                          so we disable ACPI_PROCESSOR_IDLE. 
+                          Only then you can disable CPU_IDLE.
+                          
+         => where does 'make menuconfig' get this info?
+            answer: it gets it from the kconfig files in the kernel source directory
+                   see:https://www.kernel.org/doc/Documentation/kbuild/kconfig-language.txt
+               
+         example:
+         
+          * drivers/cpuidle/Kconfig.arm          
+             config CPU_IDLE
+                     bool "CPU idle PM support"
+                     default y if ACPI || PPC_PSERIES         
+                     depends on !(ARCH_OMAP4 && IPIPE)
+                     select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
+                     select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE)
+                     help
+                       CPU idle is a generic framework for supporting software-controlled
+                       idle processor power management.  It includes modular cross-platform
+                       governors that can be swapped during runtime.
+
+                       If you're using an ACPI-enabled platform, you should say Y here.
+  
+  
+          * drivers/acpi/Kconfig  
+
+             if ACPI
+ 
+              ...
+   
+              config ACPI_PROCESSOR_IDLE
+                      bool
+                      select CPU_IDLE       => selected by 'ACPI_PROCESSOR_IDLE'
+
+             endif 
+ 
+               => CPU_IDLE is automaticaly set if both ACPI_PROCESSOR_IDLE and CPU_IDLE are set,
+                  however if we disable ACPI_PROCESSOR_IDLE then it isn't automatically set anymore
+                  and only then CPU_IDLE can be disabled in 'make menuconfig'
+               => basicly 'Selected by: ACPI_PROCESSOR_IDLE  && ACPI' above!!
+               
+      conclusion: with some digging you can find out which menu's you have to disable to disable the 
+                  CONFIG options mentioned above         
+ 
+ 
+
+

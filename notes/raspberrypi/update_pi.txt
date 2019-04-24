@@ -64,3 +64,4 @@ https://raspberrypi.stackexchange.com/questions/4355/do-i-still-need-rpi-update-
   rpi-update not needed anymore: 
      Meanwhile the kernel is part of the raspberrypi-kernel package in Raspbian.
      So rpi-update is not needed anymore to update the kernel.
+      -> so new kernel installed by installing new version of raspberrypi-kernel package

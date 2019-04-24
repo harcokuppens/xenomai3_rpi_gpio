@@ -17,7 +17,7 @@ Broadcom chip   board               architecture
 https://wiki.openwrt.org/toh/raspberry_pi_foundation/raspberry_pi
 
 Raspberry Pi SoCs
-Family 	SoC 	CPU 	GPU 	L2 Cache
+Family 	    SoC 	    CPU 	                            GPU 	                              L2 Cache
 BCM2708 	BCM2835 	ARMv6 ARM1176JZF-S (Single Core) 	Videocore IV (Sys@400MHz 3D@250MHz) 	128KB
 BCM2709 	BCM2836 	ARMv7 Cortex-A7 (Quad Core) 	Videocore IV (Sys@400MHz 3D@250MHz) 	256KB
 BCM2710 	BCM2837 	ARMv8 Cortex-A53 (Quad Core) 	Videocore IV (Sys@400MHz 3D@300MHz) 	512KB 
