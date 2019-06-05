@@ -72,10 +72,10 @@ built raspbian linux kernel with xenomai patch
 
 # ingredients:
 # - xenomai-3-3.0.5 
-# - raspbian linux 4.1.y                                                           \
-# - ipipe-core-4.1.18-arm-9.fixed.patch                                             | -> all 4.1 !!
-# - pinctrl-bcm2835.c  from rpi specific branch 'vendors/raspberry/ipipe-4.1'      /
-
+# - raspbian linux 4.1.y                                                                      \
+# - ipipe-core-4.1.18-arm-9.fixed.patch                                                       | -> all 4.1 !!
+# - pinctrl-bcm2835.c  from xenomai/ipipe's rpi specific branch 'vendors/raspberry/ipipe-4.1'      /
+                             `-> https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
 # 0. prepare 
 # ------------
 

@@ -1,0 +1,110 @@
+
+
+this directory is in github : git@github.com:harcokuppens/xenomai3_rpi_gpio.git
+and contains the following:
+
+./install/  
+   how installation of  xenomai done for rpi and virtualbox
+./circuits/ 
+    basic circuit diagrams
+./examples/ 
+    basic c code for above examples
+    overview of examples see: xenomai3_rpi_gpio/examples/__README__.txt  
+    note we have 3 types: none-realtime user, realtime user, realtime kernel
+./notes/ 
+   notes about xenomai gpio rpi etc..   
+
+
+
+findings when experimenting with xenomai3 on rpi2/rpi3
+------------------------------------------------------
+
+Hoi Jozef,
+
+Ik heb nog verder geëxperimenteerd met de rpi2  en  ik ben vandaag tot de eind conclusie gekomen dat de interrupts echt niet goed werken.
+Wel kan ik realtime in een xenomai programma inputs en outputs zetten, maar interupts werken niet. Een interupt crashed de pi.
+
+Als laatste test heb ik een wiringpi programma geschreven dat een interrupt afhandeld. Dit maakt puur alleen gebruik van linux, en dus niets realtime.
+Dit werkt prima op een origineel raspbian image, echter op onze gepatchte xenomai image het veroorzaakt een kernel crash. Dus de xenomai patch
+breekt ook de normale linux kernel. Ik heb dit herhaalt met de stabiele xenomai 3.0.x branch uit git, en nog steeds een kernel crash.
+Dus het probleem ligt niet zozeer in gpio driver maar in de gepatchte dual kernel implementatie voor de pi. Iets gaat daar mis.
+
+Dus ik ben van plan om mijn bevindingen om mijn bevindingen met het wiringpi programma naar de xenomai ontwikkelaars te sturen.
+
+Al bij al heb ik wel veel geleerd :
+* kan hele nieuwe kernel met modules in slechts 6 minuten opnieuw compileren  ( parallel over 4 cores)
+* begrijp nu de wiringpi library (c library) en het bijhorende gpio commando  ( puur linux, zonder xenomai)
+* kan nu simpele schakelingen maken, en weet nu de beperkingen van de rpi, en vooral wat je niet moet doen wat de rpi 
+  kan doen laten doorbranden.
+* begrijp nu beter de gpiolib  in de linux kernel en ook de beperkingen van gpiolib
+* gpiolib is een generieke gpio library en support bv niet het instellen van de interne pull up of pull down weerstaand 
+  voor een input line. (bv voor een interrupt
+  line die je default hoog wilt houden en door deze kort te sluiten met de ground genereer je een interrupt. De interne 
+  pullup weerstand maakt dit veilig.)
+* gpiolib is een generieke library en kan voor verschillende gpio-chips gebruikt worden. ( verschillende platforms 
+  hebben verchillende gpio-chip)
+* de raspberry pi heeft 2 verschillende implementaties voor z'n gpio-chip, een oude en een nieuwe. (momenteel wordt 
+  overgestapt)
+* de wiringpi library kan wel de interne pull up en pull down weerstand instellen.
+   echter het is veiliger om extern een pull up/down schakeling te maken,
+   want dan is die er altijd, en met software kan men een fout maken met het opzetten van
+   de interne pull up/down!
+* een xenomai driver implement een rtdm device file  die je vanuit user space met open, read, write kunt benaderen. 
+  Voor extra acties kun je ioctl operaties doen.
+* rtdm device files hebben hun eigen locatie onder /dev/rtdm  welke ze onderscheid van linux device files
+* een rtdm device file kan kiezen welke file operaties realtime zijn (open_rt, read_rt, write_rt en ioctl_rt)  en welke
+  niet (open_nr, read_nr, write_nr en ioctl_nr)
+  bv de gpio driver in xenomai implementeert:
+    -  read en write realtime, 
+    -  maar  open en ioctl ( setup)  none-realtime.
+    
+    zie notes/rtdm/RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt :
+      
+      rgc->driver.ops = (struct rtdm_fd_ops){
+          .close      =   gpio_pin_close,
+          .ioctl_nrt  =   gpio_pin_ioctl_nrt,    none-real-time
+          .read_rt    =   gpio_pin_read_rt,      real-time
+          .write_rt   =   gpio_pin_write_rt,     real-time
+          .select     =   gpio_pin_select,
+      };
+      
+      
+    
+* een xenomai driver gebruikt ook de linux gpiolib om non-realtime alles te intialiseren, 
+  daarnaast kan het de wiringpi library none-realtime gebruiken
+  om interne pullup of pulldown weerstand te initialiseren.
+* ik begrijp de implementatie van gpio-core library van xenomai die voor iedere gpio pin een aparte device file en    
+  driver implementeert in /dev/rtdm/
+* raspian gebruikt een zogenaamde operating system independent  device tree  (zie    
+  http://www.wikiwand.com/en/Device_tree). In deze description kun je ook
+   gpio pins configureren zodat wanneer het systeem opstart deze direct goed worden gezet.
+    =>bv. zet pull up or pull down
+* de documentie van de bcm chip op de pi geeft duidelijk aan hoe de gpio pinnen  electronische werken ( met 
+  configureerbare pull up of pull down weerstanden)
+
+Uiteindelijk toch een lange lijst; deze mail was een mooi moment om een overzicht te maken.
+
+daarnaast heb ik de volgende test programma's  => see examples/__README__.txt
+
+none-realtime
+ - blinking led with wiringpi
+  - interrupt handler with wiringpi
+
+realtime
+ - blinking led with  rtdm device file in /dev/rtdm/gpio<num>
+ - interrupt handler program with rtdm device file in /dev/rtdm/gpio<num>  => crashed momenteel de pi
+
+Ik ga mijn bevindingen die ik 1 grote textfile heb staan een beetje netjes organiseren zodat ik later er makkelijk weer in kom.
+
+Dus voorlopig moeten we nog maar de pc's gebruiken, maar ik ga er vanuit dat komende tijd de problemen met xenomai3 op de pi2 worden opgelost.
+Misschien dat we dan binnenkort toch er verder mee aan de slag kunnen. Evt nog een des student.
+
+Al met al, denk ik nu precies te weten hoe het allemaal werkt, nu alleen nog wachten totdat de xenomai implementatie op de pi2 echt werkt.
+
+groetjes
+Harco
+
+
+
+
+

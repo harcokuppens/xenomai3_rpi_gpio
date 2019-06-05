@@ -1,0 +1,275 @@
+
+
+drivers installations found online
+----------------------------------
+
+http://www.simplerobot.net/2018/06/rpi23-deploy-xenomai-kernel.html
+ ==> uses rasbpian  kernel code github.com/raspberrypi/linux.git
+
+ => source at https://github.com/thanhtam-h/rpi23-4.9.80-xeno3
+   
+   
+ => I did  build myself : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/scripts
+    and did not:  install from prebuild binaries:  https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/prebuilt
+   
+
+   =====> lets raspbian bootcode decide the device tree to load!
+   
+   
+   ==> uses patched ipipe : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/blob/master/scripts/ipipe-core-4.9.51-arm-4-for-4.9.80.patch
+   
+     -> did he change something in this patch for drivers/pinctrl/bcm/pinctrl-bcm2835.c for gpio???   
+        => not really ,only    BCM2835_NUM_IRQS vs BCM2835_NUM_BANKS
+   
+   
+    => hmmm, ipipe patch is simular as mine for raspbian?? only  pinctrl-bcm2835.c  differs
+       -> why did it not boot??? 
+       -> probably I did something wrong!!   => retry?
+       
+       -> fact is he did almost same as i did in my first try,
+          but i also patched pinctrl better
+          => so just try to fix patch for pinctrl , other stuff seems to be patched ok!!
+          
+  
+  
+   
+conclusion:
+ didn't boot! -> did something wrong??
+ also no special fixes for gpio  =>  is this ever tested by thanhtam above ??
+
+
+https://github.com/claudioscordino/rpi3-xenomai
+
+ => unclear which kernel source they used???
+
+
+   Append to /boot/config.txt:
+
+     device_tree=bcm2837-rpi-3-b.dtb
+     kernel=kernel-xenomai.img
+
+conclusion:    
+ never did this install, because not complete! 
+  
+  
+ 
+ 
+   
+http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
+   => uses vanilla kernal, (kernel.org) 
+   => uses kernel.org's  default config for rpi  : multi_v7_defconfig
+   => uses kernel.org's  kernel tree, patched by standard ipipe patch  => “bcm-2837-rpi-b-cobalt.dtb”
+   
+    Then the last step regarding the kernel was to set which device tree to be used. 
+    
+  ===>     The device tree was given by Xenomai, which was called “bcm-2837-rpi-b-cobalt.dtb”.    => hmmm, how does xenomai know the right device tree??
+     
+    It was added to “config.txt” inside the SD card boot partition. The device tree was set by writing “device tree=bcm2837-rpi-b-cobalt.dtb”.
+   
+ conclusion:
+   did this install (see below), it did boot, however gpio numbers where very wrong, also different wrong as in his report
+    in his report he said he patch pinctrl afterall  => not documented how??
+    => did he ever tested the gpio ports??   In experiments he used my old image!
+    
+    
+    
+
+----------------------------------------------------------------------------------------   
+
+
+source idea, to try to build vanilla kernel instead of rpi kernel
+-----------------------------------------------------------------
+
+thesis: Real-Time Linux Testbench on Raspberry Pi 3 using Xenomai by GUSTAV JOHANSSON
+http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
+4.1 Xenomai Installation
+
+In order to install Xenomai Cobalt on the RPi 3, a few steps were needed.. A kernel was needed to be decided. There
+exist a few options for RPi 3. The RPi foundation has developed its own kernel using a forked version of the mainline
+kernel (Torvalds Linux kernel). They have modified their kernel especially for the RPi models, which could be a good
+argument on why the RPi kernel should be chosen. The problem with the RPi kernel is that Xenomai does not focus their
+development on separated kernels but instead only on the mainline kernel.
+
+Xenomai has released support for the RPi kernel for kernel version 4.1 on a forked repository. The last commit on that
+repository, however, was 14th Febru- ary 2017, and it is now considered outdated.
+
+Xenomai has support for the mainline kernel up to version 4.9 and is also more up to date compared to the other
+options. This is one of the reasons why the mainline kernel was decided to be used. 
+-> this install described in section 4.1 !!
+
+The other option has been attempted but without success. Details on the unsuccessful attempt for Xenomai on the RPi
+kernel can be seen in Appendix A. =>  RPi 4.9 kernel  build with xenomai 3 tried -> failed!!
+
+
+
+problem to tackle 
+
+    The GPIO device driver worked as well with RTDM. The pins shown by the device driver was however incorrect, as they
+    started from 400+ instead of starting from 0. Two successful workarounds were attempted.
+
+    Increment pin number
+
+       The simplest workaround was simply by adding the lowest pin number shown with the pin wanted when using the GPIO
+       pin. Example: Pin 16 was acquired by specifying pin number 400 + 16 = 416.
+
+    Modifying device driver code
+
+       The more complex workaround was by modifying the device driver source code. The source code which was modified by
+       Xenomai was being com- pared with the source code from the RPi kernel source tree. The most significant differences
+       were merged and the kernel was recompiled. The device driver then showed the correct pin numbers.
+        => unfortunately not documented!
+
+
+
+
+
+vanilla kernel install
+-----------------------
+
+
+mkdir /data/rpi/rpi3bplus
+
+cd /data/rpi/rpi3bplus
+
+
+# 1b. get xenomai source (effects only linux kernel)
+wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+tar -xjvf xenomai-3.0.8.tar.bz2
+
+
+    
+
+git clone https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git  linux
+cd linux
+git checkout v4.9.51
+cd ..
+
+
+
+# first do dry-run or patch :
+
+  cd linux
+  patch  --dry-run  -p1  <  ../ipipe-core-4.9.51-arm-4.patch
+  echo $?  # gives 0  => successfull dry patch 
+  cd ..
+  
+# apply ipipe patch   
+xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.9.51-arm-4.patch
+$ echo $?
+0    
+# 0 means success!!
+
+
+
+
+  
+  
+
+# create default config for multi_v7_defconfig 
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig 
+# a default configuration for bcm2709 written to .config
+# specialize config for xenomai
+# install package needed for menuconfig :  apt-get  install libncurses5-dev
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+
+    CPU Power Management  --->
+      CPU Frequency scaling  --->
+        [ ] CPU Frequency scaling
+      CPU idle  --->
+        [ ] CPU idle PM support
+    Kernel Features  --->
+        [ ] Contiguous Memory Allocator
+        [ ] Allow for memory compaction
+    Kernel Hacking  --->
+        [ ] KGDB: kernel debugger
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+
+
+    Xenomai Cobalt --->
+         Drivers  --->
+                 Real-time GPIO drivers  --->
+                    <*> GPIO controller                          => with " [*] Support for BCM2835 GPIOs   " instead it builds directly in kernel, then no need to load module anymore!
+                    [M]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                    [ ]   Enable GPIO core debugging features
+
+
+    note: in above  [ ]  means disable,  [X]  means enable
+
+
+note: instead of options on make commandline we can also export them :  => see   http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf 
+  export ARCH=arm
+  export CROSS_COMPILE=arm-linux-gnueabihf-
+  make multi_v7_defconfig
+  make menuconfig
+
+
+
+cd ..
+
+
+export NUMCORES=4
+cd linux/ 
+# build
+time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+
+real	7m17.075s
+user	16m40.372s
+sys	1m5.468s
+
+mkdir ../dist
+time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
+cd ..
+
+
+
+# 1. mount sdcard
+#  become root otherwise you cannot access sdcard
+
+sudo su -  
+
+export BUILDDIR=/data/rpi/rpi3bplus
+export SDCARD=/dev/sdb
+export MOUNTPOINT=/media/sdcard
+
+mkdir ${MOUNTPOINT}
+mount ${SDCARD}2 ${MOUNTPOINT}
+mount ${SDCARD}1 ${MOUNTPOINT}/boot
+
+cd $BUILDDIR
+
+# 2. copy Xenomai user space files to sd card
+#  
+cd dist/xenomai
+chown -R root:root *
+cp -a * ${MOUNTPOINT}/
+cd ../..
+
+
+# 3. copy kernel and modules 
+#
+# 3a. cp kernel and device tree files from linux/ dir  to /boot/ directory on image
+cd linux/
+cp arch/arm/boot/zImage ${MOUNTPOINT}/boot/kernel7.img
+cp arch/arm/boot/dts/bcm27*.dtb ${MOUNTPOINT}/boot/
+#cp arch/arm/boot/dts/bcm*.dtb  ${MOUNTPOINT}/boot/
+rm -rf ${MOUNTPOINT}/boot/overlays/*
+#  cp arch/arm/boot/dts/overlays/*.dtb* ${MOUNTPOINT}/boot/overlays/   => no arch/arm/boot/dts/overlays/ present!! 
+
+# 3b. cp modules from dist/lib/modules to sd card
+cd ../
+cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
+
+
+
+
+  
+ => did boot, but gpio numbers completely wrong, also different wrong as in report 
+    unclear how to fix???
+    
+    
+ 
+ 
+     

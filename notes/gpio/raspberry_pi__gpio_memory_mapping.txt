@@ -2,7 +2,7 @@ gpio memory mapping
 ===================
 
 short:
-  - rpi uses memory for gpio
+  - rpi uses memory mapping for controlling gpio pins
   - you can low level read/write memory to control gpio ports
   - however pinctrl library in linux helps you to do this more easily
       => see pinctrl_subsystem_in_linux.txt

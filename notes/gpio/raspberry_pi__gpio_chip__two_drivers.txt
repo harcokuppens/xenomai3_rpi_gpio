@@ -1,8 +1,18 @@
      
+see also ../raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
+
+     
  CONCLUSION: 
  
-    in linux the  pinctrl-bcm2835 driver is used for the gpiochip
-    in xenomai  similar!
+    in rasbpian-linux and in xenomai the  "pinctrl-bcm2835" driver is used for the gpiochip 
+    
+    the  "bcm2708_gpio" is an old driver for the  gpiochip which is removed in 4.8 kernel version,
+    but was already in the 4.1 kernel not used anymore by rasbpian-linux and in xenomai 
+
+  => since the 4.8 kernel we only have a single driver "pinctrl-bcm2835"  with config PINCTRL_BCM2835
+     for all raspbian hardware boards!!
+  
+  
 
 
 
@@ -18,25 +28,73 @@ raspberry pi  uses platform driver register mechanism to load/unload a gpiochip
   * "pinctrl-bcm2835"        -> already available in kernel.org, but patched by raspbian
         ./linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c     => compiled into kernel
         
-        => use pinctl library in linux
-            see: linux__pinctrl_subsystem.txt  and raspberry_pi__gpio_memory_mapping.txt
-        =>   note: 
-             ./arch/arm/mach-bcm2708/bcm2708_gpio.c  for pi1          \,-> exact same file  => Driver for 
-             ./arch/arm/mach-bcm2709/bcm2708_gpio.c  for pi2/pi3      /
+        => uses pinctl library in linux
+      
+      
+      see: gpio/linux__pinctrl_subsystem.txt  
                      
-
+        for gpio pins of the bcm2835 chip a special pinctrl driver(drives specific pin controller) is ready available using
+        the pinctrl framework :
+  
+          ./drivers/pinctrl/bcm/pinctrl-bcm2835.c  
+               uses pinctrl framework to implement a gpiochip ( standard interface you need to implement for gpio chip)
         
-  * "bcm2708_gpio"           -> only available in raspbian
+      see:  raspberry_pi__gpio_memory_mapping.txt  
+              
+               The pinctrl (pin control) driver is a lower-layer (i.e. closer to the HW) than GPIO. It's the pinctrl
+               layer that handles pin multiplexing (i.e. whether a pin is used for a peripheral function or as a GPIO). The
+               pinctrl driver for the SoC (e.g. drivers/pinctrl/pinctrl-bcm2835.c) is where you would find
+               devm_ioremap_resources() (which in turn calls devm_request_mem_region() and devm_ioremap()) for the GPIO
+               register block.
+              
+                short:
+                  - rpi uses memory mapping for controlling gpio pins
+                  - you can low level read/write memory to control gpio ports
+                  - however pinctrl library in linux helps you to do this more easily
+                      => see pinctrl_subsystem_in_linux.txt
+                  - in linux you can control the pins in user space via the /sys interface,
+                    however this is limited (eg. you can not set pullup or pull down),
+                    so instead you can use in user space a library (e.g. wiring pi) which
+                    access the GPIO hardware registers directly through the /dev/mem psuedo-file. (instead of via /sys)
+                      => see  raspberry_pi__gpio_userspace_library_wiringpi.txt
+                
+              
+        
+  * "bcm2708_gpio"           -> only available in raspbian                         ===> REMOVED  <=====
         ./linux/arch/arm/mach-bcm2709/bcm2708_gpio.c     => compiled into kernel
  
- 
- 
+       =>   note: 
+            ./arch/arm/mach-bcm2708/bcm2708_gpio.c  for pi1          \,-> exact same file 
+            ./arch/arm/mach-bcm2709/bcm2708_gpio.c  for pi2/pi3      /
+       
+                    
+       note: for rpi4.9 raspbian kernel source this driver is removed 
+             The old bcm2708 driver is removed and rpi can only use the "pinctrl-bcm2835"  driver : 
+     
+  
+             => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
+
+                  Drop ARCH_BCM2708 and ARCH_BCM2709
+
+                     They are not necessary anymore since both are based on ARCH_BCM2835.
+                     Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+                     
+              see also notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt         
+    
+       note: for xenomai we used to have a patch for this driver created
+              by Mathieu Rondonneau specific for rpi2 bcm-2709 )
+               wget  http://www.blaess.fr/christophe/files/article-2016-05-22/patch-xenomai-3-on-bcm-2709.patch
+
+             => so for newer kernels >4.8  this patch is also obsolete!!
+    
+    
      
  CONCLUSION: 
  
-    in linux the  pinctrl-bcm2835 driver is used for the gpiochip
+    in linux the  "pinctrl-bcm2835" driver is used for the gpiochip
     in xenomai  similar!
    
+    => since rpi4.9  the "bcm2708_gpio"  driver is removed
   
 explanation
 --------------   

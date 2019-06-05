@@ -1,0 +1,131 @@
+vanilla kernel or raspbian kernel
+---------------------------------
+
+ background 
+     https://www.raspberrypi.org/forums/viewtopic.php?f=71&t=236568&sid=17aa9aaf6761a875ec89665425bae702
+
+      Is mainline kernel perfectly good for Raspberry Pi 3 B+?
+      
+      answer 1:
+         
+         When it originally launched, the Pi kernel was fairly custom. Lots of bits of HW in there that were not
+         supported by mainstream. Over time, as the Pi has become more popular, more and more of the Raspberry Pi
+         specifics have been brought up to kernel coding standard, and accepted in to the mainline tree . Not only
+         that, but some of the mainline drivers used in the Pi kernel have been bug fixed by Raspberry Pi engineers and
+         changes accepted upstream. There are some areas of code that can never be accected upstream due to their
+         nature, but these are not essential to boot the Pi, just for some of the HW features that people may want to
+         use.
+
+         There is an ongoing effort to upstream as much as possible by Pi enginers and third parties, because it
+         reduces the maintenance burden.
+
+         So, to answer you orininal question, mainline wil work, but has missing features. I suggest using Raspbian,
+         it's our development distro so is ahead of mainline, its bug fixed, and it supports all the features of the Pi
+         (apart from 64bit).
+         
+     answer 2:
+     
+         No, you don't have to, but it isn't perfectly good. At the end this comes to a more philosophical question,
+         what is perfect.
+         
+         The advantage of a vendor tree is to hack a lot of optimizations for your target device, which will never
+         acceptable for the upstream kernel.
+
+         Anyway in Upstream Linux 5.0 there are some missing features (planned):
+         
+           CPU frequency driver
+           DT Overlay support  -> This is the runtime dtoverlay support - the firmware can still apply overlays.
+
+         Also there are some differences in usage (e.g. GPIO handling, DTB for every board).
+         
+         
+
+=> conclusion: 
+     mainline kernel catches up, but there are some differences in usage (e.g. GPIO handling, DTB for every board).
+     -> so raspbian adviced!
+     
+     
+
+
+which defconfig to use for kernel??
+
+  for rpi kernel we had : 
+  
+            $ ls ./arch/arm/configs/bcm*
+            ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
+       
+       
+            details:
+             
+             ./arch/arm/configs/bcm2835_defconfig  -> default config added by kernel.org
+             
+             ./arch/arm/configs/bcmrpi_defconfig   -> added by raspbian  for rpi1        => used in my rpi1 build 
+             ./arch/arm/configs/bcm2709_defconfig  -> added by raspbian  for rpi2/3     => used in my rpi2/3 build   
+             
+            
+       
+       https://www.raspberrypi.org/forums/viewtopic.php?t=189631
+
+         On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
+         still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
+         kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
+
+         Bcm2835_defconfig is the upstream defconfig.   => original authors 
+
+         Bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
+
+       => so for raspbian kernel use : ./arch/arm/configs/bcm2709_defconfig
+       
+  however vanilla linux kernel doesn't has  bcm* configs!!
+
+
+        http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf 
+        4.1 Xenomai Installation
+
+           A configuration could be chosen from one of the default configurations available in the kernel source tree. The
+           configuration file for RPi 3 was called ”multi v7 defconfig”.
+
+       => so for vanilla kernel use ./linux/arch/arm/configs/multi_v7_defconfig    
+
+  
+
+         
+
+
+debian/ubuntu with vanilla kernel
+---------------------------------
+
+https://www.krenger.ch/blog/debian-with-a-vanilla-kernel/
+  
+So one might want to ask why you’d want to sacrifice the fantastic stability and openness of Debian to install a
+vanilla (= original) kernel (Debian currently has 2.6.32). There are quite a few reasons for doing so. For example, the
+current kernel (2.6.38) has TRIM support, which is something I am looking for when using SSDs. Also, maybe you want to
+have a bleeding edge kernel just for the fun of it. So lets get started.
+
+ => so seems to be ok to install vanilla kernel into debian
+ 
+
+https://askubuntu.com/questions/238077/whats-the-minimal-compatible-linux-kernel-version-required-to-run-ubuntu
+ What's the minimal compatible Linux kernel version required to run Ubuntu?  
+ 
+  This is a pretty difficult question to answer. Especially because it really depends on what applications/modules you
+  will be using. We can restrict this question to the "standard" Ubuntu Desktop or Server, but even then it would be
+  too difficult to answer: there is not enough documentation and the information available are sparse.
+
+
+  The Ubuntu Testing team and the Ubuntu Quality team do not test kernels not provided by Ubuntu. The proof is that
+  there are no test cases nor test activities for obsolete kernels.
+  
+  Ubuntu is not bothering about these cases. Not supporting a kernel version, but being compatible with it would be
+  just extra work with few benefits.
+
+  Ubuntu practices is to look forward and try to support the most recent technologies, rather than the most outdated. 
+  
+Conclusion:  
+  => so older kernel on newer distribution which by default comes with a newer one  is not recommended 
+     because it can break!  Distributions don't care about this, and don't test it. So you are on your own if you
+     want to fix it. 
+  => try newer distributions with newer kernel and try to patch it
+     and if it doesn't work return to older distribution and older kernel for which patches work!
+     
+ 

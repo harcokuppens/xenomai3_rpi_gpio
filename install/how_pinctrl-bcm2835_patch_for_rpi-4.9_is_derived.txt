@@ -1,0 +1,104 @@
+
+short:
+ - we start with:  pinctrl-bcm2835.c.rpi-4.1.patch
+ - we derived :    pinctrl-bcm2835.c.rpi-4.9.patch
+
+how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived.txt
+-----------------------------------------------------
+
+
+there is a patched version of pinctrl-bcm2835.c from the official ipipe patch but from the specific branch vendors/raspberry/ipipe-4.1
+#     for the  rpi1 which uses the same gpio-chip as the rpi2 : 
+#     we find this file at: https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+#     However  there is also https://gitlab.denx.de/Xenomai/ipipe/raw/ipipe-4.9.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c file
+#     for 4.9 specific.
+#     But when comparing this with the original raspbian source for 4.1 and 4.9 and the 
+#     the 4.1 xenomai patched file at https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+#     then ipipe-4.9.y version seems less specific for the raspberry pi. 
+#     Less specific because the ipipe-4.9.y version deals with two irq's whereas the raspbian versions (4.1,4.1 patched and 4.9)
+#     all deals with 3 irq's and handle each range differently. => so stick with raspbian patched version.
+
+
+We have a good ipipe patched version for  pinctrl-bcm2835.c for the raspberry pi kernel version
+from a special branch of xenomai:
+ 
+   https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c 
+
+however this file is for raspbian 4.1 and not for raspbian 4.9!!
+
+
+
+Will this also work for raspbian 4.9 ?
+
+Possible Solution: 
+
+  * derive the patch file for raspbian 4.1  from the original raspbian 4.1 and patched raspbian 4.1 files
+  * thenapply this patch file on the raspbian 4.9 unpatched source
+
+# thus: 
+ - original in raspbian 4.1
+    https://github.com/raspberrypi/linux/blob/rpi-4.1.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+   ``-> https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.1.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+
+       mkdir rpi-4.1.y/
+       cd rpi-4.1.y/ 
+       wget https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.1.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+       cd ..
+ 
+ - ipipe patched for raspbian 4.1
+    https://gitlab.denx.de/Xenomai/ipipe/blob/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+    `-> https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+        
+       mkdir xenomai_branch_vendors_raspberry_ipipe-4.1/    
+       cd xenomai_branch_vendors_raspberry_ipipe-4.1/ 
+       wget https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+       cd ..    
+        
+=> do a unified diff of these two files and write result in a new patch file for the rpi source
+     
+      diff -u rpi-4.1.y/pinctrl-bcm2835.c xenomai_branch_vendors_raspberry_ipipe-4.1/pinctrl-bcm2835.c  > pinctrl-bcm2835.c.rpi-4.1.patch
+
+
+=> we will use this pinctrl-bcm2835.c.patch to patch pinctrl-bcm2835.c in the raspbian 4.9 source, and build 
+  the linux kernel with xenomai/cobalt support
+       
+       
+after testing we found that the patch didn't work: 
+
+   on gpio interrupt the kernel crashed 
+   even for none-realtime gpoi interrupts using the python piwire it crashed
+   => see   test_xenomai_installation_and_test_gpio_pins_are_working_correct.txt
+
+after carefully studying the source code I discovered
+        - the kernel.org 4.9  source version is almost the same as the rpi-4.9.y, 
+          only some details of interupts handling where different.
+          Raspbian just has the details better.
+        - when comparing the  pinctrl-bcm2835.c  with the original patch in the ipipe-core-4.9.51-arm-4.patch
+          with the pinctrl-bcm2835.c of my derived patch for rpi-4.1.y ( pinctrl-bcm2835.c.rpi-4.1.patch )
+          the interface for the gpio_irq_cascade method was changed from 2 arguments to 1 argument
+          
+              fix for patch :
+               - old interface  : 
+                    static void gpio_irq_cascade(unsigned int irq, struct irq_desc *desc)
+                    {
+                    #ifdef CONFIG_IPIPE
+                    	bcm2835_gpio_irq_handler(irq, irq_get_handler_data(irq));
+                    #endif
+                    }
+
+              - new  interface  : (fix for patch)
+                    static void gpio_irq_cascade(struct irq_desc *desc)
+                    {
+                    #ifdef CONFIG_IPIPE
+                    	unsigned int irq = irq_desc_get_irq(desc);
+                    	bcm2835_gpio_irq_handler(irq, irq_get_handler_data(irq));
+                    #endif
+                    }     
+                         
+        - after fixing this we derived a new patch :
+        
+            diff -u rpi-4.9.y/pinctrl-bcm2835.c rpi-4.9.y.fixedpatch/pinctrl-bcm2835.c  > pinctrl-bcm2835.c.rpi-4.9.patch
+
+       - note: latest kernel.org has version which is even more simular as the raspbian version 
+                 see https://github.com/torvalds/linux/blob/v5.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+                   also has three constants BCM2835_NUM_GPIOS  BCM2835_NUM_BANKS BCM2835_NUM_IRQS (4.9 kernel.org has only 2 of them)

@@ -1,0 +1,777 @@
+
+
+
+
+kernel  config  ARCH_BCM2835 -> enables PINCTRL_BCM2835
+--------------------------------------------------------
+
+./arch/arm/mach-bcm/Makefile
+
+# BCM2835
+obj-$(CONFIG_ARCH_BCM2835)  += board_bcm2835.o
+
+./arch/arm/mach-bcm/Kconfig
+
+config ARCH_BCM2835
+    bool "Broadcom BCM2835 family"
+    depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
+    select GPIOLIB
+    select ARM_AMBA
+    select ARM_ERRATA_411920 if ARCH_MULTI_V6
+    select ARM_TIMER_SP804
+    select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
+    select CLKSRC_OF
+    select BCM2835_TIMER
+    select FIQ
+    select PINCTRL
+    select PINCTRL_BCM2835                                <===
+    select MFD_SYSCON if ARCH_MULTI_V7
+    help
+      This enables support for the Broadcom BCM2835 and BCM2836 SoCs.
+      This SoC is used in the Raspberry Pi and Roku 2 devices.
+
+
+
+./drivers/pinctrl/bcm/Kconfig:19:config PINCTRL_BCM2835
+
+config PINCTRL_BCM2835
+    bool
+    select PINMUX
+    select PINCONF
+
+./drivers/pinctrl/bcm/Makefile:4:obj-$(CONFIG_PINCTRL_BCM2835)          += pinctrl-bcm2835.o
+
+   # Broadcom pinctrl support
+
+   obj-$(CONFIG_PINCTRL_BCM281XX)      += pinctrl-bcm281xx.o
+   obj-$(CONFIG_PINCTRL_BCM2835)       += pinctrl-bcm2835.o                <===
+   obj-$(CONFIG_PINCTRL_IPROC_GPIO)    += pinctrl-iproc-gpio.o
+   obj-$(CONFIG_PINCTRL_CYGNUS_MUX)    += pinctrl-cygnus-mux.o
+   obj-$(CONFIG_PINCTRL_NSP_GPIO)      += pinctrl-nsp-gpio.o
+   obj-$(CONFIG_PINCTRL_NS2_MUX)       += pinctrl-ns2-mux.o
+   obj-$(CONFIG_PINCTRL_NSP_MUX)       += pinctrl-nsp-mux.o
+   
+   
+use kernel config  ARCH_BCM2835  ;  old and obsolete are the configs ARCH_BCM2708 and ARCH_BCM2709   
+---------------------------------------------------------------------------------------------------
+
+https://github.com/raspberrypi/linux/commits/rpi-4.8.y/arch/arm/mach-bcm
+  Drop ARCH_BCM2708 and ARCH_BCM2709
+  
+  
+  
+   => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
+
+        Drop ARCH_BCM2708 and ARCH_BCM2709
+
+           They are not necessary anymore since both are based on ARCH_BCM2835.
+           Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+
+       Signed-off-by: Noralf Trønnes <noralf@tronnes.org>
+
+        arch/arm/mach-bcm/Kconfig
+      	 - depends on ARCH_BCM2708
+      	 + depends on ARCH_BCM2835 && ARCH_MULTI_V6
+
+       also removed :
+        config ARCH_BCM2708
+        	bool "Broadcom BCM2708 family"
+        	depends on ARCH_MULTI_V6
+        	select ARCH_BCM2835
+        	help
+        	  This enables support for Broadcom BCM2708 boards.
+
+        config ARCH_BCM2709
+        	bool "Broadcom BCM2709 family"
+        	depends on ARCH_MULTI_V7
+        	select ARCH_BCM2835
+        	select HAVE_SMP
+        	select MFD_SYSCON
+        	help
+        	  This enables support for Broadcom BCM2709 boards.
+
+ 
+ 
+
+
+
+
+found : https://github.com/torvalds/linux/blob/master/Documentation/devicetree/bindings/arm/bcm/brcm%2Cbcm2835.txt
+ 
+    Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:35:compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
+    Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:39:compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
+        
+
+    Raspberry Pi 3 Model B
+    Required root node properties:
+    compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
+
+
+    Raspberry Pi 3 Model B+
+    Required root node properties:
+    compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
+
+
+
+=> so   Raspberry Pi 3 Model B+  compatible with  Raspberry Pi 3 Model B
+
+
+
+
+
+#
+
+    
+             
+
+
+installation
+------------
+
+  based on  
+    install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt
+ 
+ 
+  Note in   xenomai308_image_virtualbox.txt we installed the vanilla(kernel.org) kernel 4.9.144  with
+  '4.9.144-3.1-debian' debian specific kernel patches  applied  to the vanilla kernel.
+     
+  However for the rpi  we use raspbian kernel source!!
+  
+  We use raspbian kernel and not the vanilla kernel from kernel.org because that kernel has better gpio and device_tree
+  support then the vanilla kernel for the raspberry pi. =>  see vanilla_kernel_or_raspbian_kernel.txt    
+
+  If we clone rasbian kernel source for kernel 4.9 and
+  we run  'make kernelversion' it gives the full version 4.9.80
+ 
+  However the latest ipipe for the 4.9 kernel we have is 
+     https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch
+  so kernel versions do not entirely match  : 4.9.80 vs 4.9.51 
+  Also the ipipe patch is for the vanilla(kernel.org) kernel and not for the rpi-4.9 kernel.
+  The rpi-4.9 kernel is based on the vanilla kernel, but has extra specific changes for the raspberry pi.
+     
+  However probably the patch will just work, we just try it!   
+ 
+ 
+  Compared to installation describe in 
+
+   install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt
+
+  We have NEW ingredients: 
+ 
+     linux distr. with kernel 4.9 xenomai-3.0.8
+ 
+  so ingredients are
+   a) xenomai-3.0.8
+   b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version 4.9.80)           \ ,-> all 4.9 !
+   c) ipipe-core-4.9.51-arm-4.patch                        (for  version 4.9.51)           /
+   d) pinctrl-bcm2835.c  from rpi specific branch 'vendors/raspberry/ipipe-4.1'      => for 4.1 \,-> still works??
+   e) patch-xenomai-3-on-bcm-2709.patch   extra raspberry pi specific patch -> worked on 4.1    /     
+
+
+  ad e) patch-xenomai-3-on-bcm-2709.patch is not needed anymore because the specific kernel source code
+        the patch is applied on is removed from the rpi-4.9 kernel (also for the 4.9 vanilla kernel)
+        note: before 4.8 the linux kernel used to have two different drivers for the gpio chip,
+              however since the 4.8 kernel we only have a single driver "pinctrl-bcm2835"  
+              with config PINCTRL_BCM2835 for all raspbian hardware boards!!
+              => src: ../gpio/raspberry_pi__gpio_chip__two_drivers.txt 
+       
+  ad d)
+     We have a xenomai/ipipe patched pinctrl-bcm2835.c  from xenomai/ipipe's rpi specific branch 'vendors/raspberry/ipipe-4.1'    
+     which you can download at https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+     However this was for the rpi-4.1 kernel and didn't work anymore for the rpi-4.9 kernel.
+     The  ipipe-core-4.9.51-arm-4.patch  has some new patches for the vanilla 4.9 kernel, but this misses the raspbian
+     specific enhancements.
+     So with some work I derived a new ipipe/xenomai patch file for pinctrl-bcm2835.c in the rpi-4.9 kernel source.
+     This patch 'pinctrl-bcm2835.c.rpi-4.9.patch' must be applied to  pinctrl-bcm2835.c in the rpi-4.9 kernel source
+     and we should remove the  ipipe/xenomai patches for pinctrl-bcm2835.c  from the ipipe-core-4.9.51-arm-4.patch.
+     For details how derived this patch see:  
+     
+        how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived.txt
+        
+
+
+  ad c) we need to patch the ipipe-core-4.9.51-arm-4.patch a little so that it also worked
+       on the raspbian 4.9.80 kernel. We also removed all patches for 'pinctrl-bcm2835.c' because
+       we already have a specific patch for that. So we get finally a new patch:
+       
+       ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+     
+                
+  so new ingredients are
+   a) xenomai-3.0.8
+   b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version rpi-4.9.80)          
+   c) ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
+   d) pinctrl-bcm2835.c.rpi-4.9.patch
+     
+ 
+
+# 0. prepare 
+# ------------
+
+export BUILDDIR=/var/tmp/rpi3bplus
+# build kernel with NUMCORES
+export NUMCORES=4
+
+
+mkdir $BUILDDIR   # place where download and build everything  
+mkdir  $BUILDDIR/dist  # for ready to install files
+
+# 1. get sources 
+#---------------
+#
+# 1a. get raspbian linux 4.9.y
+#
+cd $BUILDDIR
+git clone https://github.com/raspberrypi/linux.git
+cd  linux/
+git checkout  rpi-4.9.y
+
+# just verify kernelversion with a make command:
+make kernelversion
+# which gives 4.9.80 which is full version -> number also used for directory for in /lib/modules/
+
+cd ..
+#
+# 1b. get xenomai source (effects only linux kernel)
+wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+tar -xjvf xenomai-3.0.8.tar.bz2
+#
+#
+# 1c. get ipipe  patch  (effects both kernel and some drivers(using interrupts))
+wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch
+#
+# 1d. we derived a new patch for pinctrl-bcm2835.c for raspbian 4.9 kernel : pinctrl-bcm2835.c.rpi-4.9.patch
+      In the file  how_pinctrl-bcm2835_patch_is_derived.txt we describe how we derived this file. 
+
+wget 
+
+
+
+
+
+# 2.  apply kernel patches ( xenomai+ipipe, bcm( arch/arm/mach-bcm2709/.. and linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c   )
+# ------------------------
+#
+# 2a. apply xenomai (and ipipe) patch to kernel
+# 
+# first check if the ipipe patch applies well: (because little bit different kernel)
+cd linux
+patch  --dry-run  -p1  <  ../ipipe-core-4.9.51-arm-4.patch
+# The argument --dry-run of the above execution allowed to verify if the patch is applied correctly without making changes.
+# http://superuser.com/questions/755355/hunk-1-message-after-apply-a-patch
+#  If the file to be patched has changed slightly since the patch was created, but the specific section 
+# remained the same, patch can detect that and apply the patch appropriately.
+# A hunk  message  means the file was successfully patched, but the first section that was patched was X lines earlier/later
+# than was originally specified.
+#
+
+echo $?   # if it doesn't gives 0 as answer then dry-run of patch failed!
+# in our case we got 1, so we need to fix the patch!!  => look at FAILED messages in patch output!!
+# so we manually patched the patch file which gives us the new patch file:
+#   ../ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+# note: in this fixed patch we removed all patches for drivers/pinctrl/bcm/pinctrl-bcm2835.c because 
+#       as already described above the raspbian patch is better for this file then the ipipe-4.9.y version.
+
+
+# so dry running the ../ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch  patch succeeds ($?==0)
+# thus we can apply the patch:
+
+
+cd  ..
+# finally really apply both xenomai and ipipe patch to kernel
+
+
+IMPORTANT:
+   edit xenomai-3.0.8/scripts/prepare-kernel.sh 
+   and change the 'ln -sf' command into a 'cp' command
+   => instead of soft linking the xenomai files in the linux src tree
+      we now copy them!!  
+   => this is needed for 'make deb-pkg' in the linux kernel source tree
+      which otherwise makes packages with broken links!! (see linux headers below)
+
+
+xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+# `-> xenomai script which does patch               `-> kernel source where patch applied     `-> ipipe patch file for kernel source
+
+
+
+ 
+# 2b. apply a patch for pinctrl-bcm2835.c  :  pinctrl-bcm2835.c.patch  (see above how we get this)
+       
+       $ cd linux/drivers/pinctrl/bcm/
+       $ patch   -p1  <  ../../../../pinctrl-bcm2835.c.rpi-4.9.patch
+       patching file pinctrl-bcm2835.c
+       Hunk #3 succeeded at 412 (offset -3 lines).
+       Hunk #4 succeeded at 440 (offset -3 lines).
+       Hunk #5 succeeded at 496 (offset -3 lines).
+       Hunk #6 succeeded at 511 (offset -3 lines).
+       Hunk #7 succeeded at 619 (offset -3 lines).
+       Hunk #8 succeeded at 631 with fuzz 2 (offset -3 lines).
+       Hunk #9 succeeded at 644 (offset -3 lines).
+       Hunk #10 succeeded at 685 (offset -3 lines).
+       Hunk #11 succeeded at 1097 (offset 7 lines).
+       Hunk #12 succeeded at 1115 (offset 7 lines).
+       Hunk #13 succeeded at 1127 with fuzz 2 (offset 7 lines).
+       
+
+       => patch successfull 
+
+       cd ../../../..
+       
+       
+# 3. configure linux kernel/module option
+# ---------------------------------------
+
+
+cd linux
+
+
+# sidenote: 
+
+      compared to previous xenomai 3.05 build for rpi (4.1 kernel)
+       NO patching of drivers/xenomai/gpio/Kconfig needed
+ 
+        # fix xenomai Kconfig for xenomai gpio   =>  in xenomai source!!   => report to xenomai!
+        vim drivers/xenomai/gpio/Kconfig
+
+            config XENO_DRIVERS_GPIO_BCM2835
+                depends on MACH_BCM2708             => for pi1 , pi2 (and p3) has  MACH_BCM2709
+        
+             || change into
+             \/
+ 
+           config XENO_DRIVERS_GPIO_BCM2835      
+             depends on MACH_BCM2708 || MACH_BCM2709    => xenomai source then applies for both pi1 and p2/p3
+
+
+
+        for 4.9 we have :
+
+            config XENO_DRIVERS_GPIO_BCM2835
+                depends on MACH_BCM2708 || ARCH_BCM2835
+                tristate "Support for BCM2835 GPIOs"
+                help
+
+                Enables support for the GPIO controller available from
+                Broadcom's BCM2835 SoC.
+
+
+
+         => ARCH_BCM2835 required  => ok, because ARCH_BCM2835 replaced MACH_BCM2708 MACH_BCM2709
+
+                        $ fw MACH_BCM2708
+                        ./drivers/xenomai/gpio/Kconfig:13:      depends on MACH_BCM2708 || ARCH_BCM2835
+                        $ fw MACH_BCM2709       
+                        $
+                        
+                         =>  so MACH_BCM2708 MACH_BCM2709 obsolete ,  note MACH_BCM2708 still in Kconfig but nowhere used!!
+                         
+                         
+                        
+                        
+
+                        $ fw ARCH_BCM2835
+                        ...
+                        ./arch/arm/mach-bcm/Kconfig:145:config ARCH_BCM2835
+                        ...
+                        ./arch/arm64/configs/bcmrpi3_defconfig:38:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm64/boot/dts/broadcom/Makefile:3:ifeq ($(CONFIG_ARCH_BCM2835),y)
+                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
+
+                        ./drivers/xenomai/gpio/Kconfig:13:	depends on MACH_BCM2708 || ARCH_BCM2835    => gpio requires ARCH_BCM2835
+
+
+                        ./arch/arm/configs/bcm2709_defconfig:41:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/bcmrpi_defconfig:42:CONFIG_ARCH_BCM2835=y        => defconfigs all set CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/multi_v7_defconfig:38:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/bcm2835_defconfig:30:CONFIG_ARCH_BCM2835=y
+
+
+                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
+                        
+
+                        MACH_BCM2708 MACH_BCM2709  => obsolete
+                        ARCH_BCM2835  => what is needed!!
+
+         => so NO patching of drivers/xenomai/gpio/Kconfig needed!
+
+
+
+# sidenote: 
+ 
+        which defconfig to use??
+
+              also see:  ../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
+
+                    $ ls ./arch/arm/configs/bcm*
+                    ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
+
+                    details:
+             
+                     ./arch/arm/configs/bcm2835_defconfig  -> default config added by kernel.org             
+                     ./arch/arm/configs/bcmrpi_defconfig   -> added by raspbian  for rpi1        => used in my rpi1 build 
+                     ./arch/arm/configs/bcm2709_defconfig  -> added by raspbian  for rpi2/3     => used in my rpi2/3 build   
+             
+
+                    https://www.raspberrypi.org/documentation/linux/kernel/configuring.md
+
+
+                    For all models of Raspberry Pi 1 (includes Compute Module and Pi Zero):
+
+                        $ KERNEL=kernel
+                        $ make bcmrpi_defconfig
+
+                    If you're cross-compiling, the second line should be:
+
+                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+
+                    For all models of Raspberry Pi 2/3 (includes Pi 3+ and Compute Module 3):
+
+                        $ KERNEL=kernel7
+                        $ make bcm2709_defconfig
+
+                    If you're cross-compiling, the second line should be:
+
+                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+
+
+
+                    https://www.raspberrypi.org/forums/viewtopic.php?t=189631
+
+                      On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
+                      still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
+                      kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
+  
+                        bcm2835_defconfig is the upstream defconfig.   => original authors 
+  
+                        bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
+  
+                      => so use : bcm2709_defconfig   (note: there is no bcm2710_defconfig)
+
+                      => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
+                               config file, because it is special for the raspbian kernel!
+                       
+                       
+
+# create default config for bcm2709
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+# a default configuration for bcm2709 written to .config
+# specialize config for xenomai
+# install package needed for menuconfig :  apt-get  install libncurses5-dev
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+    CPU Power Management  --->
+      CPU Frequency scaling  --->
+        [ ] CPU Frequency scaling
+      CPU idle  --->
+        [ ] CPU idle PM support
+    Kernel Features  --->
+        [ ] Contiguous Memory Allocator
+        [ ] Allow for memory compaction
+    Kernel Hacking  --->
+        [ ] KGDB: kernel debugger
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+
+
+    Xenomai Cobalt --->
+         Drivers  --->
+                 Real-time GPIO drivers  --->
+                    <M> GPIO controller                          => with " [*] GPIO controller  " instead it builds directly in kernel, then no need to load module anymore!
+                    [*]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                    [ ]   Enable GPIO core debugging features
+
+
+    note: in above  [ ]  means disable,  [X]  means enable
+
+
+
+cd ..
+        
+      
+      
+# 4. build kernel and modules in linux dir      => cross compile
+# ----------------------------------------
+ 
+cd linux/ 
+# build
+time make -j $NUMCORES ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+# -> real    6m45.452s
+
+    real    12m8.649s
+    user    28m1.124s
+    sys     1m45.176s
+
+
+# install in ../dist/ dir 
+time make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=../dist modules_install
+
+cd ..
+      
+      
+ 
+ # EXTRA: install linux headers with Makefiles to build kernel modules on the pi itself    => cross compile
+ #--------------------------------------------------------------------------------------
+ #        note: 
+ #          'make headers_install' installs only the headers, the Makefiles needed to build a kernel module are not there
+ #          however with 'make deb-pkg' next to binary kernel packages it builds also a  linux-headers package
+ #          which contains both headers and makefiles needed to build kernel modules. So we build this package 
+ #          and copy it to the pi, and install it as a debian package on the pi
+
+ cd linux/
+ export NUMCORES=4 
+ export KBUILD_DEBARCH=armhf 
+ make ARCH=arm -j $NUMCORES  CROSS_COMPILE=arm-linux-gnueabihf-  deb-pkg
+
+ # result: dpkg-deb: building package `linux-firmware-image-4.9.80-v7+' in `../linux-firmware-image-4.9.80-v7+_4.9.80-v7+-2_armhf.deb'.
+ 
+
+ # copy the file  'linux-headers-4.9.80-v7+_4.9.80-v7+-2_armhf.deb'  to the pi 
+ # then on the pi run :
+
+    dpkg -i linux-headers-4.9.80-v7+_4.9.80-v7+-2_armhf.deb   
+
+    # it seems that the scripts in the linux headers itself are not cross-compiled to arm, (intel instead)
+    # so to use them to build kernel modules we first need to compile them as arm binaries, to
+    # do this we can call 'make modules_prepare' which calls 'make scripts' . 
+    cd /usr/src/linux-headers-4.9.80-v7+/
+    # run following make command, which can give some errors, which should be ignored be giving it the -i option
+    make -i modules_prepare   
+    # building kernel modules should work fine now!  
+
+ cd ..
+
+ 
+ 
+ 
+ 
+
+# 5. built Xenomai user space part  ( kernel part is built with kernel above)      => cross compile
+$ ------------------------------
+
+## you need to have installed autoconf and libtool :
+# sudo apt-get install autoconf
+# sudo apt-get install libtool
+
+
+# configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
+
+cd xenomai-3.0.8
+./scripts/bootstrap 
+#./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt –enable-debug=partial
+./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt 
+
+#
+# note : http://xenomai.org/installing-xenomai-3-x/
+#          –enable-smp
+#              Turns on SMP support for Xenomai libraries.
+#
+#              Caution
+#                  SMP support must be enabled in Xenomai libraries when the client
+#                  applications are running over a SMP-capable kernel.
+
+mkdir ../dist/xenomai
+export DESTDIR=`realpath ../dist/xenomai`  # realpath because must be absolute path
+make  DESTDIR="$DESTDIR"  install
+
+ 
+ 
+ 
+ 
+6. copy build stuff in dist/ to raspbian sdcard 
+-----------------------------------------------
+
+# 0. install raspbian on sd card;  os x instructions : 
+
+
+      note: diskutil is os x program!!  => do on mac!!
+
+        diskutil list
+            identify the disk (not partition) of your SD card. e.g. disk4 (not disk4s1)
+        diskutil unmountDisk /dev/<disk# from diskutil>
+            e.g. diskutil unmountDisk /dev/disk4
+        sudo dd bs=1m if=<your image file>.img of=/dev/<disk# from diskutil>
+            e.g. sudo dd bs=1m if=2014-09-09-wheezy-raspbian.img of=/dev/disk4
+            (This will take a few minutes)
+            
+           
+
+# 1. mount sdcard
+#  become root otherwise you cannot access sdcard
+
+sudo su -  
+
+export BUILDDIR=/var/tmp/rpi3bplus
+export SDCARD=/dev/sdb
+export MOUNTPOINT=/media/sdcard
+
+mkdir ${MOUNTPOINT}
+mount ${SDCARD}2 ${MOUNTPOINT}
+mount ${SDCARD}1 ${MOUNTPOINT}/boot
+
+
+cd $BUILDDIR
+
+# 2. copy Xenomai user space files to sd card
+#  
+cd dist/xenomai
+chown -R root:root *
+cp -a * ${MOUNTPOINT}/
+cd ../..
+
+
+# 3. copy kernel and modules 
+#
+# 3a. cp kernel and device tree files from linux/ dir  to /boot/ directory on image
+cd linux/
+cp arch/arm/boot/zImage ${MOUNTPOINT}/boot/
+cp arch/arm/boot/dts/bcm27*.dtb ${MOUNTPOINT}/boot/
+rm -rf ${MOUNTPOINT}/boot/overlays/*
+cp arch/arm/boot/dts/overlays/*.dtb* ${MOUNTPOINT}/boot/overlays/
+
+# 3b. cp modules from dist/lib/modules to sd card
+cd ../
+cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
+
+
+
+
+# if you just rename the just installed file '/boot/zImage' to '/boot/kernel7.img'  then you don't need to edit
+#  /boot/config.txt because the bootscript on the raspberry pi finds out it is running on pi2 or pi3 and the
+#  automatically boots '/boot/kernel7' .    Note: on pi0 or pi1 it boots '/boot/kernel' instead!
+
+
+mkdir -p ${MOUNTPOINT}/boot/orig_kernels
+mv ${MOUNTPOINT}/boot/kernel* ${MOUNTPOINT}/boot/orig_kernels/
+mv  ${MOUNTPOINT}/boot/zImage ${MOUNTPOINT}/boot/kernel7.img
+
+# note: instead of renaming kernel7.img you can also specify manually in /boot/config.txt what kernel 
+#       image you want to boot:
+#
+#          # update config for new kernel and device tree
+#          # at end of /boot/config.txt add :
+#
+#          kernel=zImage
+#          # for pi2
+#          device_tree=bcm2709-rpi-2-b.dtb
+#          # for pi3
+#          #device_tree=bcm2710-rpi-3-b.dtb
+
+umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
+
+
+sudo systemctl enable ssh.service
+sudo systemctl start ssh.service
+
+sudo apt-get install git 
+sudo apt-get install subversion
+sudo apt-get install vim
+apt-get install wiringpi
+           
+           
+           
+
+
+
+fix kernel, so not by accident updated :            
+
+    /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
+
+
+    apt-mark hold   raspberrypi-kernel
+                    raspberrypi-bootloader    => unhold
+                
+
+
+========
+FAILURE
+========
+
+
+load xenomai realtime gpio module : 
+ 
+ http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf            
+ modprobe xeno-gpio-bcm2835            => used to be "xeno_gpio"  
+ 
+
+=>  gpio not working,  realtime  gpio out didn't even work, and on gpio interrupt it crashed, both for realtime xenomai program as for wiringpi interrupt program
+
+
+
+TODO
+===== 
+
+TODO: 
+
+try different kernels  to get GPIO working
+
+  A) vanilla kernel
+       -> standaard ipipe-patch should work                                                                    1
+   
+  B) rpi kernel      
+       -> ipipe patch must be patched
+       -> special patch for bcm3835.c where rpi code differs largely from vanilla kernel's source
+            * from 4.1 version derived patch and applied this to 4.9 version  => crashed
+                 -> analyze what could went wrong??
+            * just take original source 
+                  old 4.1 source                                                                               3
+                  or 4.9 ipipe patched version => see A)                                                       2
+                  
+        
+  
+  
+ finish rpi
+ finish report rotating klok
+ 
+ finish efsm + dag + test algorithm improved
+ 
+ 
+  
+ 
+boot/config  changes??
+---------------------- 
+
+
+
+ https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
+ A kernel built from the rpi-4.4.y tree (and later) will not function without a DTB, so from the 4.4 releases onwards,
+ any kernel without a trailer is assumed to be DT-capable. You can override this by adding a trailer without the DTOK
+ flag or by putting device_tree= in config.txt, but don't be surprised if it doesn't work. N.B. A corollary to this is
+ that if the kernel has a trailer indicating DT capability then device_tree= will be ignored.
+
+ The loader now supports builds using bcm2835_defconfig, which selects the upstreamed BCM2835 support. This
+ configuration will cause bcm2835-rpi-b.dtb and bcm2835-rpi-b-plus.dtb to be built.
+
+
+ https://github.com/raspberrypi/firmware/tree/master/boot
+  	bcm2710-rpi-3-b-plus.dtb
+
+
+ https://www.raspberrypi.org/forums/viewtopic.php?t=212977
+  You don't actually 'run' dtb files. They are scanned on startup and used to set up the HW in the system.
+
+
+ DTB files are specific to the model of device they are intended for. Clearly there is a lot of commonality, between Pi
+HW versions so the DTB's are very similar. However the 3B+ has a different Wireless chip, AND a different ethernet
+chip, AND some other changes, so there are clear differences required in the DTB. You could C&P the specific bits from
+one DTB to another, rebuild, and see if that works.
+
+
+
+
+
+
+           
+        
+ 
+
+
+     
+      
+  

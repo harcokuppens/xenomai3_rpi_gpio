@@ -1,0 +1,122 @@
+
+
+
+test which rpi board
+
+   cat /proc/device-tree/model
+   cat /proc/device-tree/compatible
+   
+test xenomai
+  - commands about info  xenomai is running
+
+
+      You can check if xenomai is running by running the command:
+
+          ls /proc/xenomai
+
+      which version with
+
+          cat /proc/xenomai/version
+  
+  - Testing the real-time system 
+  
+    note: this test is independent of gpio -> just tests cobalt kernel for latency
+
+       First, become root
+       
+         $ sudo su - 
+       
+       the run the latency test:
+
+         $ /usr/xenomai/bin/latency
+
+       If the latency test succeeds, you should try next to run the xeno-test test in order to assess the worst-case
+       latency of your system. Try:
+
+          $ /usr/xenomai/bin/xeno-test --help
+
+         e.g. run:
+
+          $ /usr/xenomai/sbin/autotune
+            # https://www.xenomai.org/documentation/xenomai-3/html/man1/autotune/
+            # autotune is a utility to determine the best calibration values (aka gravity triplet) for the core clock timer.
+
+          $ /usr/xenomai/bin/xeno-test
+            # runs latency test with dohell running
+
+ 
+        also see: 
+        ./notes/interrupts/interrupt_latency_stress_cyclictext.txt
+        ./notes/xenomai__cobalt_and_mercury__RT_PREEMPT.txt
+
+
+test gpio pins
+
+ 
+  - command checking gpio pins are up
+  
+      for using gpio pins you need to have  the  "xeno_gpio_bcm2835" module to be loaded,
+      you can check this with
+
+          lsmod
+      
+       if not loaded then load with 
+       
+          modprobe xeno_gpio_bcm2835
+      
+
+       then:
+          $ls /dev/rtdm/pinctrl-bcm/
+           -> lists gpio0 ... gpio53 
+
+
+  - try simple basic programs to check what in GPIO is not working
+
+      requirement: 
+         for this check we need the electronic scheme 
+         
+              circuit/combined__button_toggles_led__output_driven_irq.png
+         
+         which is also sed and described in 
+                
+              http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
+                   
+
+        https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/linux/wiringpi_examples
+
+         with a xenomai patched kernel the linux based examples should also still work
+          -> if something wrong with patch, then these could also break!!
+  
+          make
+          ./blink    -> test gpio output
+          ./output_driven_irq    ->  test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
+  
+          ./button_toggles_led    ->  press button to toggle led  , test both interrupt from button and  output
+
+        http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
+
+        NOTE: answers for exercises and klok program at:
+              /home/harcok/pictures-test/help/realtime/des_realtime_exercises/xenomai3/answers
+             https://svn.cs.ru.nl/repos/des_realtime_exercises/xenomai3/answers
+
+        test gpio output :
+
+            Exercise 7a.
+               Write a program which makes the led blink on and off with a period of 500 milliseconds.
+
+        test interupt: 
+            Exercise 7b.
+               Extend the program of 7a such that it counts the interrupts on the yellow line to pin 24. Print the value of the counter after each interrupt. 
+
+            or 
+    
+            Exercise 7c. 
+               Write a program which counts the interrupts on pin 23 caused by the switch. At each interrupt, toggle the LED on
+               or off and print the value of the counter. Describe and explain the output of the program.
+
+
+        final test :  run clock program!!  => should work!!
+
+               
+
+          
