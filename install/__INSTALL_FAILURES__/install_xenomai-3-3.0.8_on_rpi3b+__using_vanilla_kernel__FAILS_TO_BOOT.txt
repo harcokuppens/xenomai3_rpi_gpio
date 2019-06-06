@@ -1,78 +1,5 @@
 
 
-drivers installations found online
-----------------------------------
-
-http://www.simplerobot.net/2018/06/rpi23-deploy-xenomai-kernel.html
- ==> uses rasbpian  kernel code github.com/raspberrypi/linux.git
-
- => source at https://github.com/thanhtam-h/rpi23-4.9.80-xeno3
-   
-   
- => I did  build myself : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/scripts
-    and did not:  install from prebuild binaries:  https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/prebuilt
-   
-
-   =====> lets raspbian bootcode decide the device tree to load!
-   
-   
-   ==> uses patched ipipe : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/blob/master/scripts/ipipe-core-4.9.51-arm-4-for-4.9.80.patch
-   
-     -> did he change something in this patch for drivers/pinctrl/bcm/pinctrl-bcm2835.c for gpio???   
-        => not really ,only    BCM2835_NUM_IRQS vs BCM2835_NUM_BANKS
-   
-   
-    => hmmm, ipipe patch is simular as mine for raspbian?? only  pinctrl-bcm2835.c  differs
-       -> why did it not boot??? 
-       -> probably I did something wrong!!   => retry?
-       
-       -> fact is he did almost same as i did in my first try,
-          but i also patched pinctrl better
-          => so just try to fix patch for pinctrl , other stuff seems to be patched ok!!
-          
-  
-  
-   
-conclusion:
- didn't boot! -> did something wrong??
- also no special fixes for gpio  =>  is this ever tested by thanhtam above ??
-
-
-https://github.com/claudioscordino/rpi3-xenomai
-
- => unclear which kernel source they used???
-
-
-   Append to /boot/config.txt:
-
-     device_tree=bcm2837-rpi-3-b.dtb
-     kernel=kernel-xenomai.img
-
-conclusion:    
- never did this install, because not complete! 
-  
-  
- 
- 
-   
-http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
-   => uses vanilla kernal, (kernel.org) 
-   => uses kernel.org's  default config for rpi  : multi_v7_defconfig
-   => uses kernel.org's  kernel tree, patched by standard ipipe patch  => “bcm-2837-rpi-b-cobalt.dtb”
-   
-    Then the last step regarding the kernel was to set which device tree to be used. 
-    
-  ===>     The device tree was given by Xenomai, which was called “bcm-2837-rpi-b-cobalt.dtb”.    => hmmm, how does xenomai know the right device tree??
-     
-    It was added to “config.txt” inside the SD card boot partition. The device tree was set by writing “device tree=bcm2837-rpi-b-cobalt.dtb”.
-   
- conclusion:
-   did this install (see below), it did boot, however gpio numbers where very wrong, also different wrong as in his report
-    in his report he said he patch pinctrl afterall  => not documented how??
-    => did he ever tested the gpio ports??   In experiments he used my old image!
-    
-    
-    
 
 ----------------------------------------------------------------------------------------   
 
@@ -119,8 +46,20 @@ problem to tackle
        were merged and the kernel was recompiled. The device driver then showed the correct pin numbers.
         => unfortunately not documented!
 
+details
+--------
 
-
+From http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
+   => uses vanilla kernal, (kernel.org) 
+   => uses kernel.org's  default config for rpi  : multi_v7_defconfig
+   => uses kernel.org's  kernel tree, patched by standard ipipe patch  => “bcm-2837-rpi-b-cobalt.dtb”
+   
+    Then the last step regarding the kernel was to set which device tree to be used. 
+    
+  ===>     The device tree was given by Xenomai, which was called “bcm-2837-rpi-b-cobalt.dtb”.    => hmmm, how does xenomai know the right device tree??
+     
+    It was added to “config.txt” inside the SD card boot partition. The device tree was set by writing “device tree=bcm2837-rpi-b-cobalt.dtb”.
+   
 
 
 vanilla kernel install
@@ -265,10 +204,22 @@ cp -r dist/lib/modules/* ${MOUNTPOINT}/lib/modules
 
 
 
-  
- => did boot, but gpio numbers completely wrong, also different wrong as in report 
-    unclear how to fix???
+
+conclusion:
+-----------
+   did this install, it did boot, however gpio numbers where very wrong, 
+   
+   
+    in his report he noticed that the pin numbers where wrong, but he mentions wrong with some offset which 
+    was different from mine offset.  
+    He said in his report that he had to patch pinctrl to fix it.
+    However he did not documented this patch and when I emailed him he said he hadn't access to it anymore.
+   
+    =>I also asked myself: did he ever tested the gpio ports??  
+      In the experiments he used my old image!
     
+  
+
     
  
  

@@ -84,16 +84,31 @@ test gpio pins
 
         https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/linux/wiringpi_examples
 
+        download this folder with the command:
+          svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/linux/wiringpi_examples
+          
+
          with a xenomai patched kernel the linux based examples should also still work
           -> if something wrong with patch, then these could also break!!
   
           make
           ./blink    -> test gpio output
+          
+          
           ./output_driven_irq    ->  test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
   
           ./button_toggles_led    ->  press button to toggle led  , test both interrupt from button and  output
 
+
+
+       svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs/output_driven_irq
+
+
         http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
+
+
+
+
 
         NOTE: answers for exercises and klok program at:
               /home/harcok/pictures-test/help/realtime/des_realtime_exercises/xenomai3/answers

@@ -2,131 +2,92 @@
 
 
 
-kernel  config  ARCH_BCM2835 -> enables PINCTRL_BCM2835
---------------------------------------------------------
 
-./arch/arm/mach-bcm/Makefile
-
-# BCM2835
-obj-$(CONFIG_ARCH_BCM2835)  += board_bcm2835.o
-
-./arch/arm/mach-bcm/Kconfig
-
-config ARCH_BCM2835
-    bool "Broadcom BCM2835 family"
-    depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
-    select GPIOLIB
-    select ARM_AMBA
-    select ARM_ERRATA_411920 if ARCH_MULTI_V6
-    select ARM_TIMER_SP804
-    select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
-    select CLKSRC_OF
-    select BCM2835_TIMER
-    select FIQ
-    select PINCTRL
-    select PINCTRL_BCM2835                                <===
-    select MFD_SYSCON if ARCH_MULTI_V7
-    help
-      This enables support for the Broadcom BCM2835 and BCM2836 SoCs.
-      This SoC is used in the Raspberry Pi and Roku 2 devices.
-
-
-
-./drivers/pinctrl/bcm/Kconfig:19:config PINCTRL_BCM2835
-
-config PINCTRL_BCM2835
-    bool
-    select PINMUX
-    select PINCONF
-
-./drivers/pinctrl/bcm/Makefile:4:obj-$(CONFIG_PINCTRL_BCM2835)          += pinctrl-bcm2835.o
-
-   # Broadcom pinctrl support
-
-   obj-$(CONFIG_PINCTRL_BCM281XX)      += pinctrl-bcm281xx.o
-   obj-$(CONFIG_PINCTRL_BCM2835)       += pinctrl-bcm2835.o                <===
-   obj-$(CONFIG_PINCTRL_IPROC_GPIO)    += pinctrl-iproc-gpio.o
-   obj-$(CONFIG_PINCTRL_CYGNUS_MUX)    += pinctrl-cygnus-mux.o
-   obj-$(CONFIG_PINCTRL_NSP_GPIO)      += pinctrl-nsp-gpio.o
-   obj-$(CONFIG_PINCTRL_NS2_MUX)       += pinctrl-ns2-mux.o
-   obj-$(CONFIG_PINCTRL_NSP_MUX)       += pinctrl-nsp-mux.o
-   
-   
-use kernel config  ARCH_BCM2835  ;  old and obsolete are the configs ARCH_BCM2708 and ARCH_BCM2709   
----------------------------------------------------------------------------------------------------
-
-https://github.com/raspberrypi/linux/commits/rpi-4.8.y/arch/arm/mach-bcm
-  Drop ARCH_BCM2708 and ARCH_BCM2709
-  
-  
-  
-   => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
-
-        Drop ARCH_BCM2708 and ARCH_BCM2709
-
-           They are not necessary anymore since both are based on ARCH_BCM2835.
-           Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
-
-       Signed-off-by: Noralf Trønnes <noralf@tronnes.org>
-
-        arch/arm/mach-bcm/Kconfig
-      	 - depends on ARCH_BCM2708
-      	 + depends on ARCH_BCM2835 && ARCH_MULTI_V6
-
-       also removed :
-        config ARCH_BCM2708
-        	bool "Broadcom BCM2708 family"
-        	depends on ARCH_MULTI_V6
-        	select ARCH_BCM2835
-        	help
-        	  This enables support for Broadcom BCM2708 boards.
-
-        config ARCH_BCM2709
-        	bool "Broadcom BCM2709 family"
-        	depends on ARCH_MULTI_V7
-        	select ARCH_BCM2835
-        	select HAVE_SMP
-        	select MFD_SYSCON
-        	help
-        	  This enables support for Broadcom BCM2709 boards.
-
- 
- 
-
-
-
-
-found : https://github.com/torvalds/linux/blob/master/Documentation/devicetree/bindings/arm/bcm/brcm%2Cbcm2835.txt
- 
-    Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:35:compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
-    Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:39:compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
-        
-
-    Raspberry Pi 3 Model B
-    Required root node properties:
-    compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
-
-
-    Raspberry Pi 3 Model B+
-    Required root node properties:
-    compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
-
-
-
-=> so   Raspberry Pi 3 Model B+  compatible with  Raspberry Pi 3 Model B
-
-
-
-
-
-#
-
-    
+idea: just upgrade old image
+----------------------------    
              
+idea: 
+     my old xenomai image was build for debian jessie  for the rpi3b, but not for the rpi3b+ which has newer hardware
+     
+     so just upgrade only the kernel and xenomai in our  debian jessie installation for xenomai 3.05 which
+     to also let is support rpi3b+ 
+     
+answer:
+ 
+  => cannot do, need new stretch debian release because jessie doesn't support the new hardware
+     also the device tree for the rpi3b+ was not available then yet ! (hardware of 3b+ was made later!)
+       
+       
+       src:   https://www.raspberrypi.org/forums/viewtopic.php?t=223806
+
+          The firmware in Jessie was released before the 3B+ even existed. 
+          It does not know how to boot it up properly. So you need the latest firmware.
+
+          The 3B+ also has different peripherals (USB, Ethernet, Wifi...) so it also 
+          needs new kernel drivers that  are not present in Jessie. Jessie is no longer supported.
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  `-> new hardware only suppored in stretch, not in jessie!
+                  
+          You are probably much better to address any issues you have with Stretch, rather than trying to get Jessie working on a 3B+.
 
 
-installation
-------------
+          => it also needs new kernel drivers,  so upgrading my old system to new system, with old kernel and its modules 
+             won't work because misses the new hardware drivers
+   
+          => so solution: recompile old kernel on new system won't work because lack of new device driver code!
+
+
+
+
+   
+versions
+========
+
+so we need to upgrade to debian stretch to support rpi3b+
+
+
+
+first choose xenomai/ipipe version to patch xenomai on raspbian kernel  
+
+    https://www.xenomai.org/downloads/ipipe/v4.x/arm/
+  
+    [TXT] ipipe-core-4.14.110-arm-7.patch 2019-04-03 19:24  595K   ==> to recent patches are applied -> can contain still a bug
+    [TXT] ipipe-core-4.14.36-arm-1.patch  2018-06-12 19:12  587K  
+    [TXT] ipipe-core-4.14.62-arm-2.patch  2018-09-13 14:57  591K  
+    [TXT] ipipe-core-4.14.71-arm-3.patch  2018-09-24 15:04  594K  
+    [TXT] ipipe-core-4.14.71-arm-4.patch  2018-10-13 15:59  594K  
+    [TXT] ipipe-core-4.14.85-arm-5.patch  2018-12-06 12:40  594K  
+    [TXT] ipipe-core-4.14.85-arm-6.patch  2018-12-19 20:44  594K  
+    [TXT] ipipe-core-4.19.33-arm-1.patch  2019-04-04 10:53  593K   
+    [TXT] ipipe-core-4.4.71-arm-9.patch   2017-10-03 12:35  672K  
+    [TXT] ipipe-core-4.9.51-arm-4.patch   2018-03-26 09:16  700K   ==> seems to be stable!!!! 
+   
+   
+     => choose ipipe version which seems the stables =
+         -  take   ipipe-core-4.9.51-arm-4.patch
+         
+then match on that the raspbian version 
+  for raspbian versions look at https://github.com/raspberrypi/linux
+   => gives raspbian rpi 4.9.y
+
+
+we use the latest xenomai version:   xenomai 3.0.8   (april 2019)   
+
+
+on the sd card install a lite raspbian version so that image becomes small
+    https://www.raspberrypi.org/downloads/raspbian/
+
+
+    Raspbian Stretch Lite
+    Minimal image based on Debian Stretch
+    Version: April 2019
+    Release date: 2019-04-08
+    Kernel version: 4.14
+     => 2019-04-08-raspbian-stretch-lite.zip
+    
+
+installation ingredients
+========================
 
   based on  
     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt
@@ -184,11 +145,12 @@ installation
      So with some work I derived a new ipipe/xenomai patch file for pinctrl-bcm2835.c in the rpi-4.9 kernel source.
      This patch 'pinctrl-bcm2835.c.rpi-4.9.patch' must be applied to  pinctrl-bcm2835.c in the rpi-4.9 kernel source
      and we should remove the  ipipe/xenomai patches for pinctrl-bcm2835.c  from the ipipe-core-4.9.51-arm-4.patch.
+     
      For details how derived this patch see:  
      
-        how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived.txt
+     
+        how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt
         
-
 
   ad c) we need to patch the ipipe-core-4.9.51-arm-4.patch a little so that it also worked
        on the raspbian 4.9.80 kernel. We also removed all patches for 'pinctrl-bcm2835.c' because
@@ -203,6 +165,10 @@ installation
    c) ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
    d) pinctrl-bcm2835.c.rpi-4.9.patch
      
+
+
+installation recipe
+====================
  
 
 # 0. prepare 
@@ -563,7 +529,6 @@ $ ------------------------------
 
 cd xenomai-3.0.8
 ./scripts/bootstrap 
-#./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt –enable-debug=partial
 ./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt 
 
 #
@@ -665,17 +630,26 @@ mv  ${MOUNTPOINT}/boot/zImage ${MOUNTPOINT}/boot/kernel7.img
 umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
 
 
+
+# 4. test installation
+
+see test_xenomai_installation_and_test_gpio_pins_are_working_correct.txt
+
+
+
+
+
 sudo systemctl enable ssh.service
 sudo systemctl start ssh.service
 
 sudo apt-get install git 
 sudo apt-get install subversion
 sudo apt-get install vim
-apt-get install wiringpi
+sudo apt-get install wiringpi
+sudo apt-get install gpm  # support for mouse in terminal
            
            
            
-
 
 
 fix kernel, so not by accident updated :            
@@ -688,90 +662,3 @@ fix kernel, so not by accident updated :
                 
 
 
-========
-FAILURE
-========
-
-
-load xenomai realtime gpio module : 
- 
- http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf            
- modprobe xeno-gpio-bcm2835            => used to be "xeno_gpio"  
- 
-
-=>  gpio not working,  realtime  gpio out didn't even work, and on gpio interrupt it crashed, both for realtime xenomai program as for wiringpi interrupt program
-
-
-
-TODO
-===== 
-
-TODO: 
-
-try different kernels  to get GPIO working
-
-  A) vanilla kernel
-       -> standaard ipipe-patch should work                                                                    1
-   
-  B) rpi kernel      
-       -> ipipe patch must be patched
-       -> special patch for bcm3835.c where rpi code differs largely from vanilla kernel's source
-            * from 4.1 version derived patch and applied this to 4.9 version  => crashed
-                 -> analyze what could went wrong??
-            * just take original source 
-                  old 4.1 source                                                                               3
-                  or 4.9 ipipe patched version => see A)                                                       2
-                  
-        
-  
-  
- finish rpi
- finish report rotating klok
- 
- finish efsm + dag + test algorithm improved
- 
- 
-  
- 
-boot/config  changes??
----------------------- 
-
-
-
- https://www.raspberrypi.org/documentation/configuration/device-tree.md
-
- A kernel built from the rpi-4.4.y tree (and later) will not function without a DTB, so from the 4.4 releases onwards,
- any kernel without a trailer is assumed to be DT-capable. You can override this by adding a trailer without the DTOK
- flag or by putting device_tree= in config.txt, but don't be surprised if it doesn't work. N.B. A corollary to this is
- that if the kernel has a trailer indicating DT capability then device_tree= will be ignored.
-
- The loader now supports builds using bcm2835_defconfig, which selects the upstreamed BCM2835 support. This
- configuration will cause bcm2835-rpi-b.dtb and bcm2835-rpi-b-plus.dtb to be built.
-
-
- https://github.com/raspberrypi/firmware/tree/master/boot
-  	bcm2710-rpi-3-b-plus.dtb
-
-
- https://www.raspberrypi.org/forums/viewtopic.php?t=212977
-  You don't actually 'run' dtb files. They are scanned on startup and used to set up the HW in the system.
-
-
- DTB files are specific to the model of device they are intended for. Clearly there is a lot of commonality, between Pi
-HW versions so the DTB's are very similar. However the 3B+ has a different Wireless chip, AND a different ethernet
-chip, AND some other changes, so there are clear differences required in the DTB. You could C&P the specific bits from
-one DTB to another, rebuild, and see if that works.
-
-
-
-
-
-
-           
-        
- 
-
-
-     
-      
-  

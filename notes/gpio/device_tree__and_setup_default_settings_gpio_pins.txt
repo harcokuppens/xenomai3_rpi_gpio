@@ -15,15 +15,139 @@ locations of nodes and properties within the tree can be described using a path,
 single slash (/) to indicate the root.
 
 
+
+
+https://www.wikiwand.com/en/Device_tree
+
+
+In computing, a device tree (also written devicetree) is a data structure describing the hardware components of a
+particular computer so that the operating system's kernel can use and manage those components, including the CPU or
+CPUs, the memory, the buses and the peripherals.
+  
+  
+usage: 
+  - not used in Personal computers with the x86 architecture generally do not use device trees, relying instead on various auto
+      configuration protocols to discover hardware. 
+
+  - on Arm, device trees have been mandatory for all new SoCs since 2012
+  
+      Systems which use device trees usually pass a static device tree (perhaps stored in ROM) to the operating system,
+      but can also generate a device tree in the early stages of booting. On systems with a boot loader that does not
+      support device trees, a static device tree may be installed along with the operating system; the Linux kernel
+      supports this approach. 
+      
+       -> in linux you must staticly pass a device tree!! (dtb file!!)
+
+      => comes down to :  
+          - for each specific rpi you must use the right .dtb file
+          - have the right drivers compiled for the kernel !!  => the right peripherals configured in the kernel config (drivers)
+
+
+
+https://elinux.org/Device_Tree_Reference#What_Is_Device_Tree
+
+ The primary purpose of Device Tree in Linux is to provide a way to describe non-discoverable hardware. This
+information was previously hard coded in source code.
+
+
+
+https://www.quora.com/What-is-a-Device-Tree-in-Linux
+
+ Device Tree is a data structure for describing the hardware.This is where specific information about the hardware is
+conveyed. It can be used to avoid hard coding of every detail of a device into an Operating System. 
+
+ * The device tree is passed to the kernel at boot time. 
+ * The kernel then reads through it to learn about what kind of system it is actually running on.
+ * informs the kernel about a specific piece of hardware
+ * the kernel can select the appropriate driver to handle it      =>harco: a driver module must be compiled otherwise it cannot be selected!!
+ 
+ 
+The Device Tree is where we inform the kernel about a specific piece of hardware that we have added or removed, so that
+the kernel can select the appropriate driver to handle it or refrain from doing so, if the hardware was removed.
+
+".dts" & ".dtsi" files are similar to an XML file which contains data. .dtsi file acts like a header file
+and you need to include this in your .dts file if you have added some data in dtsi file which needs to be used by the
+dts file.
+      
+
+    
+say you make a hardware change in your system 
+ 
+   then next time you boot your system, it is this data structure only which will provide your new hardware details to
+   the boot handler (which passes it to the kernel) and boot the processor/computer accordingly.
+    
+  
+      
+https://stackoverflow.com/questions/17440620/what-is-device-treeadvantages-disadvantages
+
+Some of the advantages include:
+
+    Simple to change the configuration of the system without having to recompile any source code.
+    Can easily add support for new hardware (for example if you have a new rev of a board which only changes some minor components, you may be able to run the same software load as previous revs of the board, with only small changes to the .dts file on the new board...)
+    Can reuse existing .dts files with include statements, and can override previously defined functionality. For example if you include a dtsi (device tree include file) that defines a hardware component, but has it disabled, then you can just create a new node in your higher level dts file that does nothing but enable that component.
+    They (can) provide easy to read and understand descriptions of the hardware, and can give hardware components descriptive names.
+
+Some of the disadvantages includes:
+
+    Not so easy to write a new .dts file, because it requires very detailed knowledge of the hardware.
+    Even if you know all the details of the hardware it may be hard to figure out the exact syntax to use to express what you want to do... (i.e. the documentation is lacking in many respects)
+    
+For me writing a .dts file is almost 100% trial and error, pulling examples from other .dts files and see what it does
+and if it gets closer to what I want... Often times the examples are all I have to work with, and there isn't much in
+the way of an explanation of what is going on.
+
+   
+
+
+
+device tree issues for raspbery pi
+----------------------------------
+
+
+
+https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
+ A kernel built from the rpi-4.4.y tree (and later) will not function without a DTB, so from the 4.4 releases onwards,
+ any kernel without a trailer is assumed to be DT-capable. You can override this by adding a trailer without the DTOK
+ flag or by putting device_tree= in config.txt, but don't be surprised if it doesn't work. N.B. A corollary to this is
+ that if the kernel has a trailer indicating DT capability then device_tree= will be ignored.
+
+ The loader now supports builds using bcm2835_defconfig, which selects the upstreamed BCM2835 support. This
+ configuration will cause bcm2835-rpi-b.dtb and bcm2835-rpi-b-plus.dtb to be built.
+
+
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=212977
+ You don't actually 'run' dtb files. They are scanned on startup and used to set up the HW in the system.
+
+
+ DTB files are specific to the model of device they are intended for. Clearly there is a lot of commonality, between Pi
+ HW versions so the DTB's are very similar. However the 3B+ has a different Wireless chip, AND a different ethernet
+ chip, AND some other changes, so there are clear differences required in the DTB. You could C&P the specific bits from
+ one DTB to another, rebuild, and see if that works.
+
+  => boot code of raspberry pi automatically loads right device tree and gives it to the kernel 
+     as long  not a specific device tree is specified in  /boot/config.txt
+  
+    eg. example static config
+      
+      https://lemariva.com/blog/2018/07/raspberry-pi-xenomai-patching-tutorial-for-kernel-4-14-y
+
+      kernel=${zImage name}
+      device_tree=bcm2710-rpi-3-b.dtb
+
+      
+
 https://www.raspberrypi.org/forums/viewtopic.php?f=107&t=120715
 
-view device tree in rpi: 
+view which device tree model is used in a running rpi: 
 
 
   cat /proc/device-tree/model
   
-  
-  
+
+
 
 Raspberry Pi uses Device Tree(DT) using /boot/config.txt
 --------------------------------------------------------

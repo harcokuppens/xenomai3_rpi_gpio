@@ -135,31 +135,76 @@ installations
               https://www.blaess.fr/=>  https://www.blaess.fr/christophe/
 
 
-       
-gpio experiments :
-     http://wiki.csie.ncku.edu.tw/embedded/xenomai
-      => http://wiki.csie.ncku.edu.tw/embedded/xenomai#%E7%A4%BA%E6%B3%A2%E5%99%A8-%E5%AF%A6%E9%A9%97
 
 
-            Source code
 
-                https://github.com/jacky6016/GPIO-test
-
-                https://github.com/erickitten/GPIO_test_xenomai3_2
-
-            reslut      
-                Driver model 	max latency(µs)
-
-                rpi xenomai-2 RTDM        4.71
-
-                beaglebone xenomai-2 RTDM 7.46
-
-                rpi xenomai-3 RTDM        7.022
-
-                rpi xenomai-2 linux native   10.92
-
-                rpi xenomai-2 user-level(python)     244
+when creating image for rpi3b+ using raspbian/stretch: found following installation descriptions
+---------------------------------------------------------------------------------------------------
 
 
-                => seems uses only rpi 1 for gpio experiments  => no rpi3 in list!
+https://github.com/claudioscordino/rpi3-xenomai
 
+ => unclear which kernel source they used???
+
+
+   Append to /boot/config.txt:
+
+     device_tree=bcm2837-rpi-3-b.dtb
+     kernel=kernel-xenomai.img
+
+conclusion:    
+ never did this install, because not complete! 
+  
+  
+ 
+ 
+   
+http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
+   => uses vanilla kernal, (kernel.org) 
+   => uses kernel.org's  default config for rpi  : multi_v7_defconfig
+   => uses kernel.org's  kernel tree, patched by standard ipipe patch  => “bcm-2837-rpi-b-cobalt.dtb”
+   
+    Then the last step regarding the kernel was to set which device tree to be used. 
+    
+  ===>     The device tree was given by Xenomai, which was called “bcm-2837-rpi-b-cobalt.dtb”.    => hmmm, how does xenomai know the right device tree??
+     
+    It was added to “config.txt” inside the SD card boot partition. The device tree was set by writing “device tree=bcm2837-rpi-b-cobalt.dtb”.
+   
+ conclusion:
+   did this install (see below), it did boot, however gpio numbers where very wrong, also different wrong as in his report
+    in his report he said he patch pinctrl afterall  => not documented how??
+    => did he ever tested the gpio ports??   In experiments he used my old image!
+    
+    
+
+http://www.simplerobot.net/2018/06/rpi23-deploy-xenomai-kernel.html
+ ==> uses rasbpian  kernel code github.com/raspberrypi/linux.git
+
+ => source at https://github.com/thanhtam-h/rpi23-4.9.80-xeno3
+   
+   
+ => I did  build myself : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/scripts
+    and did not:  install from prebuild binaries:  https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/tree/master/prebuilt
+   
+
+   =====> lets raspbian bootcode decide the device tree to load!
+   
+   
+   ==> uses patched ipipe : https://github.com/thanhtam-h/rpi23-4.9.80-xeno3/blob/master/scripts/ipipe-core-4.9.51-arm-4-for-4.9.80.patch
+   
+
+   
+   
+    => hmmm, ipipe-core-4.9.51-arm-4-for-4.9.80.patch patch is simular as mine for raspbian
+         and his   pinctrl-bcm2835.c  patch in his ipipe-core-4.9.51-arm-4-for-4.9.80.patch file
+         is the same a mine separate patch for this file. The only difference is that he 
+         like the original ipipe patch for kernel.org  didn't patch
+            spin_lock_init(&pc->irq_lock[i]);   => raw_spin_lock_init(&pc->irq_lock[i]);
+         which the rpi 4.1 patch did, and my new rpi 4.9 patch also does
+             
+        So I think it should work.     
+                 
+     => I build it but it didn't boot, probably I did something wrong in the kernel installation
+        That is unfortunate because otherwise I would have been done earlier!!
+        However I learned a lot.
+        
