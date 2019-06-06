@@ -101,7 +101,7 @@ So we want the derive the ipipe patched version of pinctrl-bcm2835.c for rpi-4.9
         
      => So something was not right with this patch. 
         
-        To found out what I first fetched the ipipe-core-4.9.51-arm-4.fixed.patch for the kernel.org
+        To found out what I first fetched the ipipe-core-4.9.51-arm-4.patch for the kernel.org
         kernel and extracted the patch specificly for the pinctrl-bcm2835.c
         file in the file ipipe-core-4.9.51-arm-4.only-for-pinctrl-bcm2835.patch
         

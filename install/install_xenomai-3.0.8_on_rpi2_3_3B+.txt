@@ -1,5 +1,10 @@
 
 
+install xenomai 3.0.8 on rpi3B+
+===============================
+
+Note that this image also works on all other rpi3's and rpi2's. 
+But not on the rpi1 and rpi zero because they have a different type of ARM processor. However
 
 
 
