@@ -3,9 +3,17 @@
 install xenomai 3.0.8 on rpi3B+
 ===============================
 
-Note that this image also works on all other rpi3's and rpi2's. 
-But not on the rpi1 and rpi zero because they have a different type of ARM processor. However
+Note that this image also works on all other rpi3's and rpi2's. (Cortex-A7/ARMv7 and Cortex-A53/ARMv8 cpu's are compatible)
+But not on the rpi1 and rpi zero because they have a different type of ARM processor. (ARM1176JZF-S/ARMv6Z)
+However using a different default config for the kernel build we can also easily build an image for rpi1 and rpi zero.
+We can then put both images on the sd-card and on boot the bootloader will automatically load the right kernel 
+for the specific raspbian hardware board. For more details see: 
 
+    https://www.raspberrypi.org/documentation/linux/kernel/building.md => describes default configs to use in bulid
+    https://pi-ltsp.net/advanced/kernels.html
+    https://en.wikipedia.org/wiki/Raspberry_Pi#Specifications
+     and 
+    install_xenomai-3-3.0.5_on_rpi1__ipipe_git.txt 
 
 
 idea: just upgrade old image
@@ -210,11 +218,11 @@ tar -xjvf xenomai-3.0.8.tar.bz2
 #
 # 1c. get ipipe  patch  (effects both kernel and some drivers(using interrupts))
 wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch
+
 #
 # 1d. we derived a new patch for pinctrl-bcm2835.c for raspbian 4.9 kernel : pinctrl-bcm2835.c.rpi-4.9.patch
-      In the file  how_pinctrl-bcm2835_patch_is_derived.txt we describe how we derived this file. 
-
-wget 
+#     In the file  how_pinctrl-bcm2835_patch_is_derived/__README__.txt we describe how we derived this file. 
+wget https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi_gpio/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/pinctrl-bcm2835.c.rpi-4.9.patch
 
 
 
@@ -240,6 +248,10 @@ echo $?   # if it doesn't gives 0 as answer then dry-run of patch failed!
 # in our case we got 1, so we need to fix the patch!!  => look at FAILED messages in patch output!!
 # so we manually patched the patch file which gives us the new patch file:
 #   ../ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+# you can download this fixed patch with the command :
+
+wget https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi_gpio/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+
 # note: in this fixed patch we removed all patches for drivers/pinctrl/bcm/pinctrl-bcm2835.c because 
 #       as already described above the raspbian patch is better for this file then the ipipe-4.9.y version.
 
@@ -426,7 +438,10 @@ cd linux
                       => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
                                config file, because it is special for the raspbian kernel!
                        
-                       
+           official documentation: 
+             https://www.raspberrypi.org/documentation/linux/kernel/building.md
+               => says to use bcmrpi_defconfig for rpi1 and  bcm2709_defconfig  for rpi2 and rpi3        
+
 
 # create default config for bcm2709
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
