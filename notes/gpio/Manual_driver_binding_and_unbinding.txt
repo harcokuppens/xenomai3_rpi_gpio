@@ -1,3 +1,29 @@
+https://en.wikipedia.org/wiki/Sysfs
+
+
+During the 2.5 development cycle, the Linux driver model was introduced to fix several shortcomings of version 2.4:
+
+    No unified method of representing driver-device relationships existed.
+    There was no generic hotplug mechanism.
+    procfs was cluttered with non-process information.
+
+Sysfs was designed to export the information present in the device tree which would then no longer clutter up procfs. 
+
+sysfs is a pseudo file system provided by the Linux kernel that exports information about 
+- various kernel subsystems, 
+- hardware devices, 
+- and associated device drivers 
+from the kernel's device model to user space through virtual files.[1] In addition to providing information about various devices and
+kernel subsystems, 
+
+    exported virtual files are also used for their configuration.
+
+sysfs provides functionality similar to the sysctl mechanism found in BSD operating systems, with the difference that sysfs is implemented as a
+virtual file system instead of being a purpose-built kernel mechanism, and that, in Linux, sysctl configuration parameters are made available at
+/proc/sys/ as part of procfs, not sysfs which is mounted at /sys/.[2]
+
+
+
  Manual driver binding and unbinding
  ===================================
  
@@ -44,6 +70,8 @@
        `-- power
            `-- state
   
+       ok => no "driver" entry listed
+       
     Then, simply write the bus id of the device you wish to bind, into the bind file for that driver:
 
        echo -n "1-1:1.0" > /sys/bus/usb/drivers/usb-storage/bind

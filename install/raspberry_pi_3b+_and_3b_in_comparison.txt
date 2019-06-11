@@ -1,0 +1,94 @@
+raspberry Pi 3B+ and 3B in comparison
+--------------------------------------
+
+    https://www.datenreise.de/en/raspberry-pi-3b-and-3b-in-comparison/
+     => not much different 
+          slightly faster CPU,
+          bluetooth 4.2 (ipv 4.1),
+          also support 1000 Mbit network
+          also support "ac" wifi
+          new : power over ethernet support
+      
+    beide:   
+      
+      CPU 	ARM Cortex-A53 (ARMv8-A) 	  => only differ in clock speed!!
+      
+                        Pi 3B+             3B 
+      SOC 	              BCM2837 	    BCM2837B0                    
+      CPU clock 	4x 1400 MHz New 	4x 1200 MHz
+      Wlan 	    2,4/5 GHz WLAN ac New 	2,4 GHz WLAN b/g/n
+      Bluetooth 	Bluetooth 4.2 New 	Bluetooth 4.1
+      
+      
+      
+      10/100 Mbit/s Ethernet,                               10/100/1000 Mbit/s Ethernet[70] (real speed max 300 Mbit/s[82]),                               
+      802.11b/g/n single band 2.4 GHz wireless,             802.11b/g/n/ac dual band 2.4/5 GHz wireless,                              
+      Bluetooth 4.1 BLE 	                                 Bluetooth 4.2 LS BLE
+   
+   
+   also see: https://blog.pimoroni.com/a-deep-dive-into-the-raspberry-pi-3-b-hardware/
+      
+   see also https://en.wikipedia.org/wiki/Raspberry_Pi#Specifications
+           https://www.raspberrypi.org/documentation/hardware/raspberrypi/
+      
+      
+   https://www.raspberrypi.org/blog/raspberry-pi-3-model-bplus-sale-now-35/
+   
+    BCM2837B0  (CPU,GPU, GPIO,USB,UART,I2C,PWM)
+      The new product is built around BCM2837B0:
+         an UPDATED version of the 64-bit Broadcom application processor  used in Raspberry Pi 3B, 
+         which incorporates:
+             power integrity optimisations, and a heat spreader (that’s the shiny metal
+             bit you can see in the photos). Together these allow us to reach higher clock frequencies (or to run at lower
+             voltages to reduce power consumption), and to more accurately monitor and control the temperature of the chip.
+             
+             => don't think GPIO is changed!!
+             
+          -> src: https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2837b0/README.md
+
+           https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/README.md   
+             https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/BCM2835-ARM-Peripherals.pdf 
+      
+      
+              BCM2835 => contains both ARM chip and GPU!!
+      
+              BCM2835 contains the following peripherals which may safely be accessed by the ARM:
+              • Timers
+              • Interrupt controller
+              • GPIO
+              • USB
+              • PCM / I2S
+              • DMA controller
+              • I2C master
+              • I2C / SPI slave
+              • SPI0, SPI1, SPI2
+              • PWM
+              • UART0, UART1
+       
+              The purpose of this datasheet is to provide documentation for these peripherals in sufficient detail to allow a developer to port an operating system to BCM2835.
+              There are a number of peripherals which are intended to be controlled by the GPU. These are omitted from this datasheet. Accessing these peripherals from the ARM is not recommended.
+      
+           https://computer.howstuffworks.com/raspberry-pi2.htm
+    
+             ARM CPU/GPU -- This is a Broadcom BCM2835 System on a Chip (SoC) that's made up of an ARM central processing unit
+             (CPU) and a Videocore 4 graphics processing unit (GPU). The CPU handles all the computations that make a computer
+             work (taking input, doing calculations and producing output), and the GPU handles graphics output.
+    
+           
+
+
+    Cypress CYW43455 “combo” chip ( WLAN, Bluetooth)
+        Dual-band wireless LAN and Bluetooth are provided by the Cypress CYW43455 “combo” chip, connected to a Proant
+        PCB antenna similar to the one used on Raspberry Pi Zero W. Compared to its predecessor, Raspberry Pi 3B+
+        delivers somewhat better performance in the 2.4GHz band, and far better performance in the 5GHz band, as
+        demonstrated by these iperf results from LibreELEC developer Milhouse.
+    
+    LAN7515  (ethernet controller, usb hub)
+      https://blog.hackster.io/meet-the-new-raspberry-pi-3-model-b-2783103a147
+          ,->wrong  rpi2b,and 3b have LAN9514
+       The LAN7514 chip which has acted as the USB hub and as the Ethernet Controller for the Pi since the Model B+ was
+       released back in 2014, has been replaced by the LAN7515.
+                                                        `-> rpi 3b+
+    => mainly 3 chips!
+    
+      

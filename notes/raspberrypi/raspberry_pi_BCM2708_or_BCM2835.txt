@@ -1,5 +1,164 @@
 BCM2708 or BCM2835?
--------------------
+===================
+
+SHORT answer :
+
+  basicly these are chip names :
+  
+  - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family   => linux driver and  'cat /proc/cpuinfo'  says bcm2708
+                                ||      ||         ||
+  - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
+                                                 
+                               pi1       pi2       pi2.1
+                                                   pi3  
+                                                   
+  however labels  BCM2708 and BCM2835 are used also 
+    
+     + as kernel config parameter (with history causing now ARCH_BCM2835 is used)                                                 
+                                                      
+         - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+           to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+           The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+           Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+            if we use ARCH_BCM2835, we could drop some patches, 
+            and if all Pi specific drivers where in mainline as well, 
+            even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+         - in this switch rasbpian also switched also the gpio driver :
+              ARCH_BCM2708: "bcm2708_gpio"
+              ARCH_BCM2835: "pinctrl-bcm2835"
+           see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
+   
+     + to name default kernel config files:
+     
+         bcm2835_defconfig: is the upstream(kernel.org) defconfig.   =>  used for kernel.org kernel builds
+
+         bcm2709_defconfig: is the one supported by Pi Towers.  (raspbian kernel)  =>  used for rasperry pi's specific raspbian kernel (patched kernel.org kernel)
+      
+      
+     + device tree description files:
+     
+          - kernel.org used  bcm28*.dtb files
+          - raspbian therefore used  bcm27*.dtb files  (to prevent conflict with kernel.org files) 
+
+
+
+========================================================
+
+
+
+
+historic development of kernel support of BCM chip => labeling is caused by history:
+
+ https://www.raspberrypi.org/forums/viewtopic.php?t=116650#p794333
+ 
+    - to support the raspberry specific Soc  raspbain added  support with
+       cpu architecture (ARCH=arm) and board/platform (ARCH_BCM2708). 
+    - ARCH_BCM2708 is the kernel platform code that Broadcom made and was includes into the 
+      raspbian kernel  but not in the  kernel.org kernel because at that time (Pi arrival) 
+      new ARM boards was required to use Device Tree which ARCH_BCM2708 didn't.    
+    - at some poing Pi support ended up in mainline(kernel.org) as ARCH_BCM2835 
+      Note: this ARCH_BCM2835 code differed from the ARCH_BCM2708 code in rasbpian
+    - raspbian had the idea to support kernel.org's ARCH_BCM2835 and apply its specific
+      patches on that code instead of having its own ARCH_BCM2708 software.
+      The reason was that patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+          if we use ARCH_BCM2835, we could drop some patches, 
+          and if all Pi specific drivers where in mainline as well, 
+          even less work had to be spent on adapting and testing patches for each new kernel version.
+      
+      This change took some time and at some point you had two options ARCH_BCM2708 and ARCH_BCM2835 
+      which was confusing.
+      
+    - currently (2019) this switch is done and now raspbian only supports ARCH_BCM2835    
+       => all old code for  ARCH_BCM2708/ARCH_BCM2709 is completely removed
+        see: https://github.com/raspberrypi/linux/pull/1717
+        => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
+
+             Drop ARCH_BCM2708 and ARCH_BCM2709
+
+                They are not necessary anymore since both are based on ARCH_BCM2835.
+                Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+                
+                
+        
+  conclusion:
+       - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+         to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+         The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+         Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+          if we use ARCH_BCM2835, we could drop some patches, 
+          and if all Pi specific drivers where in mainline as well, 
+          even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+       - in this switch rasbpian also switched also the gpio driver :
+            ARCH_BCM2708: "bcm2708_gpio"
+            ARCH_BCM2835: "pinctrl-bcm2835"        
+         see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
+       
+       
+        
+   https://github.com/raspberrypi/linux/wiki/Upstreaming
+    => gives nice historical overview
+      of changes in kernel.org kernel and changes in rpi kernel 
+       
+     upstream means kernel.org source
+     downstream means raspbian own kernel source (patched kernel.org source specific for rpi)
+
+
+    ARCH_BCM2835
+     
+       Downstream is now using ARCH_BCM2835 and has dropped ARCH_BCM2708 and ARCH_BCM2709.
+
+    Downstream default configs
+
+        For Raspberry Pi 1, use bcmrpi_defconfig
+
+        For Raspberry Pi 2 and Pi 3, use bcm2709_defconfig
+
+   history
+   
+     History
+
+     This is an attempt to list (M)ainline efforts (new drivers) to support Raspberry Pi combined with (D)ownstream efforts to close in on mainline.
+     (S)table downstream versions are also listed
+     
+    
+     interesting :
+      
+      2016
+
+        - D: Drop ARCH_BCM2708 and ARCH_BCM2709   => D stands for downstream :  rpi kernel    => only one driver left ARCH_BCM2835
+    
+      2015
+       
+       - D: Enable ARCH_BCM2835 for downstream use     => enable kernel.org's ARCH_BCM2835 code (patched?)   => now two drivers!!
+           https://github.com/raspberrypi/linux/pull/1099
+             This PR makes ARCH_BCM2835 functionally equivalent to ARCH_BCM2708.
+    
+       - D: BCM2708: use pinctrl-bcm2835
+       
+       - M: ARM: bcm2835: Add the Raspberry Pi firmware driver (4.4)      => M stands for mainline : means kernel.org
+          => kernel.org adds rpi support     
+        
+      2012 
+      
+       - M: pinctrl: add bcm2835 driver (3.7)        => M stands for mainline : means kernel.org
+           https://github.com/torvalds/linux/commit/e1b2dc70cd5b00e17c703163a463d82354b1cc76
+           The BCM2835 GPIO module is a combined GPIO controller, (GPIO) interrupt
+           controller, and pinmux/control device.
+       
+
+linux driver (kernel module)
+------------
+   since the 4.8 kernel we only have a single driver "pinctrl-bcm2835"  with config PINCTRL_BCM2835
+   for all raspbian hardware boards!!
+   => src: ../gpio/raspberry_pi__gpio_chip__two_drivers.txt 
+
+hardware numbers
+----------------
 
 https://raspberrypi.stackexchange.com/questions/840/why-is-the-cpu-sometimes-referred-to-as-bcm2708-sometimes-bcm2835
 
@@ -39,7 +198,7 @@ answer 1:
       - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family
       - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
                                    pi1       pi2       pi2.1
-                                                       pi3
+                                                       pi3(b b+)
                                                        
 answer 2 :
 
@@ -53,8 +212,237 @@ answer 2 :
         implementation in the family that can run linux, (and there won't be new models of this family), so it probably
         doesn't matter which model is used, although it should be consistent.
 
-        So it would be reasonable to name all the drivers 2708 but the specific device tree file 2835.
+        So it would be reasonable to name:
+            - all the drivers 2708     => generic driver for family        => use bcm2709_defconfig  for default config!! (for all pi's in family)
+            - but the specific device tree file 2835. => specific hardware!   ===> however raspbian adds its own dts/dtb files under the family name 27.. => probably because 28 already used by kernel.org and to avoid conflict!!  => so practical reason!! 
+                                                      `-> conclusion use  bcm27...dtb files given by raspbian (see below)
 
 
+
+kernel and device tree
+======================
+
+kernel defconfig => use family name
+-----------------------------------
+
+
+which defconfig to use??
+
+  for rpi kernel we had : 
+  
+            $ ls ./arch/arm/configs/bcm*
+            ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
+       
+       
+            note: kernel.org only has ./arch/arm/configs/bcm2835_defconfig
+               https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/arm/configs?h=v4.9.180
+       
+       https://www.raspberrypi.org/forums/viewtopic.php?t=189631
+
+         On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
+         still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
+         kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
+
+         Bcm2835_defconfig is the upstream defconfig.   => original authors  (kernel.org has it)
+
+         Bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
+
+       => so use : ./arch/arm/configs/bcm2709_defconfig     => for 2709 family!! (and the  2710 family so it seems, because only one defconfig for 2709)
+       
+  however vanilla linux kernel doesn't has  bcm* configs!!
+
+
+        http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf 
+        4.1 Xenomai Installation
+
+           A configuration could be chosen from one of the default configurations available in the kernel source tree. The
+           configuration file for RPi 3 was called ”multi v7 defconfig”.
+
+       => so there use ./linux/arch/arm/configs/multi_v7_defconfig    
+
+  
+in newer kernels the kernel config only supports ARCH_BCM2835 and dropped ARCH_BCM2708 and ARCH_BCM2709
+-------------------------------------------------------------------------------------------------------
+
+https://github.com/raspberrypi/linux/commits/rpi-4.8.y/arch/arm/mach-bcm
+  Drop ARCH_BCM2708 and ARCH_BCM2709
+  
+  
+  
+   => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
+
+        Drop ARCH_BCM2708 and ARCH_BCM2709
+
+           They are not necessary anymore since both are based on ARCH_BCM2835.
+           Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+
+       Signed-off-by: Noralf Trønnes <noralf@tronnes.org>
+
+     
+     changes in rpi 4.9 kernel vs rpi 4.1 kernel :
+     
+        arch/arm/mach-bcm/Kconfig
+      	 - depends on ARCH_BCM2708
+      	 + depends on ARCH_BCM2835 && ARCH_MULTI_V6
+
+       also removed :
+        config ARCH_BCM2708
+        	bool "Broadcom BCM2708 family"
+        	depends on ARCH_MULTI_V6
+        	select ARCH_BCM2835
+        	help
+        	  This enables support for Broadcom BCM2708 boards.
+
+        config ARCH_BCM2709
+        	bool "Broadcom BCM2709 family"
+        	depends on ARCH_MULTI_V7
+        	select ARCH_BCM2835
+        	select HAVE_SMP
+        	select MFD_SYSCON
+        	help
+        	  This enables support for Broadcom BCM2709 boards.
+
+ 
+CONCLUSION: 
+  => use ARCH_BCM2835  ; don't use the old obsolete ARCH_BCM2708 and ARCH_BCM2709 config params
+  => use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+
+
+
+compatible between differen raspberry pi hardware versions
+-----------
+
+
+    found in kernel.org documentation:
+       https://github.com/torvalds/linux/blob/master/Documentation/devicetree/bindings/arm/bcm/brcm%2Cbcm2835.txt
+ 
+        Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:35:compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
+        Documentation/devicetree/bindings/arm/bcm/brcm,bcm2835.txt:39:compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
+        
+
+        Raspberry Pi 3 Model B
+        Required root node properties:
+        compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
+
+
+        Raspberry Pi 3 Model B+
+        Required root node properties:
+        compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
+
+         
+        => so   Raspberry Pi 3 Model B+  compatible with  Raspberry Pi 3 Model B
+           because both "brcm,bcm2837" 
+  
+  
+device tree description dtb/dts
+-------------------------------
+
+harcok@cup:/var/tmp/rpi3bplus/linux
+$ ls arch/arm/boot/dts/bcm*-rpi-*
+arch/arm/boot/dts/bcm2708-rpi-0-w.dtb     arch/arm/boot/dts/bcm2708-rpi-cm.dts        arch/arm/boot/dts/bcm2710-rpi-3-b-plus.dts  arch/arm/boot/dts/bcm2835-rpi-b.dtb       arch/arm/boot/dts/bcm2835-rpi-zero.dts        arch/arm/boot/dts/bcm283x-rpi-lan7515.dtsi
+arch/arm/boot/dts/bcm2708-rpi-0-w.dts     arch/arm/boot/dts/bcm2708-rpi-cm.dtsi       arch/arm/boot/dts/bcm2710-rpi-cm3.dtb       arch/arm/boot/dts/bcm2835-rpi-b.dts       arch/arm/boot/dts/bcm2836-rpi-2-b.dtb         arch/arm/boot/dts/bcm283x-rpi-smsc9512.dtsi
+arch/arm/boot/dts/bcm2708-rpi-b.dtb       arch/arm/boot/dts/bcm2709-rpi-2-b.dtb       arch/arm/boot/dts/bcm2710-rpi-cm3.dts       arch/arm/boot/dts/bcm2835-rpi-b-plus.dtb  arch/arm/boot/dts/bcm2836-rpi-2-b.dts         arch/arm/boot/dts/bcm283x-rpi-smsc9514.dtsi
+arch/arm/boot/dts/bcm2708-rpi-b.dts       arch/arm/boot/dts/bcm2709-rpi-2-b.dts       arch/arm/boot/dts/bcm2835-rpi-a.dtb         arch/arm/boot/dts/bcm2835-rpi-b-plus.dts  arch/arm/boot/dts/bcm2837-rpi-3-b-cobalt.dtb  arch/arm/boot/dts/bcm283x-rpi-usb-host.dtsi
+arch/arm/boot/dts/bcm2708-rpi-b-plus.dtb  arch/arm/boot/dts/bcm2710-rpi-3-b.dtb       arch/arm/boot/dts/bcm2835-rpi-a.dts         arch/arm/boot/dts/bcm2835-rpi-b-rev2.dtb  arch/arm/boot/dts/bcm2837-rpi-3-b-cobalt.dts
+arch/arm/boot/dts/bcm2708-rpi-b-plus.dts  arch/arm/boot/dts/bcm2710-rpi-3-b.dts       arch/arm/boot/dts/bcm2835-rpi-a-plus.dtb    arch/arm/boot/dts/bcm2835-rpi-b-rev2.dts  arch/arm/boot/dts/bcm2837-rpi-3-b.dtb
+arch/arm/boot/dts/bcm2708-rpi-cm.dtb      arch/arm/boot/dts/bcm2710-rpi-3-b-plus.dtb  arch/arm/boot/dts/bcm2835-rpi-a-plus.dts    arch/arm/boot/dts/bcm2835-rpi-zero.dtb    arch/arm/boot/dts/bcm2837-rpi-3-b.dts@
+
+
+
+
+documentation above says 
+
+  for kernel config: Drop ARCH_BCM2708 and ARCH_BCM2709,  kernel support nowadays based on ARCH_BCM2835.
+  Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+
+   => maybe also bcm28...dtb files instead?
+   
+   
+ however in the raspbian images they use the family names for the device tree descriptions:  that is the bcm27..dtb files, but not the bcm28..dtb files
+
+ => so use the bcm27..dtb files   => raspbian knows best!!
+ 
+ 
+ 
+ 
+  for pi3b+ choice between: 
+  
+     bcm2710-rpi-3-b-plus.dts  or bcm2837-rpi-3-b.dtb
+     `-> according                  `-> according docs! 
+         raspbian 
+   
+
+
+ arch/arm/boot/dts/Makefile    (in raspian kernel source, patched with ipipe for xenomai)
+ 
+     dtb-$(CONFIG_ARCH_BCM2835) += \               => whole added by rasbian kernel source!! (thats why at beginning of file, and not in kernel.org version)
+         bcm2708-rpi-b.dtb \                          
+         bcm2708-rpi-b-plus.dtb \
+         bcm2708-rpi-cm.dtb \                         note: in rasbian images they use  bcm27..dtb files in /boot
+         bcm2708-rpi-0-w.dtb \                 
+         bcm2709-rpi-2-b.dtb \
+         bcm2710-rpi-3-b.dtb \
+         bcm2710-rpi-3-b-plus.dtb \
+         bcm2710-rpi-cm3.dtb
+
+
+     dtb-$(CONFIG_ARCH_BCM2835) += \        => standard by kernel.org
+         bcm2835-rpi-b.dtb \
+         bcm2835-rpi-a.dtb \
+         bcm2835-rpi-b-rev2.dtb \
+         bcm2835-rpi-b-plus.dtb \
+         bcm2835-rpi-a-plus.dtb \
+         bcm2836-rpi-2-b.dtb \
+         bcm2835-rpi-zero.dtb \
+         bcm2837-rpi-3-b.dtb \                 \,-> added by ipipe patch!! (see below)
+         bcm2837-rpi-3-b-cobalt.dtb            /   bcm2837-rpi-3-b.dtb almost empty,  bcm2837-rpi-3-b-cobalt.dtb adds details , however not as much as specified in bcm27*.dts source files
+    
+
+ note: ./ipipe-core-4.9.51-arm-4.patch at line 103:
+ --- a/arch/arm/boot/dts/Makefile
+ +++ b/arch/arm/boot/dts/Makefile
+     ....
+     @@ -70,7 +76,9 @@ dtb-$(CONFIG_ARCH_BCM2835) += \
+         bcm2835-rpi-b-plus.dtb \
+         bcm2835-rpi-a-plus.dtb \
+         bcm2836-rpi-2-b.dtb \
+     -   bcm2835-rpi-zero.dtb
+     +   bcm2835-rpi-zero.dtb \
+     +   bcm2837-rpi-3-b.dtb \
+     +   bcm2837-rpi-3-b-cobalt.dtb    
+ 
+ 
+ => bcm27*.dts source files contain more details!!  => BETTER
+
+ => so use the bcm27..dtb files   => raspbian knows best!!
+
+
+xenomai gives the kernel.org advice:  
+    https://gitlab.denx.de/Xenomai/xenomai/wikis/Supported_Hardware
+
+        Raspberry Pi foundation
+
+        - Pi 2 Model B (multi_v7_defconfig, bcm2836-rpi-2-b.dtb)
+        - Pi 3 Model B (32 bit mode, multi_v7_defconfig, bcm2837-rpi-3-b.dts)
+    
+    => xenomai follows the kernel.org source , not the rpi(rasbian) kernel
+
+    => ignore this advice, and  use the bcm27..dtb files   => raspbian knows best!!
+
+
+
+
+CONCLUSION: 
+
+    thus which dtb depends on which kernel source
+     a) vanilla (kernel.org) kernel :  use bcm2837-rpi-???.dtb
+     b) rpi (rasbian) kernel:  use bcm27?????.dtb      => added by raspbian  => are BETTER => use THESE
+ 
+     ad b) rasbian has special bootcode which automatically loads the right device_tree file for the 
+           specific raspberry pi hardware board  
+           => so don't need to configure the device tree in config.txt, 
+               just put the bcm27*.dtb files in /boot  and then the right one is automatically loaded at boot
+           
+           
 
 

@@ -23,14 +23,15 @@ realtime gpio driver for gpio on bcm2835 chip
 ---------------------------------------------
  
  
-In xenomai the RTDM driver for gpio ports on bcm2835 chip is implemented by :
+  In xenomai the RTDM driver for gpio ports on bcm2835 chip is implemented by :
 
+     ./kernel/drivers/gpio/gpio-bcm2835.c  
 
-   ./kernel/drivers/gpio/gpio-bcm2835.c  
+  which uses gpio-core.c library which finds the linux gpiochip structure for the bcm2835 
+  and wraps it into an RTDM library for you. 
+ 
+  So using linux's gpiochip means xenomai realtime kernel uses linux's gpio driver:  "pinctrl-bcm2835" driver
 
-=> which uses gpio-core.c library which finds the linux gpiochip structure for the bcm2835 and wraps 
-   it into an RTDM library for you. 
-   
    All the work is really done by gpio-core.c library  and the driver is very short :
    
    
@@ -60,21 +61,29 @@ In xenomai the RTDM driver for gpio ports on bcm2835 chip is implemented by :
 
    which searches for the linux gpiochip compatible with "brcm,bcm2835-gpio 
    and wraps it in a RTDM driver for you.
-   
+
+   "brcm,bcm2835-gpio" is a device tree label used in the vanilla linux kernel (kernel.org)
+     see   https://www.kernel.org/doc/Documentation/devicetree/bindings/pinctrl/brcm,bcm2835-gpio.txt
+
+
    That's all.
 
 
 
     
     
-NOTE: about  OLD buggy implementation
-    for xenomai 3.03 or older it did instead : rtdm_gpiochip_add_by_name(&bcm2835_gpio_chip, "bcm2708_gpio",RTDM_SUBCLASS_BCM2835);  // 
+NOTE: 
+    for xenomai 3.03 or older it used instead : rtdm_gpiochip_add_by_name(&bcm2835_gpio_chip, "bcm2708_gpio",RTDM_SUBCLASS_BCM2835);  // 
     
-    This didn't work, so I changed it into "pinctrl-bcm2835".
+    This didn't work anymore, so I changed it into "pinctrl-bcm2835".
     I found this name by twisting the source code  the search by name instead
-    and to print all gpio-chips names it could find, and in the result list  this was the only one available.
-      
-
+    and to print all gpio-chips names it could find, and in the result list  
+    this was the only one available.
+       
+   note: bcm2708_gpio is the old driver, at some point raspbian switched to the new "pinctrl-bcm2835" driver to be more compatible with kernel.org 
+         linux kernel.  
+   
+          => See  notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt 
 
 
 implementation details how gpiochip gets wrapped in rtdm driver

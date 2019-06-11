@@ -34,7 +34,9 @@ none-realtime linux
 realtime linux using xenomai cobalt kernel
 -------------------------------------------
 
-IMPORTAMT:
+userspace programs
+
+IMPORTANT:
   user space programs NEED loaded xenomai's gpio kernel module "xeno_gpio.ko"
   so that the realtime device files for GPIO are loaded :
 
@@ -68,6 +70,8 @@ IMPORTAMT:
     NEEDS loaded:  xeno_gpio.ko
     source of xenomai's  gpiotest programm
 
+
+kernelspace programs
 
 IMPORTANT:  kernel space programs don't need the "xeno_gpio.ko" mode loaded, because
             they can directly call the kernel space gpio API to handle interrupts,

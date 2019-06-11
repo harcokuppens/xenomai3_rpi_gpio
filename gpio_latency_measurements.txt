@@ -1,0 +1,60 @@
+       
+gpio latency measurements 
+--------------------------
+
+    * http://wiki.csie.ncku.edu.tw/embedded/xenomai
+      => http://wiki.csie.ncku.edu.tw/embedded/xenomai#%E7%A4%BA%E6%B3%A2%E5%99%A8-%E5%AF%A6%E9%A9%97
+
+
+            Source code
+
+                https://github.com/jacky6016/GPIO-test
+
+                https://github.com/erickitten/GPIO_test_xenomai3_2
+
+            reslut      
+                Driver model 	max latency(µs)
+
+                rpi xenomai-2 RTDM        4.71
+
+                beaglebone xenomai-2 RTDM 7.46
+
+                rpi xenomai-3 RTDM        7.022
+
+                rpi xenomai-2 linux native   10.92
+
+                rpi xenomai-2 user-level(python)     244
+
+
+                => seems uses only rpi 1 for gpio experiments  => no rpi3 in list!
+
+
+* thesis: Real-Time Linux Testbench on Raspberry Pi 3 using Xenomai by GUSTAV JOHANSSON
+      http://kth.diva-portal.org/smash/get/diva2:1251188/FULLTEXT01.pdf
+   
+  
+    using image: 
+      http://www.cs.ru.nl/lab/xenomai/raspberrypi.html
+        Raspberry Pi image for the Pi zero,1,2,3 with Xenomai 3.0.5 on Raspbian linux 4.1.y Debian 8 jessie
+        
+  
+    Table 7.1: Final results
+
+    +-----------------------------------------------------------------------+
+    |         | Together                     | Separate                     |
+    |         |------------------------------+------------------------------|
+    |         | Min      | Max     | Range   | Min      | Max     | Range   |
+    |---------+----------+---------+---------+----------+---------+---------|
+    | Reading | -28.10   | 38.10   | 66.20   | -28.10   | 38.10   | 66.20   |
+    |         |us        |us       |us       |us        |us       |us       |
+    |---------+----------+---------+---------+----------+---------+---------|
+    | Writing | -142 us  | 116 us  | 258 us  | -38.10   | 18.10   | 56.20   |
+    |         |          |         |         |us        |us       |us       |
+    +-----------------------------------------------------------------------+
+    
+    
+    What can be seen in the table is when the task Read and task Write was scheduled together, task Read caused worse
+    performance for task Write, as earlier explained. What is interesting to see is that task Write has better
+    performance than task Read when they were executed separately.
+     
+   

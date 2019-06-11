@@ -1,0 +1,227 @@
+
+
+this directory is in github : git@github.com:harcokuppens/xenomai3_rpi_gpio.git
+and contains the following:
+
+./install/  
+   how installation of  xenomai done for rpi and virtualbox
+./circuits/ 
+    basic circuit diagrams
+./examples/ 
+    basic c code for above examples
+    overview of examples see: xenomai3_rpi_gpio/examples/__README__.txt  
+    note we have 3 types: none-realtime user, realtime user, realtime kernel
+./notes/ 
+   notes about xenomai gpio rpi etc..   
+
+
+
+findings when experimenting with xenomai3 on rpi2/rpi3
+------------------------------------------------------
+
+Hoi Jozef,
+
+Ik heb nog verder geëxperimenteerd met de rpi2  en  ik ben vandaag tot de eind conclusie gekomen dat de interrupts echt niet goed werken.
+Wel kan ik realtime in een xenomai programma inputs en outputs zetten, maar interupts werken niet. Een interupt crashed de pi.
+
+Als laatste test heb ik een wiringpi programma geschreven dat een interrupt afhandeld. Dit maakt puur alleen gebruik van linux, en dus niets realtime.
+Dit werkt prima op een origineel raspbian image, echter op onze gepatchte xenomai image het veroorzaakt een kernel crash. Dus de xenomai patch
+breekt ook de normale linux kernel. Ik heb dit herhaalt met de stabiele xenomai 3.0.x branch uit git, en nog steeds een kernel crash.
+Dus het probleem ligt niet zozeer in gpio driver maar in de gepatchte dual kernel implementatie voor de pi. Iets gaat daar mis.
+
+Dus ik ben van plan om mijn bevindingen om mijn bevindingen met het wiringpi programma naar de xenomai ontwikkelaars te sturen.
+
+Al bij al heb ik wel veel geleerd :
+* kan hele nieuwe kernel met modules in slechts 6 minuten opnieuw compileren  ( parallel over 4 cores)
+* begrijp nu de wiringpi library (c library) en het bijhorende gpio commando  ( puur linux, zonder xenomai)
+* kan nu simpele schakelingen maken, en weet nu de beperkingen van de rpi, en vooral wat je niet moet doen wat de rpi 
+  kan doen laten doorbranden.)
+      
+* begrijp nu beter de gpiolib  in de linux kernel en ook de beperkingen van gpiolib
+* gpiolib is een generieke gpio library 
+* gpiolib is een generieke library en kan voor verschillende gpio-chips gebruikt worden. ( verschillende platforms 
+  hebben verchillende gpio-chip)
+* generieke betekent dat specifieke dingen niet geimplementeerd zijn : bv de gpiolib support bv NIET het instellen van de interne pull 
+  up of pull down weerstaand voor een input line welke de bcm chip supports. 
+  bv. voor een interrupt line die je default hoog wilt houden en door deze kort te sluiten met de ground genereer je een interrupt. 
+  De interne pullup weerstand maakt dit veilig.)
+* de raspberry pi heeft 2 verschillende implementaties voor z'n gpio-chip, een oude en een nieuwe. (momenteel wordt 
+  overgestapt) update: as of june 2019 they entirely switch to ARCH_BCM2835 with "pinctrl-bcm2835" driver
+  
+  src: notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt  
+
+          basicly these are chip names :
+  
+          - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family   => linux driver and  'cat /proc/cpuinfo'  says bcm2708
+                                        ||      ||         ||
+          - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
+                                                 
+                                       pi1       pi2       pi2.1
+                                                           pi3  
+                                                   
+          however labels  BCM2708 and BCM2835 are used also 
+    
+             + as kernel config parameter (with history causing now ARCH_BCM2835 is used)                                                 
+                                                      
+                 - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+                   to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+                   The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+                   Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+                    if we use ARCH_BCM2835, we could drop some patches, 
+                    and if all Pi specific drivers where in mainline as well, 
+                    even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+                 - in this switch rasbpian also switched also the gpio driver :
+                      ARCH_BCM2708: "bcm2708_gpio"
+                      ARCH_BCM2835: "pinctrl-bcm2835"               <==   currently used!!
+                   see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
+   
+             + to name default kernel config files:
+     
+                 bcm2835_defconfig: is the upstream(kernel.org) defconfig.   =>  used for kernel.org kernel builds
+
+                 bcm2709_defconfig: is the one supported by Pi Towers.  (raspbian kernel)  =>  used for rasperry pi's specific raspbian kernel (patched kernel.org kernel)
+      
+      
+             + device tree description files:
+     
+                  - kernel.org used  bcm28*.dtb files
+                  - raspbian therefore used  bcm27*.dtb files  (to prevent conflict with kernel.org files) 
+
+            
+* linux gebruikt memory mapping for controlling gpio pins, maar gebruikt pinctrl library in linux to do this more easily
+  en doet dit in 
+  
+        de gpio driver  "pinctrl-bcm2835"  
+  
+  which can be probed and loaded using gpiolib framework!  (which rtdm driver does!! (see below))
+
+  from raspberry_pi__gpio_memory_mapping.txt
+
+      - rpi uses memory mapping for controlling gpio pins
+      - you can low level read/write memory to control gpio ports
+      - however pinctrl library in linux helps you to do this more easily
+          => see pinctrl_subsystem_in_linux.txt
+      - in linux you can control the pins in user space via the /sys interface,
+        however this is limited (eg. you can not set pullup or pull down),
+        so instead you can use in user space a library (e.g. wiring pi) which
+        access the GPIO hardware registers directly through the /dev/mem psuedo-file. (instead of via /sys)
+          => see  raspberry_pi__gpio_userspace_library_wiringpi.txt
+    
+* de wiringpi library kan wel de interne pull up en pull down weerstand instellen.
+   echter het is veiliger om extern een pull up/down schakeling te maken,
+   want dan is die er altijd, en met software kan men een fout maken met het opzetten van
+   de interne pull up/down!
+   
+* een xenomai driver implement een rtdm device file  die je vanuit user space met open, read, write kunt benaderen. 
+  Voor extra acties kun je ioctl operaties doen.
+  
+   => see notes/rtdm/RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt
+  
+      In xenomai the RTDM driver for gpio ports on bcm2835 chip is implemented by :
+
+         ./kernel/drivers/gpio/gpio-bcm2835.c  
+
+      which uses gpio-core.c library which finds the linux gpiochip structure for the bcm2835 (linux's "pinctrl-bcm2835" driver)
+      and wraps it into an RTDM library for you. 
+     
+      So using linux's gpiochip means xenomai realtime kernel uses linux's gpio driver:  "pinctrl-bcm2835" driver
+  
+* rtdm device files hebben hun eigen locatie onder /dev/rtdm  welke ze onderscheid van linux device files
+* een rtdm device file kan kiezen welke file operaties realtime zijn (open_rt, read_rt, write_rt en ioctl_rt)  en welke
+  niet (open_nr, read_nr, write_nr en ioctl_nr)
+ 
+  bv de gpio driver in xenomai ( drivers/gpio/gpio-bcm2835.c  in xenomai source code)  implementeert:
+    -  read en write realtime, 
+    -  maar  open en ioctl ( setup)  none-realtime.
+    
+    zie notes/rtdm/RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt :
+      
+      rgc->driver.ops = (struct rtdm_fd_ops){
+          .close      =   gpio_pin_close,
+          .ioctl_nrt  =   gpio_pin_ioctl_nrt,    none-real-time
+          .read_rt    =   gpio_pin_read_rt,      real-time
+          .write_rt   =   gpio_pin_write_rt,     real-time
+          .select     =   gpio_pin_select,
+      };
+      
+    
+    note: uses linux's pinctrl-bcm2835.c driver to implement it! (see above)  
+    
+    see: ./xenomai3_rpi_gpio/notes/rtdm/overview_xenomai_gpio_source_code.txt
+      
+       in xenomai source:
+      
+       $ ls -1 kernel/drivers/gpio/
+       gpio-bcm2835.c                      => realtime (RTDM) driver for bcm2835's gpio (raspberry pi)  => uses generic gpio-core.c library to implement it
+       gpio-core.c                         => realtime (RTDM) gpio library to implement gpiochip drivers in realtime
+       gpio-core.h
+       gpio-mxc.c                          => driver for mxc's gpio (NOT raspberry pi)
+       Kconfig                             => config parameters for linux kernel (whether to build into kernel or not)
+       
+     the realtime library implemented in gpio-core.c wraps a gpiochip in an rtdm driver, but when
+     doing this it only supports realtime for read and write file operations
+     but not for ioctl and open. For ioctl and open the program will return to linux prioritiy!!
+        => details see in :
+
+            RTDM_driver_for_gpio_ports_on_bcm2835_chip.txt  
+       
+    
+    
+* een xenomai driver gebruikt ook de linux gpiolib om non-realtime alles te intialiseren, 
+  daarnaast kan men de wiringpi library none-realtime gebruiken
+  om interne pullup of pulldown weerstand te initialiseren.
+* ik begrijp de implementatie van gpio-core library van xenomai die voor iedere gpio pin een aparte device file en    
+  driver implementeert in /dev/rtdm/
+* raspian gebruikt een zogenaamde operating system independent  device tree  (zie    
+  http://www.wikiwand.com/en/Device_tree). 
+  
+  Voor arm chips een device tree is verplicht. Voor x86 wordt het niet gebruikt omdat daar de kernel de hardware kan proben en dan de juiste drivers 
+  kan laden, echter de arm support dit proben niet. 
+  De bootcode laadt de linux kernel en tevens laadt de device_tree description and geeft deze aan de kernel door. De kernel laadt dan de kernel modules
+  voor de hardware beschreven  in de device tree.  Wanneer je de kernel compileert moet je dus wel de juiste modules configuren/bouwen die matched met
+  de device tree anders boot de kernel niet.
+   zie: notes/gpio/device_tree__and_setup_default_settings_gpio_pins.txt
+  
+  Voor de raspberry pi heb je ook nog een file /boot/config.txt waarin je nog bepaalde device_tree parameters kunt veranderen buiten de device_tree 
+  description file zelf.
+  
+  In deze config.txt description kun je ook
+   gpio pins configureren zodat wanneer het systeem opstart deze direct goed worden gezet.
+    =>bv. zet pull up or pull down
+    
+  e.g  add to config.txt
+       dtparam=gpio_out_pin=16
+       dtparam=gpio_in_pin=17
+       dtparam=gpio_in_pull=down
+    
+* de documentie van de bcm chip op de pi geeft duidelijk aan hoe de gpio pinnen  electronische werken ( met 
+  configureerbare pull up of pull down weerstanden)
+
+Uiteindelijk toch een lange lijst; deze mail was een mooi moment om een overzicht te maken.
+
+daarnaast heb ik de volgende test programma's  => see examples/__README__.txt
+
+none-realtime
+ - blinking led with wiringpi
+ - interrupt handler with wiringpi
+
+realtime
+ - blinking led with  rtdm device file in /dev/rtdm/gpio<num>
+ - interrupt handler program with rtdm device file in /dev/rtdm/gpio<num>  => crashed momenteel de pi
+
+Ik ga mijn bevindingen die ik 1 grote textfile heb staan een beetje netjes organiseren zodat ik later er makkelijk weer in kom.
+
+Dus voorlopig moeten we nog maar de pc's gebruiken, maar ik ga er vanuit dat komende tijd de problemen met xenomai3 op de pi2 worden opgelost.
+Misschien dat we dan binnenkort toch er verder mee aan de slag kunnen. Evt nog een des student.
+
+Al met al, denk ik nu precies te weten hoe het allemaal werkt, nu alleen nog wachten totdat de xenomai implementatie op de pi2 echt werkt.
+
+groetjes
+Harco
+
+
+
+
+

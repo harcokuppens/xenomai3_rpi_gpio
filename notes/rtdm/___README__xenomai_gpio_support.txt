@@ -3,6 +3,46 @@
 Xenomai GPIO support
 ====================
 
+practical
+---------
+
+user space 
+  user space programs NEED loaded xenomai's gpio kernel module "xeno_gpio.ko"
+  so that the realtime device files for GPIO are loaded :
+
+        /dev/rtdm/pinctrl-bcm2835/gpioX            :  for gpio pin X
+
+  Using these realtime device files a realtime xenomai user program can control
+  the gpio pins:
+       setting  a high or low voltage to output pin by writing 1 or 0   from device file for that pin
+       reading  a high or low voltage from input pin by reading 1 or 0  from device file for that pin
+       blocking read on a input pin, which gets unblocked when an interrupt happened on a gpio input pin
+
+
+kernel space
+  kernel space programs don't need the "xeno_gpio.ko" mode loaded, because
+  they can directly call the kernel space gpio API to handle interrupts,
+  They don't need device files to indirect interact with the driver in kernel space!
+  
+   => update: for xenomai 3.08 the module is renamed to "xeno_gpio_bcm2835.ko"
+              
+              load it with :
+              
+                   modprobe xeno_gpio_bcm2835
+                   
+              check if it is really loaded with "lsmod" command
+              
+    note: only when this module is loaded then the /dev/rtdm/pinctrl-bcm2835/ folder with 
+          the /dev/rtdm/pinctrl-bcm2835/gpioX devices appear                 
+
+How to use program with gpio's in userspace or kernels space: 
+    
+      see rtdm_api.txt 
+
+and how gpio pins map to interrupts see:
+
+   ./notes/gpio/gpio_to_irq.txt
+
 xenomai reuses linux's gpiolib and gpiochip
 -------------------------------------------
 
