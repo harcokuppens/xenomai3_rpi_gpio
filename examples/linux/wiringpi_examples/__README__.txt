@@ -1,4 +1,19 @@
 
+IMPORTANT:
+  running a program using an interrupt may export a gpio pin to user mode
+  then it is in use by usermode and can xenomai not use it anymore.
+  
+  eg.
+     ./button_toggles_led    cause gpio pin 23 to be exported
+
+     -> verify this with command "gpio exports"
+
+      you can undo all exports with command:
+
+             gpio unexportall
+
+
+
 wiringpi
 =======
 

@@ -46,7 +46,7 @@ void myInterrupt (void)
     printf ("  toggle counter: %5d\n", globalToggleCounter) ;
     printf ("  interrupt counter: %5d\n", globalCounter) ;
   }
-//    fprintf (stderr, "interrupt happened\n") ;
+    fprintf (stderr, "interrupt happened\n") ;
    
 }
 
@@ -103,6 +103,7 @@ int main (void)
   {
     // basicly wait until interrupt has happened
     waitForInterrupt(BUTTON_GPIO_PIN,-1);
+    fprintf (stderr, "interrupt happened\n") ;
   }
 
   return 0 ;
