@@ -46,7 +46,7 @@ Al bij al heb ik wel veel geleerd :
   bv. voor een interrupt line die je default hoog wilt houden en door deze kort te sluiten met de ground genereer je een interrupt. 
   De interne pullup weerstand maakt dit veilig.)
 * de raspberry pi heeft 2 verschillende implementaties voor z'n gpio-chip, een oude en een nieuwe. (momenteel wordt 
-  overgestapt)
+  overgestapt) update: as of june 2019 they entirely switch to ARCH_BCM2835 with "pinctrl-bcm2835" driver
   
   src: notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt  
 
@@ -205,7 +205,7 @@ daarnaast heb ik de volgende test programma's  => see examples/__README__.txt
 
 none-realtime
  - blinking led with wiringpi
-  - interrupt handler with wiringpi
+ - interrupt handler with wiringpi
 
 realtime
  - blinking led with  rtdm device file in /dev/rtdm/gpio<num>

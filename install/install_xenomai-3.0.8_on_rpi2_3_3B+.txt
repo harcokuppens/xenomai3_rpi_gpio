@@ -606,44 +606,12 @@ sidenote: compared to previous xenomai 3.05 build for rpi (4.1 kernel)
 
          => ARCH_BCM2835 required  => ok, because ARCH_BCM2835 replaced MACH_BCM2708 MACH_BCM2709
 
-                        $ fw MACH_BCM2708
-                        ./drivers/xenomai/gpio/Kconfig:13:      depends on MACH_BCM2708 || ARCH_BCM2835
-                        $ fw MACH_BCM2709       
-                        $
+
+                 see: notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt 
+                      which states MACH_BCM2708 is old and removed code for bcm chip in favor of new kernel.org compatible ARCH_BCM2835
+                              
                         
-                         =>  so MACH_BCM2708 MACH_BCM2709 obsolete ,  note MACH_BCM2708 still in Kconfig but nowhere used!!
-                         
-                         
-                        
-                        
-
-                        $ fw ARCH_BCM2835
-                        ...
-                        ./arch/arm/mach-bcm/Kconfig:145:config ARCH_BCM2835
-                        ...
-                        ./arch/arm64/configs/bcmrpi3_defconfig:38:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm64/boot/dts/broadcom/Makefile:3:ifeq ($(CONFIG_ARCH_BCM2835),y)
-                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
-
-                        ./drivers/xenomai/gpio/Kconfig:13:	depends on MACH_BCM2708 || ARCH_BCM2835    => gpio requires ARCH_BCM2835
-
-
-                        ./arch/arm/configs/bcm2709_defconfig:41:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/bcmrpi_defconfig:42:CONFIG_ARCH_BCM2835=y        => defconfigs all set CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/multi_v7_defconfig:38:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/bcm2835_defconfig:30:CONFIG_ARCH_BCM2835=y
-
-
-                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
-                        
-
-                        MACH_BCM2708 MACH_BCM2709  => obsolete
-                        ARCH_BCM2835  => what is needed!!
-
+ 
          => so NO patching of drivers/xenomai/gpio/Kconfig needed!
 
 
