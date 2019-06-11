@@ -115,8 +115,8 @@ http://stackoverflow.com/questions/12865054/init-function-invocation-of-drivers-
  
            ls -l /sys/devices/platform/soc/*/driver 
        
-        you can list all drivers needed for soc    "system on chip"   
-             
+       you can list all drivers needed for soc    "system on chip"   
+       note: only one entry mentions gpio /sys/devices/platform/soc/3f200000.gpio/       
        
         with 
        
@@ -133,12 +133,15 @@ http://stackoverflow.com/questions/12865054/init-function-invocation-of-drivers-
 
 
 
- NOTE: both  bcm2708_gpio and  pinctrl-bcm2835   are listed
+ NOTE: both  bcm2708_gpio and  pinctrl-bcm2835   are listed  
+ note: in later kernels where bcm2708_gpio is dropped only pinctrl-bcm2835  is listed
+    => see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
 
-
-
-
-
+ 
+ we found that the gpio driver used is:
+ 
+   $ ls -l /sys/devices/platform/soc/3f200000.gpio/driver   
+   ../../../../bus/platform/drivers/pinctrl-bcm2835
  
 
 

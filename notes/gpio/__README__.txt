@@ -1,3 +1,23 @@
+overview
+--------
+
+
+from raspberry_pi__gpio_memory_mapping.txt
+
+  - rpi uses memory mapping for controlling gpio pins
+  - you can low level read/write memory to control gpio ports
+  - however pinctrl library in linux helps you to do this more easily
+      => see pinctrl_subsystem_in_linux.txt
+  - in linux you can control the pins in user space via the /sys interface,
+    however this is limited (eg. you can not set pullup or pull down),
+    so instead you can use in user space a library (e.g. wiring pi) which
+    access the GPIO hardware registers directly through the /dev/mem psuedo-file. (instead of via /sys)
+      => see  raspberry_pi__gpio_userspace_library_wiringpi.txt
+  
+
+
+
+
 
 gpio
 ----

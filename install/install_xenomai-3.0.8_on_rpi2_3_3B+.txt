@@ -105,6 +105,29 @@ installation ingredients
   based on  
     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt
  
+  documentation how to build kernel for raspbian:
+       https://www.raspberrypi.org/documentation/linux/kernel/building.md
+        => describes how to install cross compiler on linux
+        => describes how to compile kernel:
+            For Pi 1, Pi Zero, Pi Zero W, or Compute Module:
+
+                cd linux
+                KERNEL=kernel
+                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+            
+            For Pi 2, Pi 3, Pi 3+, or Compute Module 3:
+
+                cd linux
+                KERNEL=kernel7
+                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+
+            Then, for both:
+
+                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+
+         => describes howto  copy the kernel/modules and Device Tree blobs onto the SD card
+
+   
  
   Note in   xenomai308_image_virtualbox.txt we installed the vanilla(kernel.org) kernel 4.9.144  with
   '4.9.144-3.1-debian' debian specific kernel patches  applied  to the vanilla kernel.
@@ -307,141 +330,6 @@ xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipi
 
 
 cd linux
-
-
-# sidenote: 
-
-      compared to previous xenomai 3.05 build for rpi (4.1 kernel)
-       NO patching of drivers/xenomai/gpio/Kconfig needed
- 
-        # fix xenomai Kconfig for xenomai gpio   =>  in xenomai source!!   => report to xenomai!
-        vim drivers/xenomai/gpio/Kconfig
-
-            config XENO_DRIVERS_GPIO_BCM2835
-                depends on MACH_BCM2708             => for pi1 , pi2 (and p3) has  MACH_BCM2709
-        
-             || change into
-             \/
- 
-           config XENO_DRIVERS_GPIO_BCM2835      
-             depends on MACH_BCM2708 || MACH_BCM2709    => xenomai source then applies for both pi1 and p2/p3
-
-
-
-        for 4.9 we have :
-
-            config XENO_DRIVERS_GPIO_BCM2835
-                depends on MACH_BCM2708 || ARCH_BCM2835
-                tristate "Support for BCM2835 GPIOs"
-                help
-
-                Enables support for the GPIO controller available from
-                Broadcom's BCM2835 SoC.
-
-
-
-         => ARCH_BCM2835 required  => ok, because ARCH_BCM2835 replaced MACH_BCM2708 MACH_BCM2709
-
-                        $ fw MACH_BCM2708
-                        ./drivers/xenomai/gpio/Kconfig:13:      depends on MACH_BCM2708 || ARCH_BCM2835
-                        $ fw MACH_BCM2709       
-                        $
-                        
-                         =>  so MACH_BCM2708 MACH_BCM2709 obsolete ,  note MACH_BCM2708 still in Kconfig but nowhere used!!
-                         
-                         
-                        
-                        
-
-                        $ fw ARCH_BCM2835
-                        ...
-                        ./arch/arm/mach-bcm/Kconfig:145:config ARCH_BCM2835
-                        ...
-                        ./arch/arm64/configs/bcmrpi3_defconfig:38:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm64/boot/dts/broadcom/Makefile:3:ifeq ($(CONFIG_ARCH_BCM2835),y)
-                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
-
-                        ./drivers/xenomai/gpio/Kconfig:13:	depends on MACH_BCM2708 || ARCH_BCM2835    => gpio requires ARCH_BCM2835
-
-
-                        ./arch/arm/configs/bcm2709_defconfig:41:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/bcmrpi_defconfig:42:CONFIG_ARCH_BCM2835=y        => defconfigs all set CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/multi_v7_defconfig:38:CONFIG_ARCH_BCM2835=y
-                        ./arch/arm/configs/bcm2835_defconfig:30:CONFIG_ARCH_BCM2835=y
-
-
-                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
-                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
-                        
-
-                        MACH_BCM2708 MACH_BCM2709  => obsolete
-                        ARCH_BCM2835  => what is needed!!
-
-         => so NO patching of drivers/xenomai/gpio/Kconfig needed!
-
-
-
-# sidenote: 
- 
-        which defconfig to use??
-
-              also see:  ../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
-
-                    $ ls ./arch/arm/configs/bcm*
-                    ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
-
-                    details:
-             
-                     ./arch/arm/configs/bcm2835_defconfig  -> default config added by kernel.org             
-                     ./arch/arm/configs/bcmrpi_defconfig   -> added by raspbian  for rpi1        => used in my rpi1 build 
-                     ./arch/arm/configs/bcm2709_defconfig  -> added by raspbian  for rpi2/3     => used in my rpi2/3 build   
-             
-
-                    https://www.raspberrypi.org/documentation/linux/kernel/configuring.md
-
-
-                    For all models of Raspberry Pi 1 (includes Compute Module and Pi Zero):
-
-                        $ KERNEL=kernel
-                        $ make bcmrpi_defconfig
-
-                    If you're cross-compiling, the second line should be:
-
-                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
-
-                    For all models of Raspberry Pi 2/3 (includes Pi 3+ and Compute Module 3):
-
-                        $ KERNEL=kernel7
-                        $ make bcm2709_defconfig
-
-                    If you're cross-compiling, the second line should be:
-
-                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
-
-
-
-                    https://www.raspberrypi.org/forums/viewtopic.php?t=189631
-
-                      On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
-                      still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
-                      kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
-  
-                        bcm2835_defconfig is the upstream defconfig.   => original authors 
-  
-                        bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
-  
-                      => so use : bcm2709_defconfig   (note: there is no bcm2710_defconfig)
-
-                      => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
-                               config file, because it is special for the raspbian kernel!
-                       
-           official documentation: 
-             https://www.raspberrypi.org/documentation/linux/kernel/building.md
-               => says to use bcmrpi_defconfig for rpi1 and  bcm2709_defconfig  for rpi2 and rpi3        
-
 
 # create default config for bcm2709
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
@@ -682,3 +570,138 @@ fix kernel, so not by accident updated :
                 
 
 
+SIDENOTES
+=========
+
+
+sidenote: compared to previous xenomai 3.05 build for rpi (4.1 kernel)
+          NO patching of drivers/xenomai/gpio/Kconfig needed: 
+          
+      for 4.1 we had to fix xenomai Kconfig for xenomai gpio   =>  in xenomai source!!   => report to xenomai!
+        
+        in drivers/xenomai/gpio/Kconfig
+
+            config XENO_DRIVERS_GPIO_BCM2835
+                depends on MACH_BCM2708             => for pi1 , pi2 (and p3) has  MACH_BCM2709
+        
+             || change into
+             \/
+ 
+           config XENO_DRIVERS_GPIO_BCM2835      
+             depends on MACH_BCM2708 || MACH_BCM2709    => xenomai source then applies for both pi1 and p2/p3
+
+
+
+     for 4.9 we have :
+
+            config XENO_DRIVERS_GPIO_BCM2835
+                depends on MACH_BCM2708 || ARCH_BCM2835
+                tristate "Support for BCM2835 GPIOs"
+                help
+
+                Enables support for the GPIO controller available from
+                Broadcom's BCM2835 SoC.
+
+
+
+         => ARCH_BCM2835 required  => ok, because ARCH_BCM2835 replaced MACH_BCM2708 MACH_BCM2709
+
+                        $ fw MACH_BCM2708
+                        ./drivers/xenomai/gpio/Kconfig:13:      depends on MACH_BCM2708 || ARCH_BCM2835
+                        $ fw MACH_BCM2709       
+                        $
+                        
+                         =>  so MACH_BCM2708 MACH_BCM2709 obsolete ,  note MACH_BCM2708 still in Kconfig but nowhere used!!
+                         
+                         
+                        
+                        
+
+                        $ fw ARCH_BCM2835
+                        ...
+                        ./arch/arm/mach-bcm/Kconfig:145:config ARCH_BCM2835
+                        ...
+                        ./arch/arm64/configs/bcmrpi3_defconfig:38:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm64/boot/dts/broadcom/Makefile:3:ifeq ($(CONFIG_ARCH_BCM2835),y)
+                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
+
+                        ./drivers/xenomai/gpio/Kconfig:13:	depends on MACH_BCM2708 || ARCH_BCM2835    => gpio requires ARCH_BCM2835
+
+
+                        ./arch/arm/configs/bcm2709_defconfig:41:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/bcmrpi_defconfig:42:CONFIG_ARCH_BCM2835=y        => defconfigs all set CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/multi_v7_defconfig:38:CONFIG_ARCH_BCM2835=y
+                        ./arch/arm/configs/bcm2835_defconfig:30:CONFIG_ARCH_BCM2835=y
+
+
+                        ./arch/arm64/boot/dts/broadcom/Makefile:7:dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:10:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b.dtb
+                        ./arch/arm64/boot/dts/broadcom/Makefile:11:dtb-$(CONFIG_ARCH_BCM2835) += bcm2710-rpi-3-b-plus.dtb
+                        
+
+                        MACH_BCM2708 MACH_BCM2709  => obsolete
+                        ARCH_BCM2835  => what is needed!!
+
+         => so NO patching of drivers/xenomai/gpio/Kconfig needed!
+
+
+
+# sidenote: 
+ 
+        which defconfig to use??
+
+              also see:  ../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
+
+                    $ ls ./arch/arm/configs/bcm*
+                    ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
+
+                    details:
+             
+                     ./arch/arm/configs/bcm2835_defconfig  -> default config added by kernel.org             
+                     ./arch/arm/configs/bcmrpi_defconfig   -> added by raspbian  for rpi1        => used in my rpi1 build 
+                     ./arch/arm/configs/bcm2709_defconfig  -> added by raspbian  for rpi2/3     => used in my rpi2/3 build   
+             
+
+                    https://www.raspberrypi.org/documentation/linux/kernel/configuring.md
+
+
+                    For all models of Raspberry Pi 1 (includes Compute Module and Pi Zero):
+
+                        $ KERNEL=kernel
+                        $ make bcmrpi_defconfig
+
+                    If you're cross-compiling, the second line should be:
+
+                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+
+                    For all models of Raspberry Pi 2/3 (includes Pi 3+ and Compute Module 3):
+
+                        $ KERNEL=kernel7
+                        $ make bcm2709_defconfig
+
+                    If you're cross-compiling, the second line should be:
+
+                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+
+
+
+                    https://www.raspberrypi.org/forums/viewtopic.php?t=189631
+
+                      On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
+                      still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
+                      kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
+  
+                        bcm2835_defconfig is the upstream defconfig.   => original authors 
+  
+                        bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
+  
+                      => so use : bcm2709_defconfig   (note: there is no bcm2710_defconfig)
+
+                      => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
+                               config file, because it is special for the raspbian kernel!
+                       
+           official documentation: 
+             https://www.raspberrypi.org/documentation/linux/kernel/building.md
+               => says to use bcmrpi_defconfig for rpi1 and  bcm2709_defconfig  for rpi2 and rpi3        

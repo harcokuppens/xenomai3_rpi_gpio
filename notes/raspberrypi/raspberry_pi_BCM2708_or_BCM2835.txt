@@ -1,6 +1,155 @@
 BCM2708 or BCM2835?
 ===================
 
+SHORT answer :
+
+  basicly these are chip names :
+  
+  - three pieces of silicon, BCM2708, BCM2709 and BCM2710              => family   => linux driver and  'cat /proc/cpuinfo'  says bcm2708
+                                ||      ||         ||
+  - and three packages       BCM2835, BCM2836 and BCM2837              => specific implementation (however per family only one implementation)
+                                                 
+                               pi1       pi2       pi2.1
+                                                   pi3  
+                                                   
+  however labels  BCM2708 and BCM2835 are used also 
+    
+     + as kernel config parameter (with history causing now ARCH_BCM2835 is used)                                                 
+                                                      
+         - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+           to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+           The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+           Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+            if we use ARCH_BCM2835, we could drop some patches, 
+            and if all Pi specific drivers where in mainline as well, 
+            even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+         - in this switch rasbpian also switched also the gpio driver :
+              ARCH_BCM2708: "bcm2708_gpio"
+              ARCH_BCM2835: "pinctrl-bcm2835"
+           see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
+   
+     + to name default kernel config files:
+     
+         bcm2835_defconfig: is the upstream(kernel.org) defconfig.   =>  used for kernel.org kernel builds
+
+         bcm2709_defconfig: is the one supported by Pi Towers.  (raspbian kernel)  =>  used for rasperry pi's specific raspbian kernel (patched kernel.org kernel)
+      
+      
+     + device tree description files:
+     
+          - kernel.org used  bcm28*.dtb files
+          - raspbian therefore used  bcm27*.dtb files  (to prevent conflict with kernel.org files) 
+
+
+
+========================================================
+
+
+
+
+historic development of kernel support of BCM chip => labeling is caused by history:
+
+ https://www.raspberrypi.org/forums/viewtopic.php?t=116650#p794333
+ 
+    - to support the raspberry specific Soc  raspbain added  support with
+       cpu architecture (ARCH=arm) and board/platform (ARCH_BCM2708). 
+    - ARCH_BCM2708 is the kernel platform code that Broadcom made and was includes into the 
+      raspbian kernel  but not in the  kernel.org kernel because at that time (Pi arrival) 
+      new ARM boards was required to use Device Tree which ARCH_BCM2708 didn't.    
+    - at some poing Pi support ended up in mainline(kernel.org) as ARCH_BCM2835 
+      Note: this ARCH_BCM2835 code differed from the ARCH_BCM2708 code in rasbpian
+    - raspbian had the idea to support kernel.org's ARCH_BCM2835 and apply its specific
+      patches on that code instead of having its own ARCH_BCM2708 software.
+      The reason was that patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+          if we use ARCH_BCM2835, we could drop some patches, 
+          and if all Pi specific drivers where in mainline as well, 
+          even less work had to be spent on adapting and testing patches for each new kernel version.
+      
+      This change took some time and at some point you had two options ARCH_BCM2708 and ARCH_BCM2835 
+      which was confusing.
+      
+    - currently (2019) this switch is done and now raspbian only supports ARCH_BCM2835    
+       => all old code for  ARCH_BCM2708/ARCH_BCM2709 is completely removed
+        see: https://github.com/raspberrypi/linux/pull/1717
+        => https://github.com/raspberrypi/linux/commit/3ad156116a1e6e3e9ad5a9a22887465b75b3b62d#diff-d29c483d57fba64ff89a812573d91230
+
+             Drop ARCH_BCM2708 and ARCH_BCM2709
+
+                They are not necessary anymore since both are based on ARCH_BCM2835.
+                Also use the compatible strings "brcm,bcm2835", "brcm,bcm2836" and "brcm,bcm2837".
+                
+                
+        
+  conclusion:
+       - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+         to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+         The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+         Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+          if we use ARCH_BCM2835, we could drop some patches, 
+          and if all Pi specific drivers where in mainline as well, 
+          even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+       - in this switch rasbpian also switched also the gpio driver :
+            ARCH_BCM2708: "bcm2708_gpio"
+            ARCH_BCM2835: "pinctrl-bcm2835"        
+         see notes/gpio/raspberry_pi__gpio_chip__two_drivers.txt
+       
+       
+        
+   https://github.com/raspberrypi/linux/wiki/Upstreaming
+    => gives nice historical overview
+      of changes in kernel.org kernel and changes in rpi kernel 
+       
+     upstream means kernel.org source
+     downstream means raspbian own kernel source (patched kernel.org source specific for rpi)
+
+
+    ARCH_BCM2835
+     
+       Downstream is now using ARCH_BCM2835 and has dropped ARCH_BCM2708 and ARCH_BCM2709.
+
+    Downstream default configs
+
+        For Raspberry Pi 1, use bcmrpi_defconfig
+
+        For Raspberry Pi 2 and Pi 3, use bcm2709_defconfig
+
+   history
+   
+     History
+
+     This is an attempt to list (M)ainline efforts (new drivers) to support Raspberry Pi combined with (D)ownstream efforts to close in on mainline.
+     (S)table downstream versions are also listed
+     
+    
+     interesting :
+      
+      2016
+
+        - D: Drop ARCH_BCM2708 and ARCH_BCM2709   => D stands for downstream :  rpi kernel    => only one driver left ARCH_BCM2835
+    
+      2015
+       
+       - D: Enable ARCH_BCM2835 for downstream use     => enable kernel.org's ARCH_BCM2835 code (patched?)   => now two drivers!!
+           https://github.com/raspberrypi/linux/pull/1099
+             This PR makes ARCH_BCM2835 functionally equivalent to ARCH_BCM2708.
+    
+       - D: BCM2708: use pinctrl-bcm2835
+       
+       - M: ARM: bcm2835: Add the Raspberry Pi firmware driver (4.4)      => M stands for mainline : means kernel.org
+          => kernel.org adds rpi support     
+        
+      2012 
+      
+       - M: pinctrl: add bcm2835 driver (3.7)        => M stands for mainline : means kernel.org
+           https://github.com/torvalds/linux/commit/e1b2dc70cd5b00e17c703163a463d82354b1cc76
+           The BCM2835 GPIO module is a combined GPIO controller, (GPIO) interrupt
+           controller, and pinmux/control device.
+       
 
 linux driver (kernel module)
 ------------

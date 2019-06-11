@@ -1,3 +1,8 @@
+
+see notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
+    to see which dtb files to use for raspberry pi
+    
+    
 https://www.raspberrypi.org/documentation/configuration/device-tree.md
 
 Device Trees

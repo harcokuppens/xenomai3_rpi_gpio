@@ -18,12 +18,36 @@ see also ../raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
 
 raspberry pi  uses platform driver register mechanism to load/unload a gpiochip
 ================================================================================ 
- 
- 
- IMPORTANT: see Manual_driver_binding_and_unbinding.txt to see how you can use sysfs to load/unload a platform driver
+
+IMPORTANT: see Manual_driver_binding_and_unbinding.txt to see how you can use sysfs to load/unload a platform driver
+
+find gpio drivers
+-----------------   
+   
+source ./platform_driver_model.txt  
+    => both  bcm2708_gpio and  pinctrl-bcm2835   are listed as platform driver !!
+
+
+note: gpiochip driver is wrapped in standard platform driver structure so that it is also availabe in device tree  (DT)
+           
+notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt   
+     
+       - raspbian switch from its own specific Soc support for the BCM2708 chip which is labeled in the kernel configuration label  ARCH_BCM2708
+         to the mainline kernel code which is labeled in the kernel configuration label ARCH_BCM2835.
+         The reason was that instead maintaining its own code(ARCH_BCM2708), instead use kernel.org's code(ARCH_BCM2835) and  patch this code for rpi specifics.
+         Patching the kernel.org's ARCH_BCM2835 will give less work:
+    
+          if we use ARCH_BCM2835, we could drop some patches, 
+          and if all Pi specific drivers where in mainline as well, 
+          even less work had to be spent on adapting and testing patches for each new kernel version.
+         
+       - in this switch rasbpian also switched also the gpio driver :
+            ARCH_BCM2708: "bcm2708_gpio"
+            ARCH_BCM2835: "pinctrl-bcm2835"  
  
  
  two drivers for Broadcom BCM2835 GPIO unit:
+ --------------------------------------------
  
   * "pinctrl-bcm2835"        -> already available in kernel.org, but patched by raspbian
         ./linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c     => compiled into kernel
@@ -87,18 +111,9 @@ raspberry pi  uses platform driver register mechanism to load/unload a gpiochip
 
              => so for newer kernels >4.8  this patch is also obsolete!!
     
-    
-     
- CONCLUSION: 
- 
-    in linux the  "pinctrl-bcm2835" driver is used for the gpiochip
-    in xenomai  similar!
-   
-    => since rpi4.9  the "bcm2708_gpio"  driver is removed
-  
-explanation
---------------   
-   
+      proof: bcm2708_gpio mentioned as driver https://www.element14.com/community/thread/18718/l/debian-wheezy-for-rpi-still-uses-old-kernel?displayFullThread=true#thread-message-54194
+      
+
  How do we know these files implement a gpiochip structure to implement a driver for Broadcom BCM2835 GPIO unit?
 
       
@@ -114,16 +129,9 @@ explanation
                              */
                              int gpiochip_add(struct gpio_chip *chip)     
      
-     
-   
-       platform_driver_model.txt  
-            => both  bcm2708_gpio and  pinctrl-bcm2835   are listed as platform driver !!
-      
-       note: gpiochip driver is wrapped in standard platform driver structure so that it is also availabe in device tree  (DT)
-           
-   
 
-  how do we know which driver is used?
+how do we know which driver is used?
+------------------------------------
     
        root@raspberrypi:/boot# ls -lF /sys/devices/platform/soc/3f200000.gpio
        total 0
@@ -150,10 +158,16 @@ explanation
        
    => BUT anyway only one can be loaded !!!  => competing implementations from only one may be loaded at the time
       -> so current raspbian image seems to prefer  pinctrl-bcm2835
-     
-    
 
 
+
+ CONCLUSION: 
+ -----------
+    in linux the  "pinctrl-bcm2835" driver is used for the gpiochip in xenomai  similar!
+   
+    => since rpi4.9  the "bcm2708_gpio"  driver is removed
+  
+   
 
  more details in /sys/
  ----------------------
