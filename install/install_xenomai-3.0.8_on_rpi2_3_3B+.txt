@@ -653,9 +653,14 @@ fix kernel, so not by accident updated :
  # src: /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
 
 
-    apt-mark hold   raspberrypi-kernel
-                    raspberrypi-bootloader    => unhold
-                
+     $ apt-mark hold raspberrypi-kernel
+     $ apt-mark hold raspberrypi-bootloader   
+   
+ verify with command :
+   
+     $ apt-mark showhold
+     raspberrypi-bootloader
+     raspberrypi-kernel               
 
 add custom Xenomai startup and login scripts 
 ---------------------------------------------
@@ -666,6 +671,8 @@ configure wlan
 ---------------
 
  => use raspi-config to setup wlan network
+    note: country code must be set for rpi3b+ !!
+ 
  => also see notes/raspberrypi/networking/wifi_pi3.txt
  
  

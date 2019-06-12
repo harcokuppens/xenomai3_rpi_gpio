@@ -1,5 +1,137 @@
+
+https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md
+
+
+manual :
+
+
+
+  # cat /etc/wpa_supplicant/wpa_supplicant.conf
+  ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+  update_config=1
+  country=NL
+
+  network={
+  	ssid="here_place_your_network_name"
+  	psk="here_place_your_password"         
+    scan_ssid=1
+  }
+
+
+The quickest way to enable wireless networking is to use the command line raspi-config tool.
+
+     sudo raspi-config
+
+Select the Network Options item from the menu, then the Wi-fi option. On a fresh install, for regulatory purposes, you will need to specify the
+country in which the device is being used. Then set the SSID of the network, and the passphrase for the network. If you do not know the SSID of the
+network you want to connect to, see the next section on how to list available networks prior to running raspi-config.
+
+Note that raspi-config does not provide a complete set of options for setting up wireless networking; you may need to refer to the extra sections
+below for more details if raspi-config fails to connect the Pi to your requested network.
+
+
+
+To scan for WiFi networks, use the command 
+
+   sudo iwlist wlan0 scan
+   
+This will list all available WiFi networks, along with other useful information. Look out for:
+
+    'ESSID:"testing"' is the name of the WiFi network.
+    'IE: IEEE 802.11i/WPA2 Version 1' is the authentication used. 
+    
+In this case it's WPA2, the newer and more secure wireless standard which replaces WPA. This guide should work for WPA or WPA2, but may not work for
+WPA2 enterprise. For WEP hex keys, see the last example here. You'll also need the password for the wireless network. For most home routers, this is
+found on a sticker on the back of the router. The ESSID (ssid) for the examples below is testing and the password (psk) is testingPassword.
+
+Adding the network details to the Raspberry Pi
+
+   Open the wpa-supplicant configuration file in nano:
+ 
+       sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+    Go to the bottom of the file and add the following:
+
+        network={
+            ssid="testing"
+            psk="testingPassword"
+        }
+
+
+Hidden networks
+
+    If you are using a hidden network, an extra option in the wpa_supplicant file, scan_ssid, may help connection.
+
+    network={
+        ssid="yourHiddenSSID"
+        scan_ssid=1                    <== needed!!
+        psk="Your_wifi_password"
+    }
+
+
+commands: 
+
+Reconfigure the interface with 
+
+  wpa_cli -i wlan0 reconfigure
+
+iwconfig wlan0
+ifconfig wlan0
+
+
+ifconfig wlan0 down
+ifconfig wlan0 up 
+
+ wpa_cli -i wlan0 reconnect
+ wpa_cli -i wlan0 disconnect
+
+systemctl restart wpa_supplicant.servic
+
+/etc/init.d/networking restart
+
+ifconfig
+iwconfig  
+ip link set wlan0 up
+  
+  
+https://wiki.debian.org/WiFi/HowToUse#Command_Line    => does not work on pi
+
+      Find your wireless interface and bring it up:
+
+          # ip a
+          # iwconfig
+          # ip link set wlan0 up
+
+      Scan for available networks and get network details:
+
+          $ su
+          # iwlist scan
+
+      Now edit /etc/network/interfaces. The required configuration is much dependent on your particular setup. See the following example to get an
+      idea of how it works:
+
+          # my wifi device
+          auto wlan0
+          iface wlan0 inet dhcp
+                  wireless-essid [ESSID]
+                  wireless-mode [MODE] 
+
+      For further information on available configuration options, see man interfaces, man wireless and /usr/share/doc/wireless-tools/README.Debian.
+
+      You can now bring your interface up and down with the usual ifup and ifdown commands. If you added auto wlan0 as in the example above, the
+      interface should be brought up automatically during boot up.
+  
   
    instructions to set up rpi3 as wifi-access point : https://learn.adafruit.com/setting-up-a-raspberry-pi-as-a-wifi-access-point/overview
+  
+  
+  
+     -> ifup, ifdown say :  unknown interface wlan0
+  
+-> there are wpa commands   
+  root@raspberrypi:~# wpa_
+  wpa_action      wpa_cli         wpa_passphrase  wpa_supplicant
+  
   
   => wifi 
       http://weworkweplay.com/play/automatically-connect-a-raspberry-pi-to-a-wifi-network/
@@ -80,7 +212,7 @@
           
           If you are using a hidden network, an extra option in the wpa_supplicant file, 
           
-               scan_ssid, 
+               scan_ssid
           
           may help connection.
           
@@ -91,7 +223,7 @@
           
           restart the interface with 
           
-              sudo wpa_cli reconfigure.
+              sudo wpa_cli reconfigure
 
           You can verify whether it has successfully connected using 
           
