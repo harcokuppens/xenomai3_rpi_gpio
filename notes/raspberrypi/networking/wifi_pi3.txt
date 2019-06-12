@@ -58,6 +58,7 @@
 
                ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
                update_config=1
+               country=NL
 
                network={
                ssid="replace_with_your_ssid"
@@ -99,6 +100,41 @@
           If the inet addr field has an address beside it, the Raspberry Pi has connected to the network.
           
   
+            
+         https://unix.stackexchange.com/questions/90778/how-to-bring-up-a-wi-fi-interface-from-a-command-line   
+            ip link set wlan0 up
+         https://bbs.archlinux.org/viewtopic.php?id=173808
+          $ sudo ip link set wlan0 up
+          RTNETLINK answers: Operation not possible due to RF-kill
+          
+         
+        => raspberry pi has country check for wifi
+        
+          so using raspi-config set it,
+          this configures
+          
+          
+            root@raspberrypi:~# cat /etc/wpa_supplicant/wpa_supplicant.conf
+             ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+             update_config=1
+             country=NL
+
+             network={
+             	ssid="replace_with_your_ssid"
+             	psk="replace_with_your_password"
+             }
+          
+          
+          then run 
+            wpa_cli reconfigure
+          and then it works
+          
+          
+              
+        
+
+         
+          
         https://askubuntu.com/questions/95676/a-tool-to-measure-signal-strength-of-wireless
   
           On the command line you can use 

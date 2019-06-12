@@ -73,7 +73,7 @@ where you can lookup the ip of a raspberry pi.
 
 For details see: https://github.com/harcokuppens/dyndns
 
-
-
+  wget -O /usr/local/bin/update_ip_at_dyndns_server https://raw.githubusercontent.com/harcokuppens/dyndns/master/update_ip_at_dyndns_server  
+  chmod a+x /usr/local/bin/update_ip_at_dyndns_server
 
  

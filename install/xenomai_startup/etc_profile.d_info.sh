@@ -1,8 +1,8 @@
 
 printf "\n"
 
-model=`cat /proc/device-tree/model`
-compatible=`cat /proc/device-tree/compatible`
+model=$(tr -d '\0' < /proc/device-tree/model)
+compatible=$(tr -d '\0' < /proc/device-tree/compatible)
 printf "model: $model\n"
 printf "compatible: $compatible\n"
 

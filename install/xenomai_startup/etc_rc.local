@@ -18,10 +18,10 @@ if [ "$_IP" ]; then
   printf "$prefix My IP address is %s\n" "$_IP"
 fi
 
-model=`cat /proc/device-tree/model`
-compatible=`cat /proc/device-tree/compatible`
-printf "$prefix model: $model\n"
-printf "$prefix compatible: $compatible\n"
+model=$(tr -d '\0' < /proc/device-tree/model)
+compatible=$(tr -d '\0' < /proc/device-tree/compatible)
+printf "model: $model\n"
+printf "compatible: $compatible\n"
 
 # xenomai initialization
 if grep BCM2708 /proc/cpuinfo >/dev/null
@@ -33,7 +33,10 @@ else
   ln -nsf /usr/xenomai_pi2_cobalt /usr/xenomai  
 fi
 
-modprobe xeno_gpio
+# for xenomai 3.0.5
+#modprobe xeno_gpio  || true
+# for xenomai 3.0.8
+modprobe xeno-gpio-bcm2835 || true
 
 # by default turn clock leds off (clock exercise)
 # leds are connected to gpio pins 2 3 4 17 27 22 10 9
@@ -44,7 +47,11 @@ do
   gpio -g write $d 0
 done
 
-/bin/bash /etc/profile.d/dyndns.sh &
+
+sleep 5
+/usr/local/bin/update_ip_at_dyndns_server
+     
+
 
 exit 0
 

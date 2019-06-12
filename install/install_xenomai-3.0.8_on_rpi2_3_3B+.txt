@@ -546,29 +546,129 @@ see test_xenomai_installation_and_test_gpio_pins_are_working_correct.txt
 
 
 
+customize image
+================
+we configure so that we can easily
+  * ssh login as root from another network host  => easy login and make/run programs
+  * samba mount /root dir  => easy access in host to files with local mount so that we can use the editor of choice 
+                              in the host to edit the files
+
+you can log in with the following credentials:
+
+      user:            pi
+      passwd:          raspberry 
+
+      user:            root
+      passwd:          pi
+      
+
+
+configure pi
+--------------
+
+raspi-config   
+ => goto localisation options
+     => setup timezone to europe/amsterdam
+     => setup keyboard to  us-keyboard
+
+# login as user: pi
+# become root user
+sudo su -
+# change password to 'pi'
+passwd
+# type twice 'pi'
+
+
+
+            
+utilities
+---------
+
+apt-get update
+
+mouse support in console:
+    apt-get install gpm 
+gpio tool/libraries:
+    apt-get install wiringpi
+editors: 
+    apt-get install vim
+    apt-get install neovim   # because vim has no clipboard support builtin so copy pasting mouse doesn't work with vim, but does with neovim 
+    apt-get install nano
+    apt-get install joe  
+for time sync: rdate -s time-srv.science.ru.nl    
+    apt-get install rdate  
+version control:
+    sudo apt-get install git 
+    sudo apt-get install subversion    
+   
+ssh server
+------------
 
 sudo systemctl enable ssh.service
 sudo systemctl start ssh.service
 
-sudo apt-get install git 
-sudo apt-get install subversion
-sudo apt-get install vim
-sudo apt-get install wiringpi
-sudo apt-get install gpm  # support for mouse in terminal
-           
-           
-           
+edit  /etc/ssh/sshd_config so that :
 
+    UsePAM yes
+    PasswordAuthentication yes
+    PermitRootLogin yes
+    
+
+/etc/init.d/ssh restart
+
+
+# remove annoying warning:
+
+rm /etc/profile.d/sshpwd.sh
+ 
+ 
+
+samba server root homedir mount without passwd
+----------------------------------------------
+
+apt-get install samba
+
+smbpasswd -a root    # note: use 'pi' as password
+# edit  /etc/samba/smb.conf
+# -> at homes section : set  'read only' to 'no'
+
+/etc/init.d/samba restart
+
+
+remove authentication from virtual consoles  => ctrl-alt-F1..12  ()
+-------------------------------------------
+
+in /lib/systemd/system/getty@.service
+    ...
+    ExecStart=-/sbin/agetty   --noclear %I $TERM
+    ...
+add "--autologin root" option :
+    ...
+    ExecStart=-/sbin/agetty  --autologin root --noclear %I $TERM        
+    ...
+    
 
 fix kernel, so not by accident updated :            
-
-    /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
+-----------------------------------------
+ # src: /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
 
 
     apt-mark hold   raspberrypi-kernel
                     raspberrypi-bootloader    => unhold
                 
 
+add custom Xenomai startup and login scripts 
+---------------------------------------------
+  see instructions at xenomai_startup/__README__xenomai_rpi_startup_config.txt
+
+
+configure wlan
+---------------
+
+ => use raspi-config to setup wlan network
+ => also see notes/raspberrypi/networking/wifi_pi3.txt
+ 
+ 
 
 SIDENOTES
 =========

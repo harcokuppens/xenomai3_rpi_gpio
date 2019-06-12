@@ -72,7 +72,7 @@ test gpio pins
 
   - try simple basic programs to check what in GPIO is not working
 
-      requirement: 
+     * hardware requirement: 
          for this check we need the electronic scheme 
          
               circuit/combined__button_toggles_led__output_driven_irq.png
@@ -81,56 +81,50 @@ test gpio pins
                 
               http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
                    
+     * linux gpio test example code: 
 
-        https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/linux/wiringpi_examples
+        The example code is in a github repository at:
+        
+           https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/linux/wiringpi_examples
 
-        download this folder with the command:
+        The easiest way to download this folder is with the subversion command:
+        
           svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/linux/wiringpi_examples
           
 
-         with a xenomai patched kernel the linux based examples should also still work
-          -> if something wrong with patch, then these could also break!!
-  
+        With the default raspbian kernel these examples work. 
+        However with a xenomai patched kernel the linux based examples should also still work!
+
+          cd wiringpi_examples/
           make
-          ./blink    -> test gpio output
+          ./blink                # test gpio output
+          ./button_toggles_led   # press button to toggle led  , test both interrupt from button and  output
+          ./output_driven_irq    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
+
+     * xenomai gpio test example code:  
+       
+       The example code is in a github repository at:
+        
+         https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/xenomai3/userspace_programs
+
+       The easiest way to download this folder is with the subversion command:
+        
+          svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs
           
+       These examples should only work with a xenomai3 patched linux kernel.    
+       You also must have the rtdm driver for realtime driver support for gpio pins loaded:
+       
+          modprobe xeno_gpio_bcm2835
+     
+       We have the same examples as for linux but now in realtime mode:
+       
+         ./blink/                # test gpio output
+         ./button_toggles_led/   # press button to toggle led  , test both interrupt from button and  output
+         ./output_driven_irq/    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
+            
           
-          ./output_driven_irq    ->  test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
-  
-          ./button_toggles_led    ->  press button to toggle led  , test both interrupt from button and  output
-
-
-
-       svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs/output_driven_irq
-
-
-        http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
-
-
-
-
-
-        NOTE: answers for exercises and klok program at:
-              /home/harcok/pictures-test/help/realtime/des_realtime_exercises/xenomai3/answers
-             https://svn.cs.ru.nl/repos/des_realtime_exercises/xenomai3/answers
-
-        test gpio output :
-
-            Exercise 7a.
-               Write a program which makes the led blink on and off with a period of 500 milliseconds.
-
-        test interupt: 
-            Exercise 7b.
-               Extend the program of 7a such that it counts the interrupts on the yellow line to pin 24. Print the value of the counter after each interrupt. 
-
-            or 
-    
-            Exercise 7c. 
-               Write a program which counts the interrupts on pin 23 caused by the switch. At each interrupt, toggle the LED on
-               or off and print the value of the counter. Describe and explain the output of the program.
-
-
-        final test :  run clock program!!  => should work!!
+     * also look at http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-7.html
+       and http://www.cs.ru.nl/J.Hooman/DES/XenomaiExercises/Exercise-9-2.html
 
                
 
