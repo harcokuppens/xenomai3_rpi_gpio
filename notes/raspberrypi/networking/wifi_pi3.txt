@@ -69,29 +69,39 @@ Hidden networks
     }
 
 
+note: if you out of range then "iwconfig wlan0" says wifi off which is confusing
+
 commands: 
 
-Reconfigure the interface with 
+  Reconfigure the interface with 
 
-  wpa_cli -i wlan0 reconfigure
-
-iwconfig wlan0
-ifconfig wlan0
+    wpa_cli -i wlan0 reconfigure
 
 
-ifconfig wlan0 down
-ifconfig wlan0 up 
+  info 
+    ifconfig
+    iwconfig
+    iwconfig wlan0
+    ifconfig wlan0
 
- wpa_cli -i wlan0 reconnect
- wpa_cli -i wlan0 disconnect
+  scan
+    iwlist wlan0 scan 
 
-systemctl restart wpa_supplicant.servic
+  ip/down 
+    ip link set wlan0 up
+    ip link set wlan0 down
+ 
+    ifconfig wlan0 down
+    ifconfig wlan0 up 
 
-/etc/init.d/networking restart
+    wpa_cli -i wlan0 reconnect
+    wpa_cli -i wlan0 disconnect
 
-ifconfig
-iwconfig  
-ip link set wlan0 up
+ restart 
+    systemctl restart wpa_supplicant.service
+    /etc/init.d/networking restart
+
+
   
   
 https://wiki.debian.org/WiFi/HowToUse#Command_Line    => does not work on pi
