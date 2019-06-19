@@ -5,6 +5,39 @@
 Install xenomai 3.0.8 on rpi3B+
 ===============================
 
+Table of contents
+
+   * [Install xenomai 3.0.8 on rpi3B ](#install-xenomai-308-on-rpi3b)
+      * [Note for rpi1 and rpi zero](#note-for-rpi1-and-rpi-zero)
+      * [Upgrading old image doesn't work](#upgrading-old-image-doesnt-work)
+      * [Versions of ingredients needed](#versions-of-ingredients-needed)
+         * [Xenomai](#xenomai)
+         * [Raspbian OS/Image](#raspbian-osimage)
+         * [Ipipe](#ipipe)
+         * [Raspbian kernel](#raspbian-kernel)
+      * [Credits](#credits)
+      * [New ingredients](#new-ingredients)
+   * [Installation recipe](#installation-recipe)
+       * [0. prepare](#0-prepare)
+       * [1. get sources](#1-get-sources)
+       * [2.  apply kernel patches ( xenomai ipipe, bcm( arch/arm/mach-bcm2709/.. and linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c   )](#2--apply-kernel-patches--xenomaiipipe-bcm-archarmmach-bcm2709-and-linuxdriverspinctrlbcmpinctrl-bcm2835c---)
+       * [3. configure linux kernel/module option](#3-configure-linux-kernelmodule-option)
+       * [4. build kernel and modules in linux dir      =&gt; cross compile](#4-build-kernel-and-modules-in-linux-dir-------cross-compile)
+       * [5. built Xenomai user space part  ( kernel part is built with kernel above)      =&gt; cross compile](#5-built-xenomai-user-space-part---kernel-part-is-built-with-kernel-above-------cross-compile)
+       * [6. copy build stuff in dist/ to raspbian sdcard](#6-copy-build-stuff-in-dist-to-raspbian-sdcard)
+   * [Customize image](#customize-image)
+      * [configure pi](#configure-pi)
+      * [utilities](#utilities)
+      * [ssh server](#ssh-server)
+      * [samba server root homedir mount without passwd](#samba-server-root-homedir-mount-without-passwd)
+      * [remove authentication from virtual consoles  =&gt; ctrl-alt-F1..12  ()](#remove-authentication-from-virtual-consoles---ctrl-alt-f112--)
+      * [fix kernel, so not by accident updated :](#fix-kernel-so-not-by-accident-updated-)
+      * [add custom Xenomai startup and login scripts](#add-custom-xenomai-startup-and-login-scripts)
+      * [configure wlan](#configure-wlan)
+   * [SIDENOTES](#sidenotes)
+       * [Sidenote: compared to previous xenomai 3.05 build for rpi (4.1 kernel) there is NO patching of drivers/xenomai/gpio/Kconfig needed:](#sidenote-compared-to-previous-xenomai-305-build-for-rpi-41-kernel-there-is-no-patching-of-driversxenomaigpiokconfig-needed)
+       * [Sidenote: which defconfig to use??](#sidenote-which-defconfig-to-use)
+
 
 Note for rpi1 and rpi zero 
 --------------------------
@@ -669,7 +702,7 @@ add "--autologin root" option :
 
 fix kernel, so not by accident updated :            
 -----------------------------------------
- # src: /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
+ src: /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
 
 
      $ apt-mark hold raspberrypi-kernel

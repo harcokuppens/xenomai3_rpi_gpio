@@ -1,4 +1,3 @@
-[TOC]
 
 Installation of xenomai 3.0.8 on mainline kernel branch v4.9.51 from kernel.org  
 ============================================
