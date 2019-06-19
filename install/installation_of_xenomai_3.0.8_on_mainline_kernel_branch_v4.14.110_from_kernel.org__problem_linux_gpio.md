@@ -1,6 +1,6 @@
 [TOC]
 
-Installation of xenomai 3.0.8 on mainline kernel branch v4.9.51 from kernel.org  
+Installation of xenomai 3.0.8 on mainline kernel branch v4.14.110 from kernel.org  
 ============================================
 
 First get the ingredients:
@@ -9,16 +9,15 @@ First get the ingredients:
     wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
     tar -xjvf xenomai-3.0.8.tar.bz2
     
-    # get kernel branch v4.9.51  from kernel.org
-    git clone -b v4.9.51 --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git linux
+    # get kernel branch v4.14.110  from kernel.org
+    git clone -b v4.14.110 --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git linux
 
     # get ipipe patch for kernel
-    wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch
+    wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.14.110-arm-7.patch
     
 Patch the kernel with the ipipe patch
     
-    xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.9.51-arm-4.patch
- 
+    xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.14.110-arm-7.patch 
 
  
  Configure the kernel
@@ -69,20 +68,23 @@ build kernel debian package
 
     # store debian package in distribution directory
     cd ../
-    mv linux-image-4.9.51-*.deb dist/
+    mv linux-image-4.14.110-*.deb dist/
 
-package all build device tree files to install on rpi later
+package all build device tree files to install on rpi later<br>
 
+    DT_ARCHIVE="$PWD/dist/devicetree.tgz"
     cd  linux/arch/arm/boot/dts
-    tar -czvf ../../../../../dist/devicetree.tgz bcm283*.dtb    
-    # note:
-    #   - for rpi we have : bcm27*.dtb and overlays/*  
-    #   - for vanilla(kernel.org) kernel we have no overlays, we only have bcm283*.dtb  files for rpi board
-    
-    cd ../../../../..
+    tar -czvf "$DT_ARCHIVE" bcm283*.dtb
+    cd - 
+
+note:  
+
+- for rpi we have : bcm27\*.dtb and overlays/*  
+- for vanilla(kernel.org) kernel we have no overlays, we only have bcm283\*.dtb  files for rpi board
+
+
  
- 
- Build xenomai 3.0.8 user-space libraries and tools
+Build xenomai 3.0.8 user-space libraries and tools
  
 
     # configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
@@ -105,7 +107,7 @@ Now in the dist/ directory we have
  
     $ ls -1 dist
     devicetree.tgz
-    linux-image-4.9.51-ipipe-dirty_4.9.51-ipipe-dirty_armhf.deb
+    linux-image-4.14.110-dirty_4.14.110-dirty-1_armhf.deb
     xenomai-3.0.8-binaries.tgz
 
 Copy the distribution files over to raspberry pi running raspbian. There are multiple ways to do this, but I let your figure it out yourself.
@@ -117,11 +119,11 @@ Install on the raspberry pi the distribution files:
      
      # install kernel 
      # 1) install the debian kernel package
-     dpkg -i linux-image-4.9.51-ipipe-dirty_4.9.51-ipipe-dirty_armhf.deb
+     dpkg -i linux-image-4.14.110-dirty_4.14.110-dirty-1_armhf.deb
      # 2) move the original kernel away (as backup)
      mv /boot/kernel7.img /boot/kernel7.orig.img 
      # 3) install the newly installed kernel as the default kernel to boot
-     mv /boot/vmlinuz-4.9.51-ipipe-dirty /boot/kernel7.img
+     mv /boot/vmlinuz-4.14.110-dirty /boot/kernel7.img
      
      # install the device tree description files in /boot
      tar -C /boot -xzvf devicetree.tgz 
@@ -132,7 +134,7 @@ Install on the raspberry pi the distribution files:
  Finally with a text editor set the device tree to boot with 
  by adding the following line to the end of the file in /boot/config.txt
  
-     device_tree=bcm2837-rpi-3-b-cobalt.dtb    
+     device_tree=bcm2837-rpi-3-b.dtb   
  
  then reboot and linux with xenomai should be up and running.
  
@@ -195,7 +197,7 @@ Problems
   * no network module loaded on the raspberry pi 3b+ boardHowever if we use the on raspberry 3b board the network works! So probably because  device tree description not right for 3b+ (yet).          
   * gpio pins not working (same for 3b+ as 3b boards)
  
-    - in /dev/rtdm  the gpio pins are numbered from  970 to 1023
+    - in /dev/rtdm  the gpio pins are numbered from 1994 to 2047 but should be from 0 to 53
     
     - also wiringpi gpio examples don't work 
          * blink program doesn't work
