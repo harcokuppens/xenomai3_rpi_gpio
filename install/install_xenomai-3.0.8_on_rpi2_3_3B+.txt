@@ -1,4 +1,8 @@
 
+update: see for a markdown version of this file 
+
+    install_xenomai-3.0.8_on_rpi2_3_3B+.md
+
 
 install xenomai 3.0.8 on rpi3B+
 ===============================
