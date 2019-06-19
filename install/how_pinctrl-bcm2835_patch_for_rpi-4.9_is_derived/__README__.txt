@@ -1,31 +1,42 @@
 how to use pinctrl-bcm2835.c.rpi-4.9.patch  on raspbian 4.9 original code 
 =========================================================================
 
-   fetch the original raspbian 4.9 version of  pinctrl-bcm2835.c :
+    fetch the rpi-4.9.y.patched from this repository:
+
+        $ wget https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi_gpio/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/pinctrl-bcm2835.c.rpi-4.9.patch
+           
+    fetch the original raspbian 4.9 version of  pinctrl-bcm2835.c :
          https://github.com/raspberrypi/linux/blob/rpi-4.9.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
            `-> https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.9.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
            
-          mkdir rpi-4.9.y/ 
-          cd rpi-4.9.y/ 
-          wget https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.9.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
-          cd ..
+        $ wget https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.9.y/drivers/pinctrl/bcm/pinctrl-bcm2835.c
          
-    then  
-       $ cp -r rpi-4.9.y/ rpi-4.9.y.patched
-       $ cd rpi-4.9.y.patched/
-       $ patch   < ../pinctrl-bcm2835.c.rpi-4.9.patch
-       patching file pinctrl-bcm2835.c
-       Hunk #3 succeeded at 412 (offset -3 lines).
-       Hunk #4 succeeded at 440 (offset -3 lines).
-       Hunk #5 succeeded at 496 (offset -3 lines).
-       Hunk #6 succeeded at 511 (offset -3 lines).
-       Hunk #7 succeeded at 619 (offset -3 lines).
-       Hunk #8 succeeded at 631 with fuzz 2 (offset -3 lines).
-       Hunk #9 succeeded at 644 (offset -3 lines).
-       Hunk #10 succeeded at 685 (offset -3 lines).
-       Hunk #11 succeeded at 1097 (offset 7 lines).
-       Hunk #12 succeeded at 1115 (offset 7 lines).
-       Hunk #13 succeeded at 1127 with fuzz 2 (offset 7 lines).
+    then apply patch :
+
+        $ patch  --verbose < pinctrl-bcm2835.c.rpi-4.9.patch
+        Hmm...  Looks like a unified diff to me...
+        The text leading up to this was:
+        --------------------------
+        |--- rpi-4.9.y/pinctrl-bcm2835.c    2019-06-03 16:01:35.000000000 +0200
+        |+++ rpi-4.9.y.fixedpatch/pinctrl-bcm2835.c    2019-06-03 17:43:00.000000000
+        +0200
+        --------------------------
+        patching file pinctrl-bcm2835.c
+        Using Plan A...
+        Hunk #1 succeeded at 29.
+        Hunk #2 succeeded at 108.
+        Hunk #3 succeeded at 412.
+        Hunk #4 succeeded at 440.
+        Hunk #5 succeeded at 497.
+        Hunk #6 succeeded at 512.
+        Hunk #7 succeeded at 620.
+        Hunk #8 succeeded at 632.
+        Hunk #9 succeeded at 645.
+        Hunk #10 succeeded at 686.
+        Hunk #11 succeeded at 1098.
+        Hunk #12 succeeded at 1116.
+        Hunk #13 succeeded at 1128.
+        done
        
        => patch successfull
 

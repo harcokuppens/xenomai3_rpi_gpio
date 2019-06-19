@@ -1,0 +1,257 @@
+ 
+ 
+ new xenomai image
+ ------------------- 
+  
+       
+       
+       https://lb.raspberrypi.org/forums/viewtopic.php?t=210166
+       
+            
+            sudo apt update
+            sudo apt full-upgrade  => did upgrade
+            
+            sudo apt update
+            sudo apt install rpi-update
+            sudo rpi-update
+            
+       
+           https://www.raspberrypi.org/forums/viewtopic.php?t=7486
+           
+              colored screen at boot:
+                 That test pattern is displayed by start.elf before it loads the kernel.
+                 If it remains on screen for longer than a second it suggests the kernel.img is not found or is bad.
+      
+
+             https://github.com/Hexxeh/rpi-firmware
+                bcm2710-rpi-3-b-plus.dtb
+                
+            https://www.linuxquestions.org/questions/slackware-14/new-kernel-using-old-modules-642509/
+              new kernel comes with its own for that specific version compiled modules
+               => though the list of which modules to load or not, can be reused from your old kernel, 
+                   but it will then still load the newer versions of the specified modules      
+
+
+          $ cd /home/harcok/doc/projects/des/realtime
+          $ fwt /proc 
+           
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/
+          
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/notes/xenomai__performance_and_irq_monitoring.txt  -> explains proc
+          
+          custom commadns : 
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/install/xenomai_startup/__README__.txt:39:           alias xeno-stat="cat /proc/xenomai/sched/stat"
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/install/xenomai_startup/__README__.txt:40:           alias xeno-threads="cat /proc/xenomai/sched/threads"
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/install/xenomai_startup/__README__.txt:41:           alias xeno-rt-threads="cat /proc/xenomai/sched/rt/threads"
+          ./realtimelinux/xenomai/xenomai3_rpi_gpio/install/xenomai_startup/__README__.txt:42:           alias xeno-interrupts="cat /proc/xenomai/irq"
+
+
+       https://xenomai.org/documentation/xenomai-3/html/README.INSTALL/#_testing_the_installation
+         
+         
+         
+         $ dmesg | grep -i -3 xenomai
+         
+         $ ls /proc/xenomai
+         
+         $ lsmod  
+            => should list xeno_gpio  loaded  for using the gpio pins with xenomai
+
+
+       test:
+       
+         run the latency test:
+
+         $ /usr/xenomai/bin/latency         => softlink  xeno-latency
+
+
+         run xeno-test to assess the worst-case latency of your system
+
+         $ xeno-test 
+         
+         => more info see: $ xeno-test --help
+
+      
+      
+     bcm numbering explained : 
+      
+      $ vim ./realtimelinux/xenomai/xenomai3_rpi_gpio/notes/raspberrypi/__RPI_SPECS__.txt ./realtimelinux/xenomai/xenomai3_rpi_gpio/notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt -o
+   
+      
+      https://stackoverflow.com/questions/52249571/how-does-the-raspbery-pi-know-which-device-tree-blob-dtb-to-load
+      
+
+         How does the raspbery pi know which device tree blob (dtb) to load?
+
+
+             A raspberry pi card images includes several different dtb files in the boot partition. For example:
+
+             bcm2708-rpi-0-w.dtb
+             bcm2708-rpi-b.dtb
+             bcm2708-rpi-b-plus.dtb
+             bcm2708-rpi-cm.dtb
+             bcm2709-rpi-2-b.dtb
+             bcm2710-rpi-3-b.dtb
+             bcm2710-rpi-3-b-plus.dtb
+             bcm2710-rpi-cm3.dtb
+
+             When the pi boots, how does it know when dtb to select?
+         
+         answer:
+         
+            The kernel uses whatever dtb that has been loaded into memory. The bootloader, e.g.
+            U-Boot, decides or has defined which dtb file to load for the kernel. You need to
+            inspect the U-Boot environment to see what it does for your board.
+           
+            In U-Boot file board/raspberrypi/rpi/rpi.c, function get_board_rev() the board
+            revision is read and the dtb name is determined from the revision. The dtb file
+            name is set in the environment variable ftdfile which can be used in a boot script
+            to load the appropriate file which then is passed on to the operating system.
+
+
+* check for  sdcard  that after copy image to it, that the filesystem is enlarged to the size of the sdcard  (otherwise on 2gb space available)
+
+   =>  use "raspi-config" and choose option "expand_rootfs"
+
+
+  https://github.com/Drewsif/PiShrink
+     
+      PiShrink is a bash script that automatically shrink a pi image that will then resize to the max size of the SD card on boot. This will make putting the image back onto the SD card faster and the shrunk images will compress
+      better.
+      
+      Example
+
+        [user@localhost PiShrink]$ sudo pishrink.sh pi.img
+        e2fsck 1.42.9 (28-Dec-2013)
+        Pass 1: Checking inodes, blocks, and sizes
+        Pass 2: Checking directory structure
+        Pass 3: Checking directory connectivity
+        Pass 4: Checking reference counts
+        Pass 5: Checking group summary information
+        /dev/loop1: 88262/1929536 files (0.2% non-contiguous), 842728/7717632 blocks
+        resize2fs 1.42.9 (28-Dec-2013)
+        resize2fs 1.42.9 (28-Dec-2013)
+        Resizing the filesystem on /dev/loop1 to 773603 (4k) blocks.
+        Begin pass 2 (max = 100387)
+        Relocating blocks             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        Begin pass 3 (max = 236)
+        Scanning inode table          XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        Begin pass 4 (max = 7348)
+        Updating inode references     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        The filesystem on /dev/loop1 is now 773603 blocks long.
+
+        Shrunk pi.img from 30G to 3.1G
+
+
+
+  https://www.raspberrypi.org/forums/viewtopic.php?p=977050#p977050
+  
+    To disable automatically expanding the root partition on first power-up, I:
+
+        Used losetup to create a loop device from the raspbian distribution image, and mounted the first partition.
+        Edited the cmdline.txt file removing the "quiet" and "init=/usr/lib/raspi-config/init_resize.sh".
+                                                                      `-> runs  parted => makes partition larger
+        Then mounted the second partition, and removed the /etc/rc3.d/S01resize2fs_once symlink.          => softlink to /etc/init.d/resize2fs_once   => runs   resize2fs => makes filesystem larger on larger partition
+        Unmounted the partitions and deleted the loop device.
+        Burned the image file to an SD card, and booted it.
+
+    Now I can resize the partition/fs at my leisure.
+    
+    
+    
+    
+    
+    there is a service that destroys itself after execution: resize2fs_once
+    
+       /etc/init.d/resize2fs_once
+    
+
+
+  before first boot:  
+    cat /boot/cmdline.txt
+    dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=PARTUUID=ee25660b-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh
+
+  after first boot 
+    cat /boot/cmdline.txt
+    dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=PARTUUID=ee25660b-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait  
+
+
+
+   => just readding "quiet init=/usr/lib/raspi-config/init_resize.sh"  will at next boot run the script at boot
+
+
+   https://wiki.archlinux.org/index.php/Kernel_parameters#Parameter_list
+   
+      init= 	Run specified binary instead of /sbin/init (symlinked to systemd in Arch) as init process. 
+                eg. init=/bin/sh 	Boot to shell.
+    
+    
+   https://www.kernel.org/doc/html/v4.11/admin-guide/kernel-parameters.html
+      
+       quiet           [KNL] Disable most log messages
+       
+       init=           [KNL]
+                       Format: <full_path>
+                       Run specified binary instead of /sbin/init as init
+                       process.
+                       
+
+
+
+-> find instructions => rebuild
+
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=174434#post_content1113971
+
+If you want to imitate the way Raspbian expands the filesystem on first boot, here is how it works:
+
+First edit /boot/config.txt and append init=/usr/lib/raspi-config/init_resize.sh
+
+Then create the file /etc/init.d/resize2fs_once containing the following
+(copied from raspi-config) and enable it with 
+   
+  sudo chmod +x /etc/init.d/resize2fs_once 
+      and 
+   sudo systemctl enable resize2fs_once
+
+Code: Select all
+
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          resize2fs_once
+# Required-Start:
+# Required-Stop:
+# Default-Start: 3
+# Default-Stop:
+# Short-Description: Resize the root filesystem to fill partition
+# Description:
+### END INIT INFO
+. /lib/lsb/init-functions
+case "\$1" in
+  start)
+    log_daemon_msg "Starting resize2fs_once" &&
+    resize2fs /dev/$ROOT_PART &&
+    update-rc.d resize2fs_once remove &&
+    rm /etc/init.d/resize2fs_once &&
+    log_end_msg \$?
+    ;;
+  *)
+    echo "Usage: \$0 start" >&2
+    exit 3
+    ;;
+esac
+
+(At this point you would make your cloned image)
+
+Then on the next boot init_resize.sh will run, repartition the SD card, re-modify /boot/config.txt so that it is not run a second time, and reboot.
+
+On the following boot resize2fs_once will run, expand the filesystem to fill the new partition, and then disable (and delete) itself.
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=174434#post_content1117084
+
+#sudo wget -O /etc/init.d/resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/dev/stage2/01-sys-tweaks/files/resize2fs_once
+wget -O /etc/init.d/resize2fs_once https://raw.githubusercontent.com/smarkets/chef-raspberry-pi/master/files/default/resize2fs_once
+sudo chmod +x /etc/init.d/resize2fs_once
+sudo systemctl enable resize2fs_once

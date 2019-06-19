@@ -1,0 +1,240 @@
+18 june 2019
+
+compile rpi 4.19.y with xenomai 3.0.8   https://github.com/raspberrypi/linux/
+-------------------------------------
+or try: 
+  https://github.com/raspberrypi/linux/tree/rpi-4.19.y
+with
+ wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.19.33-arm-2.patch
+
+
+
+
+
+
+ wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+ tar -xjvf xenomai-3.0.8.tar.bz2
+
+
+ git clone -b rpi-4.19.y --depth 1 https://github.com/raspberrypi/linux.git
+
+$ cd linux
+$ make kernelversion
+4.19.50
+
+  -> ipipe patch for 4.19.33
+  
+  
+  cd linux
+  patch  --dry-run  -p1  <  ../ipipe-core-4.19.33-arm-2.patch
+  # => failed 
+  patch  --dry-run  -p1  <  ../ipipe-core-4.19.33-arm-2.fixed.patch
+  # => fixed!!
+  
+  cd ..
+  
+  xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.19.33-arm-2.fixed.patch
+   
+
+
+cd linux
+
+# create default config for bcm2709
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
+
+ => error: init/Kconfig:2056: can't open file "arch/$SRCARCH/xenomai/Kconfig"
+ => fix:  replace $SRCARCH by arm in that file
+ 
+# a default configuration for bcm2709 written to .config
+# specialize config for xenomai
+# install package needed for menuconfig :  apt-get  install libncurses5-dev
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+
+    General setup ---> 
+       Local version - append to kernel release :  -v7-rpi-xeno308
+    
+    CPU Power Management  --->
+      CPU Frequency scaling  --->
+        [ ] CPU Frequency scaling
+      CPU idle  --->
+        [ ] CPU idle PM support
+     Memory Management options  --->       (use to be in : Kernel Features  --->)
+        [ ] Contiguous Memory Allocator
+        [ ] Allow for memory compaction
+    Kernel Hacking  --->
+        [ ] KGDB: kernel debugger
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+
+
+    Xenomai Cobalt --->
+         Drivers  --->
+                 Real-time GPIO drivers  --->
+                    <M> GPIO controller                          => with " [*] GPIO controller  " instead it builds directly in kernel, then no need to load module anymore!
+                    [*]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                    [ ]   Enable GPIO core debugging features
+
+
+    
+
+    note: in above  [ ]  means disable,  [*]  means enable(builtin to kernel), [M] means build as module
+
+
+
+
+    export NUMCORES=4  
+    time make -j $NUMCORES ARCH=arm  CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_DEBARCH=armhf deb-pkg
+
+
+
+
+    => error 1:  implicit declaration of function ‘ACCESS_ONCE’
+    
+    
+       
+                ...
+                AR      fs/built-in.a
+                make[2]: *** [build] Error 2
+                dpkg-buildpackage: error: debian/rules build gave error exit status 2
+                make[1]: *** [deb-pkg] Error 2
+                make: *** [deb-pkg] Error 2
+    
+
+             => STUCK!!
+ 
+               export ARCH=arm
+               export CROSS_COMPILE=arm-linux-gnueabihf-
+               time make -j $NUMCORES  KBUILD_DEBARCH=armhf deb-pkg
+   
+               ...
+   
+               AR      fs/built-in.a
+               make[2]: *** [build] Error 2
+               dpkg-buildpackage: error: debian/rules build gave error exit status 2
+               make[1]: *** [deb-pkg] Error 2
+               make: *** [deb-pkg] Error 2
+    
+    
+             => found:
+ 
+               $ ./debian/rules
+               /usr/bin/make KERNELRELEASE=4.19.50-v7-rpi-xeno308+ ARCH=arm    KBUILD_BUILD_VERSION=1 KBUILD_SRC=
+               make[1]: Entering directory `/data/rpi/rpi-4.19/linux'
+                 CALL    scripts/checksyscalls.sh
+                 CHK     include/generated/compile.h
+                 CC      kernel/xenomai/posix/clock.o
+               In file included from include/xenomai/cobalt/uapi/kernel/vdso.h:21:0,
+                                from include/xenomai/cobalt/kernel/vdso.h:26,
+                                from kernel/xenomai/posix/clock.c:21:
+               include/xenomai/cobalt/uapi/kernel/urw.h: In function ‘__try_read_start’:
+               include/xenomai/cobalt/uapi/kernel/urw.h:60:2: error: implicit declaration of function ‘ACCESS_ONCE’ [-Werror=implicit-function-declaration]
+                 token = ACCESS_ONCE(urw->sequence);
+                 ^
+               cc1: some warnings being treated as errors
+               make[4]: *** [kernel/xenomai/posix/clock.o] Error 1
+               make[3]: *** [kernel/xenomai/posix] Error 2
+               make[2]: *** [kernel/xenomai] Error 2
+               make[1]: *** [kernel] Error 2
+               make[1]: Leaving directory `/data/rpi/rpi-4.19/linux'
+               make: *** [build] Error 2
+    
+    
+            https://github.com/ntop/PF_RING/issues/314
+
+              I found that ACCESS_ONCE was removed on 2017-12-12 from git of kernerl.org.
+
+              => Using READ_ONCE on kernel 4.15 now, please check latest dev code. Thank you.
+      
+    
+
+
+                    $ fw ACCESS_ONCE
+                    ./drivers/xenomai/net/drivers/igb/igb_main.c:657:       u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+                    ./drivers/xenomai/net/drivers/igb/e1000_regs.h:375:     u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+                    ./include/xenomai/cobalt/uapi/kernel/urw.h:60:  token = ACCESS_ONCE(urw->sequence);
+                    ./tools/testing/selftests/rseq/rseq.h:53:#define RSEQ_ACCESS_ONCE(x)    (*(__volatile__  __typeof__(x) *)&(x))
+                    ./tools/testing/selftests/rseq/rseq.h:54:#define RSEQ_WRITE_ONCE(x, v)  __extension__ ({ RSEQ_ACCESS_ONCE(x) = (v); })
+                    ./tools/testing/selftests/rseq/rseq.h:55:#define RSEQ_READ_ONCE(x)      RSEQ_ACCESS_ONCE(x)
+                    ./tools/testing/selftests/rseq/rseq.h:111:      return RSEQ_ACCESS_ONCE(__rseq_abi.cpu_id);
+                    ./tools/testing/selftests/rseq/rseq.h:127:      return RSEQ_ACCESS_ONCE(__rseq_abi.cpu_id_start);
+                    ./Documentation/RCU/RTFP.txt:2722:      ACCESS_ONCE().
+
+ 
+    solution:  
+        in include/xenomai/cobalt/uapi/kernel/urw.h   replace ACCESS_ONCE with READ_ONCE
+ 
+ => error 2:    implicit declaration of function ‘print_symbol’
+    
+            : In function ‘handle_exception’:
+        kernel/xenomai/posix/process.c:745:3: error: implicit declaration of function ‘print_symbol’ [-Werror=implicit-function-declaration]
+           print_symbol("invalid use of FPU in Xenomai context at %s\n",
+           ^
+    
+    solution:
+        just comment our line with print_symbol
+    
+=>  error 3 :   ????    ‘__compiletime_assert_196’
+
+   get other error on building  
+   
+      => starts in kernel/xenomai/posix/thread.c when including #include <trace/events/cobalt-posix.h> which includes include/trace/define_trace.h
+          which includes trace/trace_events.h                           
+
+
+         CC      drivers/base/firmware.o
+       In file included from ./include/trace/define_trace.h:96:0,
+                        from ./include/trace/events/cobalt-posix.h:1068,
+                        from kernel/xenomai/posix/thread.c:33:
+       ./include/trace/events/cobalt-posix.h: In function ‘trace_event_define_fields_cobalt_void’:
+       ./include/linux/compiler.h:329:20: error: call to ‘__compiletime_assert_196’ declared with attribute error: BUILD_BUG_ON failed: 0 <= 0
+           prefix ## suffix();    \
+                           ^
+       ./include/trace/trace_events.h:455:2: note: in definition of macro ‘DECLARE_EVENT_CLASS’
+         tstruct;       \
+         ^
+       ./include/trace/events/cobalt-posix.h:189:2: note: in expansion of macro ‘TP_STRUCT__entry’
+         TP_STRUCT__entry(
+         ^
+       ./include/linux/compiler.h:336:2: note: in expansion of macro ‘__compiletime_assert’
+         __compiletime_assert(condition, msg, prefix, suffix)
+         ^
+       ./include/linux/compiler.h:348:2: note: in expansion of macro ‘_compiletime_assert’
+         _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+         ^
+       ./include/linux/build_bug.h:45:37: note: in expansion of macro ‘compiletime_assert’
+        #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+                                            ^
+       ./include/linux/build_bug.h:69:2: note: in expansion of macro ‘BUILD_BUG_ON_MSG’
+         BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+         ^
+       ./include/trace/trace_events.h:425:3: note: in expansion of macro ‘BUILD_BUG_ON’
+          BUILD_BUG_ON(len <= 0);     \
+          ^
+       ./include/trace/events/cobalt-posix.h:190:3: note: in expansion of macro ‘__array’
+          __array(char, dummy, 0)
+          ^
+         CC      drivers/base/init.o
+         CC [M]  sound/core/misc.o
+         CC [M]  fs/dlm/dir.o
+       make[6]: *** [kernel/xenomai/posix/thread.o] Error 1
+       make[5]: *** [kernel/xenomai/posix] Error 2
+       make[4]: *** [kernel/xenomai] Error 2
+       make[3]: *** [kernel] Error 2
+       make[3]: *** Waiting for unfinished jobs....    
+    
+    
+         at  end:
+      
+      AR      drivers/built-in.a
+      make[2]: *** [build] Error 2
+      dpkg-buildpackage: error: debian/rules build gave error exit status 2
+      make[1]: *** [deb-pkg] Error 2
+      make: *** [deb-pkg] Error 2
+
+
+  =>  something wrong with xenomai code in ./include/trace/events/cobalt-posix.h
+
+=> not immediately clear how to fix this => I gave up!    
+      

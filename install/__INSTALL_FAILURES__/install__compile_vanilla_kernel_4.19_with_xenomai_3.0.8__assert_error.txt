@@ -1,0 +1,210 @@
+
+18 june 2019
+
+kernel.org (vanilla) 4.19.33  with xenomai 3.0.8    https://git.kernel.org/
+------------------------------------------------
+
+ mkdir  /data/rpi/rpi3bplusvanilla_4.19.33
+ cd /data/rpi/rpi3bplusvanilla_4.19.33
+ 
+ wget https://xenomai.org/downloads/xenomai/stable/xenomai-3.0.8.tar.bz2
+ tar -xjvf xenomai-3.0.8.tar.bz2
+  
+ 
+ git clone -b v4.19.33 --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git linux
+
+ wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.19.33-arm-2.patch
+ xenomai-3.0.8/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.19.33-arm-2.patch
+
+
+ cd linux
+ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig
+ 
+   => gives error
+   init/Kconfig:2053: can't open file "arch/$SRCARCH/xenomai/Kconfig"
+   make[1]: *** [multi_v7_defconfig] Error 1
+   make: *** [multi_v7_defconfig] Error 2 
+   => arch/arm/xenomai/Kconfig exists!! 
+   => just fixed  init/Kconfig  changed at line 2053 "$SRCARCH" into "arm"  then it worked
+   
+ 
+ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+
+ 
+ 
+     CPU Power Management  --->
+       CPU Frequency scaling  --->
+         [ ] CPU Frequency scaling
+       CPU idle  --->
+         [ ] CPU idle PM support
+    
+    old     
+         Kernel Features  --->
+             [ ] Contiguous Memory Allocator
+             [ ] Allow for memory compaction
+    new  
+         Memory management options    (below default values)
+             [*] Allow for memory compaction    (CONFIG_COMPACTION)
+              * Contiguous Memory Allocato  (CONFIG_CMA) => couldn't disable this!!! Unclear why not???
+            => needed to disable for  
+             
+
+                 *** WARNING! Page migration (CONFIG_MIGRATION) may increase ***                                                                 │ │
+                 *** latency. ***
+         
+            => so decided to leave both on and thus CONFIG_MIGRATION on and thus have bigger latecny!
+         
+     Kernel Hacking  --->
+         [ ] KGDB: kernel debugger
+     Boot options  --->
+         Kernel command line type --->
+             [X] Extend bootloader kernel arguments
+
+
+     Xenomai Cobalt --->
+          Drivers  --->
+                  Real-time GPIO drivers  --->
+                     <*> GPIO controller                          => with " [M] Support for BCM2835 GPIOs   " instead it builds directly in kernel, then no need to load module anymore!
+                     [M]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                     [ ]   Enable GPIO core debugging features
+
+
+     note: in above  [ ]  means disable,  [X]  means enable
+
+
+
+   export NUMCORES=4  
+    time make -j $NUMCORES ARCH=arm  CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_DEBARCH=armhf deb-pkg
+    # does first : make clean
+    
+
+
+
+   gives error :
+
+          CC      kernel/xenomai/posix/clock.o
+        In file included from include/xenomai/cobalt/uapi/kernel/vdso.h:21:0,
+                         from include/xenomai/cobalt/kernel/vdso.h:26,
+                         from kernel/xenomai/posix/clock.c:21:
+        include/xenomai/cobalt/uapi/kernel/urw.h: In function ‘__try_read_start’:
+        include/xenomai/cobalt/uapi/kernel/urw.h:60:2: error: implicit declaration of function ‘ACCESS_ONCE’ [-Werror=implicit-function-declaration]
+          token = ACCESS_ONCE(urw->sequence);
+          ^
+        cc1: some warnings being treated as errors
+        make[6]: *** [kernel/xenomai/posix/clock.o] Error 1
+        make[5]: *** [kernel/xenomai/posix] Error 2
+        make[4]: *** [kernel/xenomai] Error 2
+        make[4]: *** Waiting for unfinished jobs....
+
+
+  same as 
+     "=> error 1:  implicit declaration of function ‘ACCESS_ONCE’" in "install__compile_rpi 4.19.y_with_xenomai_3.0.8__assert_error.txt"
+     => apply same fix
+     
+     
+  finally we got same error  "error 2" as in  "install__compile_rpi 4.19.y_with_xenomai_3.0.8__assert_error.txt"    
+    
+    =>  something wrong with xenomai code in ./include/trace/events/cobalt-posix.h
+
+  => not immediately clear how to fix this => I gave up!  
+
+
+
+
+  
+side notes: 
+
+                     *** WARNING! Page migration (CONFIG_MIGRATION) may increase ***                                                                 │ │
+                     *** latency. ***
+
+
+                    Symbol: MIGRATION [=y]                                                                                                                                                                              │
+                      │ Type  : bool                                                                                                                                                                                        │
+                      │ Prompt: Page migration                                                                                                                                                                              │
+                      │   Location:                                                                                                                                                                                         │
+                      │     -> Memory Management options                                                                                                                                                                    │
+                      │ (1)   -> Allow for memory compaction (COMPACTION [=y])                                                                                                                                              │
+                      │   Defined at mm/Kconfig:249                                                                                                                                                                         │
+                      │   Depends on: (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION [=y] || CMA [=y]) && MMU [=y]                                                                                                     │
+                      │   Selected by [y]:                                                                                                                                                                                  │
+                      │   - COMPACTION [=y] && MMU [=y]                                                                                                                                                                     │
+                      │   - CMA [=y] && HAVE_MEMBLOCK [=y] && MMU [=y]
+  
+  
+
+
+                    $ fw 'Allow for memory compaction'
+                    ./mm/Kconfig:232:       bool "Allow for memory compaction"
+
+
+                    config COMPACTION
+                        bool "Allow for memory compaction"
+                        def_bool y
+                        select MIGRATION
+                        depends on MMU
+                        help
+
+
+                    $ fw 'Contiguous Memory Allocator'
+                    ./mm/Kconfig:483:       bool "Contiguous Memory Allocator"
+                    ./mm/Kconfig:488:         This enables the Contiguous Memory Allocator which allows other  
+
+                    config CMA
+                        bool "Contiguous Memory Allocator"
+                        depends on HAVE_MEMBLOCK && MMU
+                        select MIGRATION
+                        select MEMORY_ISOLATION
+                        help
+                          This enables the Contiguous Memory Allocator which allows other
+                          subsystems to allocate big physically-contiguous blocks of memory.
+                          CMA reserves a region of memory and allows only movable pages to
+                          be allocated from it. This way, the kernel can use the memory for
+                          pagecache and when a subsystem requests for contiguous area, the
+                          allocated pages are migrated away to serve the contiguous request.
+
+                          If unsure, say "n".
+
+
+                     │ Symbol: CMA [=y]                                                                                                                                                                                    │
+                      │ Type  : bool                                                                                                                                                                                        │
+                      │ Prompt: Contiguous Memory Allocator                                                                                                                                                                 │
+                      │   Location:                                                                                                                                                                                         │
+                      │ (1) -> Memory Management options                                                                                                                                                                    │
+                      │   Defined at mm/Kconfig:482                                                                                                                                                                         │
+                      │   Depends on: HAVE_MEMBLOCK [=y] && MMU [=y]                                                                                                                                                        │
+                      │   Selects: MIGRATION [=y] && MEMORY_ISOLATION [=y]                                                                                                                                                  │
+                      │   Selected by [m]:                                                                                                                                                                                  │
+                      │   - DRM_ETNAVIV [=m] && HAS_IOMEM [=y] && DRM [=y] && 
+                           (ARCH_MXC [=y] || ARCH_DOVE [=n] || ARM [=y] && COMPILE_TEST [=n]) 
+                           && MMU [=y] && HAVE_DMA_CONTIGUOUS [=y]                                    
+                      │
+                      │   Selected by [n]:                                                                                                                                                                                  │
+                      │   - VMCP [=n] && S390                                                                                                                                                                               │
+                      │
+
+                    => when we disable  HAVE_DMA_CONTIGUOUS  => causes CMA to be no
+
+
+                    Symbol: HAVE_DMA_CONTIGUOUS [=y]                                                                                                                                                                    │
+                      │ Type  : bool                                                                                                                                                                                        │
+                      │   Defined at arch/Kconfig:232                                                                                                                                                                       │
+                      │   Selected by [y]:                                                                                                                                                                                  │
+                      │   - ARM [=y] && MMU [=y]
+  
+  
+
+                    ./drivers/base/Kconfig:202:       You can disable CMA by specifying "cma=0" on the kernel's command
+
+                    /drivers/base/Kconfig:211:config CMA_SIZE_MBYTES
+                    ./drivers/base/Kconfig:213:     depends on !CMA_SIZE_SEL_PERCENTAGE
+                    ./drivers/base/Kconfig:218:       Memory Allocator.  If the size of 0 is selected, CMA is disabled by
+                    ./drivers/base/Kconfig:219:       default, but it can be enabled by passing cma=size[MG] to the kernel.
+
+                    ./drivers/base/Kconfig:222:config CMA_SIZE_PERCENTAGE
+                    ./drivers/base/Kconfig:224:     depends on !CMA_SIZE_SEL_MBYTES
+                    ./drivers/base/Kconfig:230:       If 0 percent is selected, CMA is disabled by default, but it can be
+                    ./drivers/base/Kconfig:231:       enabled by passing cma=size[MG] to the kernel.
+                    .
+
+  
