@@ -1,3 +1,4 @@
+[TOC]
 
 
 install xenomai 3.0.8 on rpi3B+
@@ -56,11 +57,10 @@ answer:
 versions
 ========
 
-so we need to upgrade to debian stretch to support rpi3b+
+So we need to upgrade to debian stretch to support rpi3b+
 
 
-
-first choose xenomai/ipipe version to patch xenomai on raspbian kernel  
+First choose xenomai/ipipe version to patch xenomai on raspbian kernel  
 
     https://www.xenomai.org/downloads/ipipe/v4.x/arm/
   
