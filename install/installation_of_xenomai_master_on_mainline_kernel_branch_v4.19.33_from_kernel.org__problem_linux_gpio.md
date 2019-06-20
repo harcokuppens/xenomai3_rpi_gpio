@@ -183,6 +183,17 @@ Install on the raspberry pi the distribution files:
  
  Then reboot and linux with xenomai should be up and running.
  
+ Or if you have an raspbian image then the bootcode in raspbian automatically loads the right device tree description file if you didn't specify it in /boot/config.txt. The files should have the right names, so do the following:
+ 
+      cd /boot
+      cp bcm2836-rpi-2-b.dtb	    bcm2709-rpi-2-b.dtb
+      cp bcm2837-rpi-3-b.dtb	    bcm2710-rpi-3-b.dtb
+      cp bcm2837-rpi-3-b-plus.dtb   bcm2710-rpi-3-b-plus.dtb
+      # important: outcomment any device_tree= option in /boot/config.txt
+
+Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
+ 
+ 
  
 Test code
 =========
