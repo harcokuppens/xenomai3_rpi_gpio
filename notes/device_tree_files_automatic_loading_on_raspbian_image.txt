@@ -1,0 +1,91 @@
+Device tree files automatic loading on raspbian image
+======================================================
+
+when raspbian boots, it boots with bootcode.bin for basic stuff and it then
+starts start.elf which loads more advanced stuff. Eg. it detects the current pi hardware board
+and loads for it the right bcm file in /boot/.
+
+When we look at  /boot/start.elf 
+ $ strings /boot/start.elf 
+ bcm%d-rpi-%s.dtb   => not found in bootcode.bin => /boot/start.elf  does find device tree file for linux kernel
+
+So it searches for a file bcm%d-rpi-%s.dtb in /boot.  Though it seems only match numbers (%d) starting with 27 and not 28.
+In that way it can load the right bcm27..-rpi-%s.dtb file for the current board.
+
+The mainline/vanilla (kernel.org) kernel names its device tree description files differently :  bcm28..-rpi-%s.dtb 
+
+Thus in kernel-source in dir arch/arm/boot/dts 
+
+ for rpi kernel
+    $ for f in bcm27*.dts; do printf $f; cat $f | grep model; done |sort
+    bcm2708-rpi-0-w.dts	model = "Raspberry Pi Zero W";
+    bcm2708-rpi-b.dts	model = "Raspberry Pi Model B";
+    bcm2708-rpi-b-plus.dts	model = "Raspberry Pi Model B+";
+    bcm2708-rpi-cm.dts	model = "Raspberry Pi Compute Module";
+    bcm2709-rpi-2-b.dts	model = "Raspberry Pi 2 Model B";
+    bcm2710-rpi-3-b.dts	model = "Raspberry Pi 3 Model B";
+    bcm2710-rpi-3-b-plus.dts	model = "Raspberry Pi 3 Model B+";
+    bcm2710-rpi-cm3.dts	model = "Raspberry Pi Compute Module 3";
+
+
+ for vanilla kernel
+    $ for f in bcm283*.dts; do printf $f; cat $f | grep 'model ='; done |sort
+    bcm2835-rpi-a.dts	model = "Raspberry Pi Model A";
+    bcm2835-rpi-a-plus.dts	model = "Raspberry Pi Model A+";
+    bcm2835-rpi-b.dts	model = "Raspberry Pi Model B";
+    bcm2835-rpi-b-plus.dts	model = "Raspberry Pi Model B+";
+    bcm2835-rpi-b-rev2.dts	model = "Raspberry Pi Model B rev2";
+    bcm2835-rpi-cm1-io1.dts	model = "Raspberry Pi Compute Module IO board rev1";
+    bcm2835-rpi-zero.dts	model = "Raspberry Pi Zero";
+    bcm2835-rpi-zero-w.dts	model = "Raspberry Pi Zero W";
+    bcm2836-rpi-2-b.dts	model = "Raspberry Pi 2 Model B";
+    bcm2837-rpi-3-b.dts	model = "Raspberry Pi 3 Model B";
+    bcm2837-rpi-3-b-plus.dts	model = "Raspberry Pi 3 Model B+";
+
+thus if we have a vanilla kernel, we must rename its dtb files to the naming convention used by raspbian.
+For the raspberry 2 and 3 it means:
+
+    cp  /usr/lib/linux-image-*/bcm2836-rpi-2-b.dtb	/boot/bcm2709-rpi-2-b.dtb	
+    cp  /usr/lib/linux-image-*/bcm2837-rpi-3-b.dtb	/boot/bcm2710-rpi-3-b.dtb	
+    cp  /usr/lib/linux-image-*/bcm2837-rpi-3-b-plus.dtb /boot/bcm2710-rpi-3-b-plus.dtb
+
+ 
+background info
+----------------
+
+https://www.raspberrypi.org/documentation/configuration/device-tree.md
+  
+  a Device Tree Blob (DTB) passed to the kernel by the loader (start.elf).
+  
+https://www.raspberrypi.org/documentation/configuration/boot_folder.md
+ 
+ bootcode.bin
+
+   The bootloader. Loaded by the SoC on boot, does some very basic setup, and subsequently loads one of the start*.elf files.
+ 
+ start.elf 
+ 
+   is the basic firmware   
+ 
+ cmdline.txt
+ 
+    The kernel command line passed in to the kernel when it boots.
+ 
+ config.txt
+
+    Contains many configuration parameters for setting up the Pi. See the config.txt section.
+ 
+    https://www.raspberrypi.org/documentation/configuration/config-txt/README.md
+    
+      The Raspberry Pi uses a configuration file instead of the BIOS you would expect to find on a conventional PC. The system configuration
+      parameters, which would traditionally be edited and stored using a BIOS, are stored instead in an optional text file named config.txt. 
+      
+      This is read by the GPU before the ARM CPU and Linux are initialised.
+      It must therefore be located on the first (boot) partition of your SD card, 
+      alongside bootcode.bin and start.elf.
+      
+      This file is normally accessible as /boot/config.txt from Linux, and must be edited as root.
+      
+    
+
+ 

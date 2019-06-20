@@ -192,7 +192,7 @@ Install on the raspberry pi the distribution files:
       # important: outcomment any device_tree= option in /boot/config.txt
 
 Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
- 
+For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](device_tree_files_automatic_loading_on_raspbian_image.txt).
  
  
 Test code
