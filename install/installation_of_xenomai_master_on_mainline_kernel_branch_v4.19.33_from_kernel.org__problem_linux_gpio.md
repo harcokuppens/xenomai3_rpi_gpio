@@ -206,7 +206,7 @@ But the bootcode used by the raspberry can also automatically load the right dev
       # important: uncomment any device_tree= option in /boot/config.txt
 
 Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
-For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](device_tree_files_automatic_loading_on_raspbian_image.txt).
+For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](../notes/device_tree_files_automatic_loading_on_raspbian_image.txt).
  
  
 ### Make a single debian package
