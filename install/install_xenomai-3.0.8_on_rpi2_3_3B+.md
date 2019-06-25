@@ -414,8 +414,8 @@ Appendices
 
 
 
-Appending A: upgrading old image doesn't work
-------------
+Appendix A: upgrading old image doesn't work
+-----------
        
 This installation is based on the installation: 
     
