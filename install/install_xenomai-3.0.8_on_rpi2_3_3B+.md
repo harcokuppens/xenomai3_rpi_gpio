@@ -21,7 +21,7 @@ Table of contents
          * [5. built Xenomai user space part  ( kernel part is built with kernel above)      =&gt; cross compile](#5-built-xenomai-user-space-part---kernel-part-is-built-with-kernel-above-------cross-compile)
          * [6. copy build stuff in dist/ to raspbian sdcard](#6-copy-build-stuff-in-dist-to-raspbian-sdcard)
    * [Appendices](#appendices)
-      * [Appending A: upgrading old image doesn't work](#appending-a-upgrading-old-image-doesnt-work)
+      * [Appendix A: upgrading old image doesn't work](#appendix-a-upgrading-old-image-doesnt-work)
       * [Appendix B: New versions of ingredients needed](#appendix-b-new-versions-of-ingredients-needed)
       * [Appendix C: which defconfig to use?](#appendix-c-which-defconfig-to-use)
       * [Appendix D: No kernel config patching needed](#appendix-d-no-kernel-config-patching-needed)
