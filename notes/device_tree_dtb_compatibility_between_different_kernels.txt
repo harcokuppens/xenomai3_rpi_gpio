@@ -1,0 +1,51 @@
+ GOOD SITE: https://elinux.org/R-Pi_Troubleshooting#Coloured_splash_screen
+               
+
+device tree files are distributed with the kernel so to guarantee they are compatible
+--------------------------------------------------------------------------------------
+  
+however    
+   The Device Tree is supposed to be a stable ABI so a device tree written for any version of the kernel should work
+   with any following kernel version.
+=> so probable installing a different kernel it will also work with older device tree dtb files
+=> in practice this could not hold for some reason, so to be safe the device tree files are distributed
+   with the kernel    
+ 
+ 
+ https://unix.stackexchange.com/questions/339839/is-a-device-tree-blob-tied-to-a-specific-linux-kernel-version
+
+
+   The Device Tree is supposed to be a stable ABI so a device tree written for any version of the kernel should work
+   with any following kernel version.
+
+   However, for practical reasons, this is quite often not the case. 
+   You can have a look at the following presentation from Thomas, explaining why:
+   http://free-electrons.com/pub/conferences/2015/elc/petazzoni-dt-as-stable-abi-fairy-tale/petazzoni-dt-as-stable-abi-fairy-tale.pdf
+
+   Video: https://www.youtube.com/watch?v=rPRqIS9q6CY
+   
+     “So embedded people are going to ship with unfinished DT and upgrade later. 
+     They have to. There is no choice. Stable DT doesn’t change anything
+     unless you can create perfect stable bindings for a new SOC instantaneously.”
+     
+
+
+  Maintaining Device Tree backward compatibility has a high cost in maintenance and testing effort prevents refactoring
+  code to use new generic kernel frameworks is not used by Linux distributions, not wanted by hardware vendors has no
+  chance to work due to the timing of product development vs. speed of upstreaming So: should we really care?
+  
+  
+
+   https://lwn.net/Articles/560523/
+     
+     If a driver's bindings change in an incompatible way, newer kernels may fail to boot on systems with older device
+     trees. Since the device tree is often buried in the system's firmware somewhere, this kind of problem can be hard
+     to fix. But, even when the fix is easy, the kernel's normal API rules should apply; newer kernels should not break
+     on systems where older kernels work.
+
+     => device tree uses binary interface ABI
+        so dtb file must be compiled for a specific  kernel  (cannot just take one dtb form other kernel)
+        note: can compile many different dtbs for a specific kernel for different kind of hardware
+
+
+

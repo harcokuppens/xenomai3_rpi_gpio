@@ -1,0 +1,191 @@
+note: rtnet not feasible on rpi! (not yet)
+
+  => rpi1,2,3  ethernet controllers use usb to communicate with cup
+         -> both ethernet and usb realtime not supported 
+         
+  => rpi4 ethernet controller 'The Broadcom BCM54213 Gigabit ethernet controller'
+     not supported by some realtime driver  => so for the moment rtnet seems not feasible on rpi
+
+note: rtnet supported on Beaglebone Black board  https://beagleboard.org/black
+       
+       http://brunosmartins.info/xenomai-on-the-beaglebone-black-in-14-easy-steps/  xenomai 2.6
+         `-> explains how to get Xenomai to run on my BeagleBone.
+      
+       https://xenomai.org/pipermail/xenomai/2016-May/036309.html   xenomai 3
+       
+       https://cdn-shop.adafruit.com/datasheets/BBB_SRM.pdf
+         ethernet controller: LAN8710A   => smsc fabrikant
+       
+       https://github.com/G-Ray/xenomai-boneblack-rtnet-drivers
+         rt_smsc.c 	Add driver for Beaglebone Black.
+         
+         
+rtnet
+=====
+
+
+docs :  http://www.rtnet.org/download/RTnet-ETFA05.pdf door J Kiszka 
+        https://research.utwente.nl/files/5108763/0000013c.pdf
+
+slides(german):  RTnet-Kickoff-LAK2005-04.pdf
+                    => shows picture that all rtnet systems are connected via an hub
+                       and one of the rtnet system acts as a gateway to the none-realtime internet 
+                    => ipv hub kun je ook een switch gebruiken maar zegt:
+                          Switches verwendbar (höhere Latenz, keine Vorteile)
+                        note: http://www.rtnet.org/doc.html
+                            says 
+                               10/100 MBit/s hubs (recommended for non-gigabit due to lower latencies)
+                               10/100/1000 MBit/s switches
+                               
+ note: RTDM paper "The Real-Time Driver Model and First Applications" by    J. Kiszka
+       also refers to RTnet
+       
+       
+
+http://www.rtnet.org/
+  github clone: https://github.com/konradb3/RTnet
+
+
+RTnet is an Open Soure hard real-time network protocol stack for Xenomai and RTAI (real-time Linux extensions). It
+makes use of standard Ethernet hardware and supports several popular NIC chip sets, including Gigabit Ethernet.
+Moreover, Ethernet-over-1394 support is available based on the RT-FireWire protocol stack.
+
+RTnet implements UDP/IP, TCP/IP (basic features), ICMP and ARP in a deterministic way. It provides a POSIX socket API
+to real-time user space processes and kernel modules.
+
+To avoid unpredictable collisions and congestions on Ethernet, an additional protocol layer called RTmac controls the
+media access. A dedicated Ethernet segment is required to guarantee bounded transmission delays, but RTnet also
+includes a mechanism to tunnel non real-time traffic like TCP/IP over RTmac, thus allowing a "single-cable" solution
+for connecting control systems.
+
+Some possible application domains are fieldbus replacements, distributed real-time computing, or video/audio streaming.
+
+
+https://gitlab.denx.de/Xenomai/xenomai/wikis/RTnet  
+https://gitlab.denx.de/Xenomai/xenomai/wikis/RTnet_Setup
+
+
+http://www.rtnet.org/doc.html
+
+Requirements
+
+    Linux kernel 2.6.x or 2.4.x
+    Xenomai (2.0 or better) or RTAI (3.3-cv or better)
+    x86[_64], PowerPC, or ARM platform
+    
+    Standard Ethernet components
+        Supported network adapters (see below)
+        10/100 MBit/s hubs (recommended for non-gigabit due to lower latencies)
+        10/100/1000 MBit/s switches
+
+
+drivers
+--------
+http://www.rtnet.org/doc.html
+
+Supported Network Adapters
+
+    Intel 8255x EtherExpress Pro100
+    Intel PRO/1000 (Gigabit Ethernet)
+    DEC 21x4x Tulip
+    RealTek RTL8139
+    RealTek RTL8169 (Gigabit Ethernet)
+    AMD PCnet32/PCnetPCI
+	
+
+    VIA Rhine
+    NatSemi DP8381x
+    MPC8xx (SCC and FEC Ethernet)
+    MPC8260 (FCC Ethernet)
+    MPC5200
+    SMSC LAN91C111
+   
+   => rpi4 ethernet controller 'The Broadcom BCM54213 Gigabit ethernet controller'
+      not supported  => so for the moment rtnet seems not feasible on rpi
+      
+   
+xenomai drivers
+ see xenomai source in subfolder ./kernel/drivers/net   
+   
+   
+https://rtt-lwr.readthedocs.io/en/latest/rtpc/rtnet.html
+
+RTnet allows you to send and receive data with very strict constraints, in a real-time environment (RTAI, Xenomai). It
+only works with a very limited set of ethernet cards (RTnet includes “real-time” re-written drivers) : Intel PRO/1000,
+82574L, any card with r8169 (xenomai < 2.6.4 only) and others.
+
+
+Recommended hardware
+
+    Intel Pro/1000 GT : e1000e driver <– Recommended
+    D-Link DGE-528T : r8169s driver
+
+more info drivers:
+   https://github.com/konradb3/RTnet/tree/master/drivers
+   
+
+
+
+alternative for rtnet : ethercat
+--------------------------------
+
+The IgH EtherCAT Master provides patched drivers for several popular NIC, called native drivers. 
+  http://www.etherlab.org/en/ethercat/
+
+There is a project
+Rtnet (Hard Real-Time Networking for Real-Time Linux) which bring realtime network to Xenomai and RTAI. Unfortunately
+the number of supported realtime drivers is quite limited and it is really difficult to build a realtime driver for a
+new NIC.
+
+
+
+
+rtnet rpi4
+----------
+
+for rtnet on rpi 4 we need a realtime driver for the The Broadcom BCM54213 Gigabit ethernet controller
+  -> see raspberry_pi4.txt
+
+
+rtnet only practical for raspberry pi 4 , but not for older raspberry pi's
+--------------------------------------------------------------------------
+
+Chips on older pi's where based on first iphone chip which didn't had ethernet but only wifi.
+So they had a separate ethernet controller, but the ethernet controller had to comminucate over usb to the main cpu.
+
+
+   http://www.simplerobot.net/2018/06/rpi-ethercat-master.html
+
+    For Raspberry pi, the problem is even worst. The BCM283x SoC, main CPU on Raspberry pi, does not have built-in
+    Ethernet controller. Raspberry pi provide Ethernet via an USB-Ethernet controller (LAN7xxx on rpi 3b+ and SMSC9xxx on
+    previous rpi versions). In next picture, we can see the block diagram of the SMSC9514 chip which is used on Raspberry
+    pi 3b as Ethernet controller.
+      https://1.bp.blogspot.com/-82o_gcTDOc4/WxzPptlxceI/AAAAAAAAAyk/8BctTkVedHs--ViRAXi6CBF_CNVXF0mygCLcBGAs/s1600/SMSC9514-block.png
+
+    The Ethernet data path (the red route) is now longer, it must travel through Network controller and USB hub
+    controller. In order to develop realtime Network driver, we first have to build a realtime USB stack, the
+    difficulty is now doubled. At least till this time, such kind of realtime network driver model is absent. This
+    explains why I said almost current EtherCAT Master solutions for Raspberry pi are not hard-realtime.
+     -> this documentation was written before rpi 4 appeared!!
+     
+
+The raspberry pi 4 has a GigaBit ethernet which is native(inside main chip), meaning that communincation to it is not 
+over USB anymore as was done for the previous 
+raspberry pi's. (pi1,pi2,p3)  
+
+  => see raspberry_pi4.txt
+
+
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=211018
+Pi3b+ Ethernet driver
+
+ CONFIG_USB_LAN78XX=y          =>  ethernet over usb!!
+ 
+ lsmod  
+   -> lists  lan78xx
+   
+ 
+ 
+ 

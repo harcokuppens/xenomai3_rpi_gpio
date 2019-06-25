@@ -2,42 +2,43 @@
 
 
 
-Install xenomai 3.0.8 on rpi3B+
+Install xenomai 3.0.8 on rpi3B+ with kernel 4.9
 ===============================
 
 Table of contents
 
-   * [Install xenomai 3.0.8 on rpi3B ](#install-xenomai-308-on-rpi3b)
-      * [Note for rpi1 and rpi zero](#note-for-rpi1-and-rpi-zero)
-      * [Upgrading old image doesn't work](#upgrading-old-image-doesnt-work)
-      * [Versions of ingredients needed](#versions-of-ingredients-needed)
-         * [Xenomai](#xenomai)
-         * [Raspbian OS/Image](#raspbian-osimage)
-         * [Ipipe](#ipipe)
-         * [Raspbian kernel](#raspbian-kernel)
+   * [Install xenomai 3.0.8 on rpi3B  with kernel 4.9](#install-xenomai-308-on-rpi3b-with-kernel-49)
       * [Credits](#credits)
-      * [New ingredients](#new-ingredients)
+      * [Note for rpi1 and rpi zero](#note-for-rpi1-and-rpi-zero)
    * [Installation recipe](#installation-recipe)
-       * [0. prepare](#0-prepare)
-       * [1. get sources](#1-get-sources)
-       * [2.  apply kernel patches ( xenomai ipipe, bcm( arch/arm/mach-bcm2709/.. and linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c   )](#2--apply-kernel-patches--xenomaiipipe-bcm-archarmmach-bcm2709-and-linuxdriverspinctrlbcmpinctrl-bcm2835c---)
-       * [3. configure linux kernel/module option](#3-configure-linux-kernelmodule-option)
-       * [4. build kernel and modules in linux dir      =&gt; cross compile](#4-build-kernel-and-modules-in-linux-dir-------cross-compile)
-       * [5. built Xenomai user space part  ( kernel part is built with kernel above)      =&gt; cross compile](#5-built-xenomai-user-space-part---kernel-part-is-built-with-kernel-above-------cross-compile)
-       * [6. copy build stuff in dist/ to raspbian sdcard](#6-copy-build-stuff-in-dist-to-raspbian-sdcard)
-   * [Customize image](#customize-image)
-      * [configure pi](#configure-pi)
-      * [utilities](#utilities)
-      * [ssh server](#ssh-server)
-      * [samba server root homedir mount without passwd](#samba-server-root-homedir-mount-without-passwd)
-      * [remove authentication from virtual consoles  =&gt; ctrl-alt-F1..12  ()](#remove-authentication-from-virtual-consoles---ctrl-alt-f112--)
-      * [fix kernel, so not by accident updated :](#fix-kernel-so-not-by-accident-updated-)
-      * [add custom Xenomai startup and login scripts](#add-custom-xenomai-startup-and-login-scripts)
-      * [configure wlan](#configure-wlan)
-   * [SIDENOTES](#sidenotes)
-       * [Sidenote: compared to previous xenomai 3.05 build for rpi (4.1 kernel) there is NO patching of drivers/xenomai/gpio/Kconfig needed:](#sidenote-compared-to-previous-xenomai-305-build-for-rpi-41-kernel-there-is-no-patching-of-driversxenomaigpiokconfig-needed)
-       * [Sidenote: which defconfig to use??](#sidenote-which-defconfig-to-use)
+      * [Ingredients](#ingredients)
+      * [Instructions](#instructions)
+         * [0. prepare](#0-prepare)
+         * [1. get ingredients](#1-get-ingredients)
+         * [2.  apply kernel patches ( xenomai ipipe, bcm( arch/arm/mach-bcm2709/.. and linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c   )](#2--apply-kernel-patches--xenomaiipipe-bcm-archarmmach-bcm2709-and-linuxdriverspinctrlbcmpinctrl-bcm2835c---)
+         * [3. configure linux kernel/module option](#3-configure-linux-kernelmodule-option)
+         * [4. build kernel and modules in linux dir      =&gt; cross compile](#4-build-kernel-and-modules-in-linux-dir-------cross-compile)
+         * [5. built Xenomai user space part  ( kernel part is built with kernel above)      =&gt; cross compile](#5-built-xenomai-user-space-part---kernel-part-is-built-with-kernel-above-------cross-compile)
+         * [6. copy build stuff in dist/ to raspbian sdcard](#6-copy-build-stuff-in-dist-to-raspbian-sdcard)
+   * [Appendices](#appendices)
+      * [Appending A: upgrading old image doesn't work](#appending-a-upgrading-old-image-doesnt-work)
+      * [Appendix B: New versions of ingredients needed](#appendix-b-new-versions-of-ingredients-needed)
+      * [Appendix C: which defconfig to use?](#appendix-c-which-defconfig-to-use)
+      * [Appendix D: No kernel config patching needed](#appendix-d-no-kernel-config-patching-needed)
 
+
+
+Credits 
+-------
+
+This installation is based on the installation: 
+    
+[`     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
+ 
+and on the documentation how to build kernel for raspbian:
+
+   [`https://www.raspberrypi.org/documentation/linux/kernel/building.md`](https://www.raspberrypi.org/documentation/linux/kernel/building.md)
+   
 
 Note for rpi1 and rpi zero 
 --------------------------
@@ -53,212 +54,27 @@ However using a different default config for the kernel build we can also easily
     install_xenomai-3-3.0.5_on_rpi1__ipipe_git.txt 
 
 
-Upgrading old image doesn't work
---------------------------------
-             
-idea: 
-
-	my old xenomai image was build for debian jessie for the rpi3b, but not for the rpi3b+ 
-	which has newer hardware. So the idea is just upgrade only the kernel and xenomai 
-	in our debian jessie installation for xenomai 3.05 which to also let is support rpi3b+ 
-     
-answer:
- 
-	   
-	Cannot be done  because rpi3b+ board needs a new stretch debian release because 
-	jessie doesn't support the new hardware. Also the device tree for the rpi3b+ 
-	was not available then yet! (hardware of 3b+ was made later!)
-       
-       
-    Src:   https://www.raspberrypi.org/forums/viewtopic.php?t=223806
-
-          The firmware in Jessie was released before the 3B+ even existed. 
-          It does not know how to boot it up properly. So you need the latest firmware.
-
-          The 3B+ also has different peripherals (USB, Ethernet, Wifi...) so it also 
-          needs new kernel drivers that  are not present in Jessie. Jessie is no longer supported.
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                  `-> new hardware only suppored in stretch, not in jessie!
-                  
-          You are probably much better to address any issues you have with Stretch, rather than trying to get Jessie working on a 3B+.
-
-
-          => it also needs new kernel drivers,  so upgrading my old system to new system, with old kernel and its modules 
-             won't work because misses the new hardware drivers
-   
-          => so solution: recompile old kernel on new system won't work because lack of new device driver code!
-
-
-
-
-   
-Versions of ingredients needed
-------------------------------
-
-So we need to upgrade to debian stretch to support rpi3b+.
-
-### Xenomai 
-
-We use the latest xenomai version:   xenomai 3.0.8   (april 2019)   
-
-
-### Raspbian OS/Image
-
-On the sd card install a lite raspbian version so that image becomes small
-    https://www.raspberrypi.org/downloads/raspbian/
-
-
-    Raspbian Stretch Lite
-    Minimal image based on Debian Stretch
-    Version: April 2019
-    Release date: 2019-04-08
-    Kernel version: 4.14
-     => 2019-04-08-raspbian-stretch-lite.zip
- 
-  
-### Ipipe
-
-First choose xenomai/ipipe version to patch xenomai on raspbian kernel  
-
-    https://www.xenomai.org/downloads/ipipe/v4.x/arm/
-  
-    [TXT] ipipe-core-4.14.110-arm-7.patch 2019-04-03 19:24  595K   ==> to recent patches are applied -> can contain still a bug
-    [TXT] ipipe-core-4.14.36-arm-1.patch  2018-06-12 19:12  587K  
-    [TXT] ipipe-core-4.14.62-arm-2.patch  2018-09-13 14:57  591K  
-    [TXT] ipipe-core-4.14.71-arm-3.patch  2018-09-24 15:04  594K  
-    [TXT] ipipe-core-4.14.71-arm-4.patch  2018-10-13 15:59  594K  
-    [TXT] ipipe-core-4.14.85-arm-5.patch  2018-12-06 12:40  594K  
-    [TXT] ipipe-core-4.14.85-arm-6.patch  2018-12-19 20:44  594K  
-    [TXT] ipipe-core-4.19.33-arm-1.patch  2019-04-04 10:53  593K   
-    [TXT] ipipe-core-4.4.71-arm-9.patch   2017-10-03 12:35  672K  
-    [TXT] ipipe-core-4.9.51-arm-4.patch   2018-03-26 09:16  700K   ==> seems to be stable!!!! 
-   
-   
-     => choose ipipe version which seems the stables =
-         -  take   ipipe-core-4.9.51-arm-4.patch
-
-### Raspbian kernel  
-       
-Then match that on the raspbian version. For raspbian versions we look at `https://github.com/raspberrypi/linux` , and that gives us that we need to use the raspbian branch 'rpi 4.9.y'
-
- 
-
-Credits 
--------
-
-This installation is based on the installation: 
-    
-[`     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
- 
-and on the documentation how to build kernel for raspbian:
-
-       https://www.raspberrypi.org/documentation/linux/kernel/building.md
-        => describes how to install cross compiler on linux
-        => describes how to compile kernel:
-            For Pi 1, Pi Zero, Pi Zero W, or Compute Module:
-
-                cd linux
-                KERNEL=kernel
-                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
-            
-            For Pi 2, Pi 3, Pi 3+, or Compute Module 3:
-
-                cd linux
-                KERNEL=kernel7
-                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
-
-            Then, for both:
-
-                make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
-
-         => describes howto  copy the kernel/modules and Device Tree blobs onto the SD card
-
-   
- 
- Note in [`xenomai308_image_virtualbox.txt`](xenomai308_image_virtualbox.txt) we installed the vanilla(kernel.org) kernel 4.9.144  with
-  '`4.9.144-3.1-debian`' debian specific kernel patches  applied  to the vanilla kernel.
-     
-However for the rpi  we use raspbian kernel source!!
-  
-We use raspbian kernel and not the vanilla kernel from kernel.org because that kernel has better gpio and device_tree support then the vanilla kernel for the raspberry pi. =>  see [`vanilla_kernel_or_raspbian_kernel.txt`](vanilla_kernel_or_raspbian_kernel.txt)    
-
-  If we clone rasbian kernel source for kernel 4.9 and
-  we run  `make kernelversion` it gives the full version 4.9.80
- 
-  However the latest ipipe for the 4.9 kernel we have is 
-     [https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch]()
-  so kernel versions do not entirely match  : 4.9.80 vs 4.9.51 
-  Also the ipipe patch is for the vanilla(kernel.org) kernel and not for the rpi-4.9 kernel.
-  The rpi-4.9 kernel is based on the vanilla kernel, but has extra specific changes for the raspberry pi.
-     
-  However probably the patch will just work, we just try it!   
- 
- 
-  Compared to installation describe in 
-
-   [`   install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
-
-  We have need NEW ingredients for a rasbian stretch distribution with kernel 4.9 and xenomai-3.0.8.
-  
-
-So updated ingredients are
-   
-	  a) xenomai-3.0.8  
-	  b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version 4.9.80)           \ ,-> all 4.9 !
-	  c) ipipe-core-4.9.51-arm-4.patch                        (for  version 4.9.51)           /
-	  d) pinctrl-bcm2835.c  from rpi specific branch 'vendors/raspberry/ipipe-4.1'      => for 4.1 \,-> still works??
-	  e) patch-xenomai-3-on-bcm-2709.patch   extra raspberry pi specific patch -> worked on 4.1    /     
-
-
-###ad e)
-   
-The patch-xenomai-3-on-bcm-2709.patch is not needed anymore because the specific kernel source code
-the patch is applied on is removed from the rpi-4.9 kernel (also for the 4.9 vanilla kernel).
-
-Note that before 4.8 the linux kernel used to have two different drivers for the gpio chip,
-however since the 4.8 kernel we only have a single driver "pinctrl-bcm2835"  with config `PINCTRL_BCM2835` for all raspbian hardware boards!!
-
-Src: [`../gpio/raspberry_pi__gpio_chip__two_drivers.txt`](../gpio/raspberry_pi__gpio_chip__two_drivers.txt) 
-       
-###ad d)
-     
-We have a xenomai/ipipe patched pinctrl-bcm2835.c  from xenomai/ipipe's rpi specific branch 'vendors/raspberry/ipipe-4.1'    
-which you can download at[ https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c]()
- 
-However this was for the rpi-4.1 kernel and didn't work anymore for the rpi-4.9 kernel.
-The  ipipe-core-4.9.51-arm-4.patch  has some new patches for the vanilla 4.9 kernel, but 
-this misses the  raspbian specific enhancements. So with some work I derived a new ipipe/xenomai patch 
-file for pinctrl-bcm2835.c in the rpi-4.9 kernel source. This patch 'pinctrl-bcm2835.c.rpi-4.9.patch' 
-must be applied to  pinctrl-bcm2835.c in the rpi-4.9 kernel source and we should remove the  
-ipipe/xenomai patches for pinctrl-bcm2835.c  from the ipipe-core-4.9.51-arm-4.patch.
- 
-For details how derived this patch see:  [`how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt`](how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt)
-        
-
-###ad c) 
-  
-       we need to patch the ipipe-core-4.9.51-arm-4.patch a little so that it also worked
-       on the raspbian 4.9.80 kernel. We also removed all patches for 'pinctrl-bcm2835.c' because
-       we already have a specific patch for that. So we get finally a new patch:
-       
-       ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
-     
-                
-
-  
-New ingredients 
---------------- 
-   
-     a) xenomai-3.0.8
-     b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version rpi-4.9.80)          
-     c) ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
-     d) pinctrl-bcm2835.c.rpi-4.9.patch
-     
-
 
 Installation recipe
 ====================
  
+These instructions only describe how to build the linux kernel with the xenomai's cobalt co-kernel, and how to build the Xenomai user-space libraries and tools.  
+
+The instructions how to customize the raspbian image for convenient lab usage you can find at:
+ 
+[`customize_raspbian_os_for_convenient_Lab_usage.md`](customize_raspbian_os_for_convenient_Lab_usage.md)
+
+Ingredients 
+----------- 
+
+   
+- xenomai-3.0.8
+- raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version rpi-4.9.80)          
+- ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
+- pinctrl-bcm2835.c.rpi-4.9.patch
+   
+Instructions
+------------
 
 ### 0. prepare 
 	
@@ -270,7 +86,7 @@ Installation recipe
 	mkdir $BUILDDIR   # place where download and build everything  
 	mkdir  $BUILDDIR/dist  # for ready to install files
 	
-### 1. get sources 
+### 1. get ingredients 
 
 	# 1a. get raspbian linux 4.9.y
 	#
@@ -592,148 +408,265 @@ Installation recipe
 	
 
 
-Customize image
-================
 
-We configure so that we can easily
-    
-  - ssh login as root from another network host  => easy login and make/run programs
-  - samba mount /root dir  => easy access in host to files with local mount so that we can use the editor of choice in the host to edit the files
-
-You can log in with the following credentials:
-
-      user:            pi
-      passwd:          raspberry 
-
-      user:            root
-      passwd:          pi
-      
-
-
-configure pi
---------------
-
-	raspi-config   
-	 => goto localisation options
-	     => setup timezone to europe/amsterdam
-	     => setup keyboard to  us-keyboard
-	
-	# login as user: pi
-	# become root user
-	sudo su -
-	# change password to 'pi'
-	passwd
-	# type twice 'pi'
+Appendices
+==========
 
 
 
-            
-utilities
----------
-
-	apt-get update
-	
-	# mouse support in console:
-	apt-get install gpm 
-	    
-	# gpio tool/libraries:
-	apt-get install wiringpi
-	
-	# editors:
-	apt-get install vim
-	apt-get install neovim # because vim has no clipboard support builtin so copy pasting mouse doesn't work with vim, but does with neovim 
-	apt-get install nano
-	apt-get install joe  
-
-	# for time sync: rdate -s time-srv.science.ru.nl    
-	apt-get install rdate  
-
-	# version control:
-	apt-get install git 
-	apt-get install subversion    
-   
-ssh server
+Appending A: upgrading old image doesn't work
 ------------
+       
+This installation is based on the installation: 
+    
+[`     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
 
-	sudo systemctl enable ssh.service
-	sudo systemctl start ssh.service
-	
-	edit  /etc/ssh/sshd_config so that :
-	
-	    UsePAM yes
-	    PasswordAuthentication yes
-	    PermitRootLogin yes
-	    
-	
-	/etc/init.d/ssh restart
+for which we already build an image.       
+             
+Idea: 
 
-    # remove annoying warning:
-	rm /etc/profile.d/sshpwd.sh
+	My old xenomai image was build for debian jessie for the rpi3b, but not for the rpi3b+ 
+	which has newer hardware. So the idea is just upgrade only the kernel and xenomai 
+	in our debian jessie installation for xenomai 3.05 which to also let is support rpi3b+ 
+     
+Answer:
+ 
+	   
+	Cannot be done  because rpi3b+ board needs a new stretch debian release because 
+	jessie doesn't support the new hardware. Also the device tree for the rpi3b+ 
+	was not available then yet! (hardware of 3b+ was made later!)
+       
+       
+    Src:   https://www.raspberrypi.org/forums/viewtopic.php?t=223806
+
+          The firmware in Jessie was released before the 3B+ even existed. 
+          It does not know how to boot it up properly. So you need the latest firmware.
+
+          The 3B+ also has different peripherals (USB, Ethernet, Wifi...) so it also 
+          needs new kernel drivers that  are not present in Jessie. Jessie is no longer supported.
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  `-> new hardware only suppored in stretch, not in jessie!
+                  
+          You are probably much better to address any issues you have with Stretch, rather than trying to get Jessie working on a 3B+.
+
+
+          => it also needs new kernel drivers,  so upgrading my old system to new system, with old kernel and its modules 
+             won't work because misses the new hardware drivers
+   
+          => so solution: recompile old kernel on new system won't work because lack of new device driver code!
+
+
+
+
+   
+Appendix B: New versions of ingredients needed
+-----------
+
+So we need to upgrade to debian stretch to support rpi3b+.
+
+### Xenomai 
+
+We use the latest xenomai version:   xenomai 3.0.8   (april 2019)   
+
+
+### Raspbian OS/Image
+
+On the sd card install a lite raspbian version so that image becomes small
+    https://www.raspberrypi.org/downloads/raspbian/
+
+
+    Raspbian Stretch Lite
+    Minimal image based on Debian Stretch
+    Version: April 2019
+    Release date: 2019-04-08
+    Kernel version: 4.14
+     => 2019-04-08-raspbian-stretch-lite.zip
+ 
+  
+### Ipipe
+
+First choose xenomai/ipipe version to patch xenomai on raspbian kernel  
+
+    https://www.xenomai.org/downloads/ipipe/v4.x/arm/
+  
+    [TXT] ipipe-core-4.14.110-arm-7.patch 2019-04-03 19:24  595K   ==> to recent patches are applied -> can contain still a bug
+    [TXT] ipipe-core-4.14.36-arm-1.patch  2018-06-12 19:12  587K  
+    [TXT] ipipe-core-4.14.62-arm-2.patch  2018-09-13 14:57  591K  
+    [TXT] ipipe-core-4.14.71-arm-3.patch  2018-09-24 15:04  594K  
+    [TXT] ipipe-core-4.14.71-arm-4.patch  2018-10-13 15:59  594K  
+    [TXT] ipipe-core-4.14.85-arm-5.patch  2018-12-06 12:40  594K  
+    [TXT] ipipe-core-4.14.85-arm-6.patch  2018-12-19 20:44  594K  
+    [TXT] ipipe-core-4.19.33-arm-1.patch  2019-04-04 10:53  593K   
+    [TXT] ipipe-core-4.4.71-arm-9.patch   2017-10-03 12:35  672K  
+    [TXT] ipipe-core-4.9.51-arm-4.patch   2018-03-26 09:16  700K   ==> seems to be stable!!!! 
+   
+   
+     => choose ipipe version which seems the stables =
+         -  take   ipipe-core-4.9.51-arm-4.patch
+
+### Raspbian kernel  
+       
+Then match that on the raspbian version. For raspbian versions we look at `https://github.com/raspberrypi/linux` , and that gives us that we need to use the raspbian branch 'rpi 4.9.y'
+
+ 
+
+
+
+
+
+ 
+ Note in [`xenomai308_image_virtualbox.txt`](xenomai308_image_virtualbox.txt) we installed the vanilla(kernel.org) kernel 4.9.144  with
+  '`4.9.144-3.1-debian`' debian specific kernel patches  applied  to the vanilla kernel.
+     
+However for the rpi  we use raspbian kernel source!!
+  
+We use raspbian kernel and not the vanilla kernel from kernel.org because that kernel has better gpio and device_tree support then the vanilla kernel for the raspberry pi. =>  see [`vanilla_kernel_or_raspbian_kernel.txt`](vanilla_kernel_or_raspbian_kernel.txt)    
+
+  If we clone rasbian kernel source for kernel 4.9 and
+  we run  `make kernelversion` it gives the full version 4.9.80
+ 
+  However the latest ipipe for the 4.9 kernel we have is 
+     [https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.9.51-arm-4.patch]()
+  so kernel versions do not entirely match  : 4.9.80 vs 4.9.51 
+  Also the ipipe patch is for the vanilla(kernel.org) kernel and not for the rpi-4.9 kernel.
+  The rpi-4.9 kernel is based on the vanilla kernel, but has extra specific changes for the raspberry pi.
+     
+  However probably the patch will just work, we just try it!   
  
  
+  Compared to installation describe in 
 
-samba server root homedir mount without passwd
-----------------------------------------------
+   [`   install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
 
-	apt-get install samba
-	
-	smbpasswd -a root    # note: use 'pi' as password
-	# edit  /etc/samba/smb.conf
-	# -> at homes section : set  'read only' to 'no'
-	
-	/etc/init.d/samba restart
+  We have need NEW ingredients for a rasbian stretch distribution with kernel 4.9 and xenomai-3.0.8.
+  
+
+### collected ingredients for 4.9 kernel are
+   
+	  a) xenomai-3.0.8  
+	  b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version 4.9.80)           \ ,-> all 4.9 !
+	  c) ipipe-core-4.9.51-arm-4.patch                        (for  version 4.9.51)           /
+	  d) pinctrl-bcm2835.c  from rpi specific branch 'vendors/raspberry/ipipe-4.1'      => for 4.1 \,-> still works??
+	  e) patch-xenomai-3-on-bcm-2709.patch   extra raspberry pi specific patch -> worked on 4.1    /     
+
+however unclear if all ingredients are ok for the 4.9 kernel.
+
+### ad e)
+   
+The patch-xenomai-3-on-bcm-2709.patch is not needed anymore because the specific kernel source code
+the patch is applied on is removed from the rpi-4.9 kernel (also for the 4.9 vanilla kernel).
+
+Note that before 4.8 the linux kernel used to have two different drivers for the gpio chip,
+however since the 4.8 kernel we only have a single driver "pinctrl-bcm2835"  with config `PINCTRL_BCM2835` for all raspbian hardware boards!!
+
+Src: [`../gpio/raspberry_pi__gpio_chip__two_drivers.txt`](../gpio/raspberry_pi__gpio_chip__two_drivers.txt) 
+       
+### ad d)
+     
+We have a xenomai/ipipe patched pinctrl-bcm2835.c  from xenomai/ipipe's rpi specific branch 'vendors/raspberry/ipipe-4.1'    
+which you can download at[ https://gitlab.denx.de/Xenomai/ipipe/raw/vendors/raspberry/ipipe-4.1/drivers/pinctrl/bcm/pinctrl-bcm2835.c]()
+ 
+However this was for the rpi-4.1 kernel and didn't work anymore for the rpi-4.9 kernel.
+The  ipipe-core-4.9.51-arm-4.patch  has some new patches for the vanilla 4.9 kernel, but 
+this misses the  raspbian specific enhancements. So with some work I derived a new ipipe/xenomai patch 
+file for pinctrl-bcm2835.c in the rpi-4.9 kernel source. This patch 'pinctrl-bcm2835.c.rpi-4.9.patch' 
+must be applied to  pinctrl-bcm2835.c in the rpi-4.9 kernel source and we should remove the  
+ipipe/xenomai patches for pinctrl-bcm2835.c  from the ipipe-core-4.9.51-arm-4.patch.
+ 
+For details how derived this patch see:  [`how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt`](how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt)
+        
+
+### ad c) 
+  
+       we need to patch the ipipe-core-4.9.51-arm-4.patch a little so that it also worked
+       on the raspbian 4.9.80 kernel. We also removed all patches for 'pinctrl-bcm2835.c' because
+       we already have a specific patch for that. So we get finally a new patch:
+       
+       ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch
+     
+                
+
+  
+### New ingredients
+
+  
+     a) xenomai-3.0.8
+     b) raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version rpi-4.9.80)          
+     c) ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
+     d) pinctrl-bcm2835.c.rpi-4.9.patch
+     
 
 
-remove authentication from virtual consoles  => ctrl-alt-F1..12  ()
--------------------------------------------
 
-in /lib/systemd/system/getty@.service
 
-    ...
-    ExecStart=-/sbin/agetty   --noclear %I $TERM
-    ...
 
-add "--autologin root" option :
+Appendix C: which defconfig to use?
+-----------
 
-    ...
-    ExecStart=-/sbin/agetty  --autologin root --noclear %I $TERM        
-    ...
+also see:  [`../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt`](../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt)
+
+    $ ls -1 ./arch/arm/configs/bcm*
+    ./arch/arm/configs/bcm2709_defconfig  
+    ./arch/arm/configs/bcm2835_defconfig  
+    ./arch/arm/configs/bcmrpi_defconfig
+
+    details:
+ 
+     - bcm2835_defconfig  -> default config added by kernel.org             
+     - bcmrpi_defconfig   -> added by raspbian  for rpi1   => used in my rpi1 build 
+     - bcm2709_defconfig  -> added by raspbian  for rpi2/3 => used in my rpi2/3 build   
+ 
+
+    https://www.raspberrypi.org/documentation/linux/kernel/configuring.md
+    
+        For all models of Raspberry Pi 1 (includes Compute Module and Pi Zero):
+    
+            $ KERNEL=kernel
+            $ make bcmrpi_defconfig
+    
+        If you're cross-compiling, the second line should be:
+    
+            make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
+    
+        For all models of Raspberry Pi 2/3 (includes Pi 3+ and Compute Module 3):
+    
+            $ KERNEL=kernel7
+            $ make bcm2709_defconfig
+    
+        If you're cross-compiling, the second line should be:
+    
+            make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
     
 
-fix kernel, so not by accident updated :            
------------------------------------------
- src: /home/harcok/doc/help/systeembeheer/linux/install/howto_install_and_or_update/apt.txt
+    https://www.raspberrypi.org/forums/viewtopic.php?t=189631
+
+      On the page https://www.raspberrypi.org/documentation/linux/kernel/building.md explaining how to build the RPi kernel, 
+      there's still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since 
+      the latest kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
+  
+        bcm2835_defconfig is the upstream defconfig.          => original authors; meaning kernel.org's kernel source
+  
+        bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
+  
+      => so use : bcm2709_defconfig   (note: there is no bcm2710_defconfig)
+
+      => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
+               config file, because it is special for the raspbian kernel!
+               
+               
+    official documentation: 
+     https://www.raspberrypi.org/documentation/linux/kernel/building.md
+       => says to use bcmrpi_defconfig for rpi1 and  bcm2709_defconfig  for rpi2 and rpi3        
 
 
-     $ apt-mark hold raspberrypi-kernel
-     $ apt-mark hold raspberrypi-bootloader   
-   
- verify with command :
-   
-     $ apt-mark showhold
-     raspberrypi-bootloader
-     raspberrypi-kernel               
+Appendix D: No kernel config patching needed
+-----------
 
-add custom Xenomai startup and login scripts 
----------------------------------------------
-  see instructions at [`xenomai_startup/__README__xenomai_rpi_startup_config.txt`](xenomai_startup/__README__xenomai_rpi_startup_config.txt)
+This installation is based on the installation: 
+    
+[`     install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt`](install_xenomai-3-3.0.5_on_rpi2__using_official_ipipe_patch__external_bcm_patch__pinctrl-bcm2835_patchfrom_ipipe_repos.txt)
 
-
-configure wlan
----------------
-
- => use raspi-config to setup wlan network
-    note: country code must be set for rpi3b+ !!
- 
- => also see [`notes/raspberrypi/networking/wifi_pi3.txt`](notes/raspberrypi/networking/wifi_pi3.txt)
- 
- 
-
-SIDENOTES
-=========
-
-
-### Sidenote: compared to previous xenomai 3.05 build for rpi (4.1 kernel) there is NO patching of drivers/xenomai/gpio/Kconfig needed: 
+Compared to that installation(4.1 kernel) there is in this installation(4.9 kernel) NO patching of drivers/xenomai/gpio/Kconfig needed: 
           
       for 4.1 we had to fix xenomai Kconfig for xenomai gpio   =>  in xenomai source!!   => report to xenomai!
         
@@ -772,60 +705,3 @@ SIDENOTES
  
          => so NO patching of drivers/xenomai/gpio/Kconfig needed!
 
-
-
-### Sidenote: which defconfig to use??
-
-              also see:  ../notes/raspberrypi/raspberry_pi_BCM2708_or_BCM2835.txt
-
-                    $ ls ./arch/arm/configs/bcm*
-                    ./arch/arm/configs/bcm2709_defconfig  ./arch/arm/configs/bcm2835_defconfig  ./arch/arm/configs/bcmrpi_defconfig
-
-                    details:
-             
-                     ./arch/arm/configs/bcm2835_defconfig  -> default config added by kernel.org             
-                     ./arch/arm/configs/bcmrpi_defconfig   -> added by raspbian  for rpi1        => used in my rpi1 build 
-                     ./arch/arm/configs/bcm2709_defconfig  -> added by raspbian  for rpi2/3     => used in my rpi2/3 build   
-             
-
-                    https://www.raspberrypi.org/documentation/linux/kernel/configuring.md
-
-
-                    For all models of Raspberry Pi 1 (includes Compute Module and Pi Zero):
-
-                        $ KERNEL=kernel
-                        $ make bcmrpi_defconfig
-
-                    If you're cross-compiling, the second line should be:
-
-                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
-
-                    For all models of Raspberry Pi 2/3 (includes Pi 3+ and Compute Module 3):
-
-                        $ KERNEL=kernel7
-                        $ make bcm2709_defconfig
-
-                    If you're cross-compiling, the second line should be:
-
-                        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
-
-
-
-                    https://www.raspberrypi.org/forums/viewtopic.php?t=189631
-
-                      On the page https://www.raspberrypi.org/documentati ... uilding.md explaining how to build the RPi kernel, there's
-                      still mentioned bcm2709_defconfig but I was wondering if we should not start using bcm2835_defconfig since the latest
-                      kernels put BCM2835 as hardware name with revision a01041 when running cat /proc/cpuinfo.
-  
-                        bcm2835_defconfig is the upstream defconfig.   => original authors 
-  
-                        bcm2709_defconfig is the one supported by Pi Towers.  => specific for rasperry pi ( pi towers)
-  
-                      => so use : bcm2709_defconfig   (note: there is no bcm2710_defconfig)
-
-                      => note: also see vanilla_kernel_or_raspbian_kernel.txt that for vanilla kernel we don't have this 
-                               config file, because it is special for the raspbian kernel!
-                       
-           official documentation: 
-             https://www.raspberrypi.org/documentation/linux/kernel/building.md
-               => says to use bcmrpi_defconfig for rpi1 and  bcm2709_defconfig  for rpi2 and rpi3        

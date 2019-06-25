@@ -5,7 +5,8 @@
 Installation of xenomai 'master' branch on mainline kernel branch v4.19.33 from kernel.org  
 ============================================
 
-First get the ingredients:
+
+### Download the ingredients
  
     # get xenomai 'master' branch
     git clone --depth=50 --branch=master https://github.com/xenomai-ci/xenomai.git  xenomai-master
@@ -15,6 +16,9 @@ First get the ingredients:
 
     # get ipipe patch for kernel
     wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.19.33-arm-2.patch
+
+
+### Configuring
     
 Patch the kernel with the ipipe patch
     
@@ -93,7 +97,7 @@ make distribution dir where we store our build packages
     cd ..
     mkdir dist/
  
-build kernel debian package
+### Build kernel into a debian package
  
     cd linux 
     export NUMCORES=4  
@@ -105,7 +109,61 @@ build kernel debian package
     cd ../
     mv linux-image-*.deb dist/
 
-All build device tree files are build into the linux-image-*.deb package inside the /usr/lib/linux-image-.. dir. We can list them with the following command:
+
+ 
+### Build xenomai user-space libraries and tools
+ 
+
+For Configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
+
+    export DESTDIR=$PWD/xenomai-build 
+    
+	cd xenomai-master
+	./scripts/bootstrap 
+	./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
+	
+	make install
+		
+	cd ..
+	tar -C $DESTDIR -czvf dist/xenomai-master-binaries.tgz .
+	# cleanup with:  rm -rf $DESTDIR
+
+   
+    
+
+### Installing distribution files
+
+Now in the dist/ directory we have
+ 
+    $ ls -1 dist
+    linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
+    xenomai-master-binaries.tgz
+
+Copy the distribution files over to raspberry pi running raspbian. There are multiple ways to do this, but I let your figure it out yourself.
+
+
+Install on the raspberry pi the distribution files:
+
+     # become root
+     sudo su -
+     
+     # install kernel 
+     # 1) install the debian kernel package
+     dpkg -i linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
+     # 2) move the original kernel away (as backup)
+     mv /boot/kernel7.img /boot/kernel7.orig.img 
+     # 3) install the newly installed kernel as the default kernel to boot
+     mv /boot/vmlinuz-4.19.33-dirty /boot/kernel7.img
+     
+     # install xenomai 3.0.8 user-space libraries and tools
+     tar -C / -xzvf xenomai-master-binaries.tgz
+      
+
+### Setting device tree
+
+Finally you have to set the right device tree description file for your specific raspberry pi hardware board so that the linux kernel is informed of that hardware.
+
+All raspberry pi device tree files are build into the linux-image-*.deb package inside the /usr/lib/linux-image-.. dir. We can list them with the following command:
 
     dpkg -c linux-image-*.deb |egrep 'bcm28.*.dtb'
     -rw-r--r-- root/root     12518 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-b-rev2.dtb
@@ -123,77 +181,72 @@ All build device tree files are build into the linux-image-*.deb package inside 
 
     
 
-Note:  
-
+Note that the raspbian kernel and the mainline kernel use different naming conventions for the device tree files for the different raspberry pi hardware boards:
+ 
 - for rpi we have : bcm27\*.dtb and overlays/*  
-- for vanilla(kernel.org) kernel we have no overlays, we only have bcm283\*.dtb  files for rpi board
+- for vanilla(kernel.org) kernel we have no overlays, we only have bcm283\*.dtb <br>
 
+The device tree file must be located in /boot to let the bootcode load it from the FAT /boot partition to give it to kernel. Therefore we have to copy all the device tree files from the place where the kernel installed them to /boot:
 
- 
-Build xenomai user-space libraries and tools
- 
-
-    # configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
-
-    export DESTDIR=$PWD/xenomai-build 
-    
-	cd xenomai-master
-	./scripts/bootstrap 
-	./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
-	
-	make install
-		
-	cd ..
-	tar -C $DESTDIR -czvf dist/xenomai-master-binaries.tgz .
-	# cleanup with:  rm -rf $DESTDIR
-
-   
-    
-Now in the dist/ directory we have
- 
-    $ ls -1 dist
-    linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
-    xenomai-master-binaries.tgz
-
-Copy the distribution files over to raspberry pi running raspbian. There are multiple ways to do this, but I let your figure it out yourself.
-
-Install on the raspberry pi the distribution files:
-
-     # become root
-     sudo su -
-     
-     # install kernel 
-     # 1) install the debian kernel package
-     dpkg -i linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
-     # 2) move the original kernel away (as backup)
-     mv /boot/kernel7.img /boot/kernel7.orig.img 
-     # 3) install the newly installed kernel as the default kernel to boot
-     mv /boot/vmlinuz-4.19.33-dirty /boot/kernel7.img
-     # 4) copy the device tree files for raspberry pi into /boot
+     # copy the device tree files for raspberry pi into /boot
      cp /usr/lib/linux-image-4.19.33-dirty/bcm283*.dtb /boot
      
-     # install xenomai 3.0.8 user-space libraries and tools
-     tar -C / -xzvf xenomai-master-binaries.tgz
-      
-     
- Finally with a text editor set the device tree to boot your specific raspberry pi 
- by adding that pi's device tree file to the end of the file in /boot/config.txt. The following line should be added for a raspberry pi 3b:
+With a text editor you can then set the device tree to boot your specific raspberry pi by adding that pi's device tree file to the end of the file in /boot/config.txt. 
+
+Eg. for the raspberry pi 3b the following line should be added:
  
      device_tree=bcm2837-rpi-3-b.dtb   
- 
- Then reboot and linux with xenomai should be up and running.
- 
- Or if you have an raspbian image then the bootcode in raspbian automatically loads the right device tree description file if you didn't specify it in /boot/config.txt. The files should have the right names, so do the following:
+  
+But the bootcode used by the raspberry can also automatically load the right device tree description file without specify it in /boot/config.txt. However it requires the files to have specific names, which follows the naming convention within raspbian. So to get the loading working automatically do the following:
  
       cd /boot
       cp bcm2836-rpi-2-b.dtb	    bcm2709-rpi-2-b.dtb
       cp bcm2837-rpi-3-b.dtb	    bcm2710-rpi-3-b.dtb
       cp bcm2837-rpi-3-b-plus.dtb   bcm2710-rpi-3-b-plus.dtb
-      # important: outcomment any device_tree= option in /boot/config.txt
+      # important: uncomment any device_tree= option in /boot/config.txt
 
 Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
 For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](device_tree_files_automatic_loading_on_raspbian_image.txt).
  
+ 
+### Make a single debian package
+
+The approach we use is to take the build kernel package and modify it so that it install also the xenomai libraries/tools and that it installs the kernel and the device tree description files for the different hardware type of raspberry pi boards into /boot. It also copies the original /boot folder to /boot_<timestamp> folder so that we always can easily recover in case the installation may fail.
+
+    cd dist/
+    # extract 
+    
+    package=linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
+    
+    # extract debian package
+    dpkg-deb -R $package extracted/
+    
+    # add xenomai user-space libraries and tools
+    tar -C extracted/ -xzvf xenomai-master-binaries.tgz
+    
+    # add post install code to install kernel and device tree files in /boot
+    cat << EOF > extracted/etc/kernel/postinst.d/xenomai
+    #!/bin/bash
+    # get arguments 
+    kernelversion="\$1"
+    kernelimagefile="\$2"
+    # backup original /boot for optional recovery
+    /bin/cp -a /boot /boot_backup_\$(date +%s)
+    # install kernel image file
+    /bin/mv \$kernelimagefile /boot/kernel7.img
+    # install device tree files for all rpi 2 and 3
+    cd /usr/lib/linux-image-\${kernelversion}/
+    /bin/cp bcm2836-rpi-2-b.dtb   /boot/bcm2709-rpi-2-b.dtb
+    /bin/cp bcm2837-rpi-3-b.dtb   /boot/bcm2710-rpi-3-b.dtb
+    /bin/cp bcm2837-rpi-3-b-plus.dtb   /boot/bcm2710-rpi-3-b-plus.dtb
+    cd -
+    EOF
+    chmod a+x extracted/etc/kernel/postinst.d/xenomai
+    
+    # rebuild package
+    # first make root owner of all files
+    sudo chown -R root:root extracted/  
+    dpkg-deb -b extracted  xenomai_$package
  
 Test code
 =========

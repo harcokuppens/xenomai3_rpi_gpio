@@ -1,0 +1,62 @@
+
+
+   
+
+https://raspi.tv/2019/raspberry-pi-4-launches-with-bcm2711-quad-core-cortex-a72-64-bit-soc-running-at-1-5ghz-with-dual-4k-display-capability   
+ =>Broadcom BCM54213 Gigabit ethernet controller 
+
+Specifications
+
+    Broadcom BCM2711 quad-core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5GHz with 1MB L2 cache, 32KB L1
+    1GB, 2GB or 4GB LPDDR4-2400 SDRAM
+    2.4 GHz and 5.0 GHz IEEE 802.11b/g/n/ac wireless LAN
+    Bluetooth 5.0, BLE
+    GigaBit ethernet (native – not over USB)
+    2 x USB 3.0
+    2 x USB 2.0
+    Dual 4K micro-HDMI (p30 if dual)
+    Standard 40 pin GPIO header (backward compatible)
+    USB-C power input (including OTG connection)
+    Videocore 5 GPU (on BCM2711 SoC)
+        H.265 (4Kp60 decode)
+        H.264 (1080p60 decode, 1080p30 encode)
+        OpenGL ES 3.0 graphics
+
+
+
+Ethernet Controller
+
+    The Broadcom BCM54213 Gigabit ethernet controller is a…
+    “Triple-speed 1000BASE-T/100BASE-TX/10BASE-T Energy Efficient Ethernet (IEEE 802.3az) Gigabit (GbE) transceivers integrated into a single monolithic CMOS chip.”
+    You can find out more about BCM54213 here.
+        https://www.broadcom.com/products/ethernet-connectivity/optical-phy/bcm5421xe
+
+    It handles the Gigabit ethernet connection but can fall back to slower speeds if connected to slower networks. A
+    big step-change in the Pi4 generation is that the I/O from this chip is no longer ‘herded’ through a shared USB
+    channel on the main processor. It’s been done ‘properly’ so now works at full Gigabit speed. This makes the Pi4
+    much more useful than previous generations for use cases such as…
+
+        a software driven router
+        a media server
+        a bridge between WiFi and ethernet networks
+
+
+USB Controller
+
+    The VL805 chip is the controller for the 2 x USB 3.0 and 2 x USB 2.0 ports. 
+    More information about it can be found here.
+       https://www.via-labs.com/product_show.php?id=48
+
+
+https://tweakers.net/nieuws/154352/raspberry-pi-4-met-cortex-a72-quadcore-usb-30-en-tot-4gb-ram-verschijnt.html
+
+vraag:
+   Haalt de Pi4 de volledige throughput van USB3.0 én Gigabit Ethernet? 
+   I.p.v. dit weer op de USB2.0 bus te hebben zitten.
+
+antwoord:  Ze zitten beiden op een aparte controller, waardoor dat geen probleem meer is. Zie:
+   
+    The Ethernet controller on the main SoC is connected to an external Broadcom PHY over a dedicated RGMII link,
+    providing full throughput. USB is provided via an external VLI controller, connected over a single PCI Express Gen
+    2 lane, and providing a total of 4Gbps of bandwidth, shared between the four ports.
+
