@@ -66,12 +66,15 @@ The instructions how to customize the raspbian image for convenient lab usage yo
 
 Ingredients 
 ----------- 
-
-   
+ 
 - xenomai-3.0.8
 - raspbian Raspbian Stretch Lite - with kernel 4.9.y   (full version rpi-4.9.80)          
 - ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch (originally for  version 4.9.51, made compatible for rpi-4.9.80)           
 - pinctrl-bcm2835.c.rpi-4.9.patch
+  
+For how we found out we needed specifically these ingredients take a look at: 
+[Appendix B: New versions of ingredients needed](#appendix-b-new-versions-of-ingredients-needed) 
+    
    
 Instructions
 ------------
