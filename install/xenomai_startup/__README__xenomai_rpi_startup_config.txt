@@ -20,8 +20,8 @@ Xenomai startup and login scripts
    - set some initial values for some gpio pins
    
    - run dyndns script to register ip for mac address to dyndns server at boot
-      see ./dyndns/ folder
-      
+     see: https://github.com/harcokuppens/dyndns 
+
 /etc/profile.d/info.sh
 -------------------------
 
