@@ -10,8 +10,7 @@ Installation of xenomai master branch on mainline kernel branch v4.19.y from ker
 
     export XENOMAI_BRANCH=master
     # after cloning the we get the first 7 letters of the hash as part of version
-    #export XENOMAI_VERSION=master7b5c53d
-    export XENOMAI_VERSION=master.eb03603
+    export XENOMAI_VERSION=master-7b5c53d
     export XENOMAI_GIT_REPO=https://gitlab.denx.de/Xenomai/xenomai.git
 
     
@@ -26,10 +25,8 @@ Installation of xenomai master branch on mainline kernel branch v4.19.y from ker
     export KERNEL_LOCALVERSION="-rpi-xeno-$XENOMAI_VERSION"
     
     export PACKAGENAME=raspberrypi-kernel-image
-    export PACKAGEHEADERS=raspberrypi-kernel-headers
     export PACKAGEVERSION=${KERNEL_VERSION}${KERNEL_LOCALVERSION}
-    
-    ##OLD## export PACKAGEFILE=${PACKAGENAME}-${PACKAGEVERSION}_armhf.deb
+    export PACKAGEFILE=${PACKAGENAME}-${PACKAGEVERSION}_armhf.deb
     
 
     #export IPIPE_PATCH=ipipe-core-4.19.33-arm-2.patch 
@@ -59,8 +56,7 @@ Note the specific version details for future rebuilds:
     $ make kernelversion 
     4.19.56 
     $ git rev-parse HEAD
-    eb0360356344d8ba633e61936c794aa46a02397f
-    OLD: 7b5c53d89a53e343679759476a27bb7af736ea22
+    7b5c53d89a53e343679759476a27bb7af736ea22
     $ cd -  
     
     cd xenomai
@@ -199,25 +195,16 @@ Make a distribution dir where we store our build packages
  
     cd linux   
     
-    # HACK: change package name and version in debian control file which is generate by scripts/package/mkdebian
-    sed -i "s/^packagename=linux-image-.*/packagename=$PACKAGENAME/" scripts/package/mkdebian
-    sed -i "s/^kernel_headers_packagename=linux-headers-.*/kernel_headers_packagename=$PACKAGEHEADERS/" scripts/package/mkdebian
- 
-    
     time make -j $NUMCORES KBUILD_DEBARCH=armhf deb-pkg
     # does first : make clean
     # also does : make zImage modules dtbs to finally build debian package
-
+    # builds debian packages: 
+    #   linux-image*.deb linux-headers*.deb linux-libc-dev*.deb
+    
     # store debian package in distribution directory
     cd ../
-    mv linux-image-*.deb dist/
+    mv linux-image-*.deb linux-headers*.deb linux-libc-dev*.deb dist/
 
-
-OLD:
-
-    time make -j $NUMCORES LOCALVERSION= KBUILD_DEBARCH=armhf deb-pkg
-    
-    Note that the `LOCALVERSION=` is only needed to prevent the build to add a '+' to the resulting name. The local version set in the kernel config is still used!
  
 ### Build xenomai user-space libraries and tools
  
@@ -323,11 +310,7 @@ The approach we use is to take the build kernel package and modify it so that it
     cd dist/
     
     # extract debian package
-    #OLD# dpkg-deb -R linux-image-*.deb extracted/
-    
-    
-    export PACKAGEFILE="$PACKAGENAME*.deb"
-    dpkg-deb -R $PACKAGEFILE extracted/
+    dpkg-deb -R linux-image-*.deb extracted/
     
     # add xenomai user-space libraries and tools
     tar -C extracted/ -xzvf xenomai-binaries.tgz
@@ -358,14 +341,13 @@ The approach we use is to take the build kernel package and modify it so that it
     # make executable
     chmod a+x extracted/etc/kernel/postinst.d/xenomai
     
-    #OLD # change package name and version in debian control file
-    #OLD sed -i "s/^Package:.*/Package: $PACKAGENAME/" extracted/DEBIAN/control
-    #OLD sed -i "s/^Version:.*/Version: $PACKAGEVERSION/" extracted/DEBIAN/control   
+    # change package name and version in debian control file
+    sed -i "s/^Package:.*/Package: $PACKAGENAME/" extracted/DEBIAN/control
+    sed -i "s/^Version:.*/Version: $PACKAGEVERSION/" extracted/DEBIAN/control   
     
     # rebuild package
     # first make root owner of all files
     sudo chown -R root:root extracted/  
-    mv $PACKAGEFILE  orig.$PACKAGEFILE
     dpkg-deb -b extracted  $PACKAGEFILE
  
 #### Automatic installation
