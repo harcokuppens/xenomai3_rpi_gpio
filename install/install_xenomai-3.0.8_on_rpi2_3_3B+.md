@@ -62,7 +62,7 @@ These instructions only describe how to build the linux kernel with the xenomai'
 
 The instructions how to customize the raspbian image for convenient lab usage you can find at:
  
-[`customize_raspbian_os_for_convenient_Lab_usage.md`](customize_raspbian_os_for_convenient_Lab_usage.md)
+[`customize_raspbian_os_for_convenient_lab_usage.md`](customize_raspbian_os_for_convenient_lab_usage.md)
 
 Ingredients 
 ----------- 
