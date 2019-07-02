@@ -1,0 +1,402 @@
+
+SHORT:
+
+     booting with a Device Tree
+  
+       The kernel no longer contains the description of the hardware, it is located in a separate binary: the device tree blob
+  
+       The bootloader loads two binaries: the kernel image and the DTB
+           Kernel image remains uImage or zImage
+           DTB located in arch/arm/boot/dts, one per board
+  
+       The bootloader passes the DTB address through r2.  (to the kernel)
+       It(the bootloader) is supposed to adjust the DTB with 
+          - memory information, 
+          - kernel command line, 
+          - and potentially other info.
+          
+         => I suspect the raspbian bootloader reads the kernel commandline from /boot/commandline.txt  
+ 
+ 
+      DTB  u/zImage 
+       /\
+        `-- r2: pointer to DTB  given to kernel
+    
+
+     
+      
+so for new bootloaders 
+
+    CONFIG_ATAGS=n  
+    CONFIG_ARM_APPENDED_DTB=n
+    
+  => which is set as such by the raspbian default kernel configs        
+       
+     
+
+
+==================================
+Extend bootloader kernel arguments
+==================================
+
+
+in my older builds I used: 
+
+    https://www.blaess.fr/christophe/2016/05/22/xenomai-3-sur-raspberry-pi-2/
+
+    A last modification is necessary; it is not specific to Xenomai. 
+    This ensures that the kernel will have good arguments on its command line.
+    ^^^^^^^^^^^^
+
+    Boot options  --->              ,-> default choice, which is changed into choice 'Extend bootloader kernel arguments'
+     Kernel command line type (Use bootloader kernel arguments if available)  --->
+        (X) Extend bootloader kernel arguments
+ 
+ 
+    http://wiki.csie.ncku.edu.tw/embedded/xenomai#xenomai-3-on-raspberry-pi-3   
+    Boot options  --->
+        Kernel command line type --->
+            [X] Extend bootloader kernel arguments
+ 
+    => if you look the theory below this is the "traditional ATAGS method"
+ 
+    => we really NOT need to this anymore for a modern bootloader
+ 
+ 
+ Theory
+ =======
+ 
+ https://stackoverflow.com/questions/24448680/what-are-atags-for-a-device-that-uses-linux-kernel 
+     ATAGS are ARM tags. They are used to carry information such as memory size from boot code to kernel. 
+ 
+
+
+ from device tree for dummies
+ ----------------------------
+
+ User perspective: before the Device Tree
+
+   The kernel contains the entire description of the hardware.
+  
+   The bootloader loads a single binary, the kernel image, and executes it.
+        uImage or zImage
+       
+   The bootloader prepares some additional information, called ATAGS, which address is passed to the kernel through register r2
+        Contains information such as 
+          - memory size and location, 
+          - kernel command line, 
+           etc.
+
+
+   ATAGS  u/zImage 
+    /\
+     `-- r2: pointer to ATAGS  passed to the kernel
+
+
+   => so CONFIG_ATAGS=y
+
+
+ User perspective: booting with a Device Tree
+  
+   The kernel no longer contains the description of the hardware, it is located in a separate binary: the device tree blob
+  
+   The bootloader loads two binaries: the kernel image and the DTB
+       Kernel image remains uImage or zImage
+       DTB located in arch/arm/boot/dts, one per board
+  
+   The bootloader passes the DTB address through r2.  (to the kernel)
+   It(the bootloader) is supposed to adjust the DTB with 
+      - memory information, 
+      - kernel command line, 
+      - and potentially other info.
+ 
+ 
+  DTB  u/zImage 
+   /\
+    `-- r2: pointer to DTB  given to kernel
+ 
+ 
+     
+   note: in the old situation the bootloader put this information  in a ATAGS memory block which address was
+         passed to the kernel, and the kernel with support for ATAGS could read this information from the ATAGS
+         memory block.
+         In the new situation we have a device tree. The bootloader doesn't put this information in the obsolete ATAGS
+         anymore, but in the device tree memory block. The kernel has support for the device tree and can then 
+         read this information together with all other hardware information from the device tree memory block.
+
+     
+
+     => so in new situation CONFIG_ATAGS=n ; ATAGS obsolete 
+
+
+ User perspective:  compatibility mode for DT booting
+
+   Some bootloaders have no specific support for the Device Tree, or the version used on a particular device is too old
+   to have this support.
+
+   To ease the transition, a compatibility mechanism was added: CONFIG_ARM_APPENDED_DTB.
+       It tells the kernel to look for a DTB right after the kernel image.
+       There is no built-in Makefile rule to produce such kernel, so one must manually do:
+            cat arch/arm/boot/zImage arch/arm/boot/dts/myboard.dtb > my-zImage
+            mkimage ... -d my-zImage my-uImage
+  
+   In addition, the additional option CONFIG_ARM_ATAG_DTB_COMPAT tells the kernel to read the ATAGS information from the
+   bootloader, and update the DT using them.
+  
+  
+    => so for old bootloaders we need :  CONFIG_ARM_APPENDED_DTB
+    ==> however not needed for the raspberry pi, it probably has bootloader supporting dtb!
+     (because in build instructions for raspberry pi kernels on their website the config doesn't use CONFIG_ARM_APPENDED_DTB )
+    
+
+
+
+
+ 
+
+    Boot options  --->
+
+        -*- Flattened Device Tree support  
+                      `-> already device tree support in this version!!
+
+        # traditional ATAGS (before device tree(DT))
+        [X] Support for the traditional ATAGS boot data passing (CONFIG_ATAGS)
+            Default kernel command string  (CONFIG_CMDLINE)
+              Kernel command line type --->                 => requires CONFIG_ATAGS to appear and  CONFIG_CMDLINE not empty
+                 ( ) Use bootloader kernel arguments if available   (CONFIG_CMDLINE_FROM_BOOTLOADER)
+                 (X) Extend bootloader kernel arguments          (CONFIG_CMDLINE_EXTEND)
+                 ( ) Always use the default kernel command string    (CONFIG_CMDLINE_FORCE)
+
+         # compatibility mode for DT booting for old bootloaders not supporting DT  
+        [*] Use appended device tree blob to zImage (EXPERIMENTAL) (CONFIG_ARM_APPENDED_DTB)
+        [*]   Supplement the appended DTB with traditional ATAG information    (CONFIG_ARM_ATAG_DTB_COMPAT)  => requires CONFIG_ARM_APPENDED_DTB, but doesn't require CONFIG_ATAGS => does ATAG in DTB                                                           │ │
+                 Kernel command line type (Extend with bootloader kernel arguments)  --->
+                   ( ) Use bootloader kernel arguments if available   ( CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADE)   
+                   (X) Extend with bootloader kernel arguments (CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND)    
+        
+
+
+ 
+
+
+
+info about traditional and compatibility mode
+
+ * traditional ATAGS (before device tree(DT))
+ 
+      CONFIG_ATAGS:                                                                                                                                                                                     │
+      │                                                                                                                                                                                                   │
+      │ This is the traditional way of passing data to the kernel at boot                                                                                                                                 │
+      │ time. If you are solely relying on the flattened device tree (or                                                                                                                                  │
+      │ the ARM_ATAG_DTB_COMPAT option) then you may unselect this option                                                                                                                                 │
+      │ to remove ATAGS support from your kernel binary.  If unsure,                                                                                                                                      │
+      │ leave this to y.
+
+      => so for new bootloaders this option shouldn't be enabled!
+         
+      => but seems not harmfull to enable it because it says 
+           If unsure, leave this to y.
+         
+         So I expect that if the kernel is passed a memory address from the bootloader it can
+         recognize whether it is pointing to ATAGS or DT.
+         
+           
+
+ * compatibility mode for DT booting for old bootloaders not supporting DT  
+
+
+
+    CONFIG_ARM_APPENDED_DTB:                                                                                                                                                                          │
+      │                                                                                                                                                                                                   │
+      │ With this option, the boot code will look for a device tree binary                                                                                                                                │
+      │ (DTB) appended to zImage                                                                                                                                                                          │
+      │ (e.g. cat zImage <filename>.dtb > zImage_w_dtb).                                                                                                                                                  │
+      │                                                                                                                                                                                                   │
+      │ This is meant as a backward compatibility convenience for those                                                                                                                                   │
+      │ systems with a bootloader that can't be upgraded to accommodate                                                                                                                                   │
+      │ the documented boot protocol using a device tree. 
+
+     
+  
+     CONFIG_ARM_ATAG_DTB_COMPAT:    Supplement the appended DTB with traditional ATAG information                                                                                                                                                                   │
+      │                `-> depends on CONFIG_ARM_APPENDED_DTB
+      |                                                                                                                                                                                   │
+      │ Some old bootloaders can't be updated to a DTB capable one, yet                                                                                                                                   │
+      │ they provide ATAGs with memory configuration, the ramdisk address,                                                                                                                                │
+      │ the kernel cmdline string, etc.  Such information is dynamically                                                                                                                                  │
+      │ provided by the bootloader and can't always be stored in a static                                                                                                                                 │
+      │ DTB.  To allow a device tree enabled kernel to be used with such                                                                                                                                  │
+      │ bootloaders, this option allows 
+  
+         zImage(kernel) to extract the information                                                                                                                                 │
+         from the ATAG list  -> where does it find this??  => it is passed by the old bootloader not supporting device tree!
+         and store it at run time into the appended DTB.
+
+
+    explanation: 
+       in traditional ATAG  the bootloader passes the memory adress of ATAGS to the  kernel
+   
+       in new bootloaders supporting the new device tree scenario 
+        the bootloader gets passed the address to the device tree and the bootloader
+        sets the extra kernel arguments in the device tree. The kernel reads the device tree
+        where the extra kernel arguments are already set(by bootloader.)
+   
+       In old bootloaders which not support device tree they still pass the memory adress of ATAGS to the  kernel.
+       Then you can still use device tree by appending it after the kernel, so it can then load the device tree
+       from there. The kernel also has the address to the ATAGS, and can then instead of the bootloader apply
+       this data the device tree!! 
+   
+   => so for new bootloaders this option shouldn't be enabled!
+ 
+   => hmm what happens with a new bootloader when this is enabled??
+      
+      above I already said:
+        So I expect that if the kernel is passed a memory address from the bootloader it can
+        recognize whether it is pointing to ATAGS or DT.
+          
+      so if sees it is passed a DT then it will just ignore this compatibility mode
+      
+      
+      
+so for new bootloaders 
+
+    CONFIG_ATAGS=n  
+    CONFIG_ARM_APPENDED_DTB=n
+    
+  => which is set as such by the raspbian default kernel configs        
+      
+      
+help documentation
+------------------
+
+# traditional ATAGS (before device tree(DT))
+
+
+     CONFIG_CMDLINE:                                                                                                                                                                                   │
+      │                                                                                                                                                                                                   │
+      │ On some architectures (EBSA110 and CATS), there is currently no way                                                                                                                               │
+      │ for the boot loader to pass arguments to the kernel. For these                                                                                                                                    │
+      │ architectures, you should supply some command-line options at build                                                                                                                               │
+      │ time by entering them here. As a minimum, you should specify the                                                                                                                                  │
+      │ memory size and the root device (e.g., mem=64M root=/dev/nfs).                                                                                                                                    │
+      │                                                                                                                                                                                                   │
+      │ Symbol: CMDLINE [=console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait]                                                                                      │
+      │ Type  : string                                                                                                                                                                                    │
+      │ Prompt: Default kernel command string                                                                                                                                                             │
+      │   Location:                                                                                                                                                                                       │
+      │     -> Boot options                                                                                                                                                                               │
+      │   Defined at arch/arm/Kconfig:1939                                                                                                                                                                │
+      │                                                                                                                                                                                                   │
+      │
+
+     CONFIG_CMDLINE_EXTEND:                                                                                                                                                                            │
+       │                                                                                                                                                                                                   │
+       │ The command-line arguments provided by the boot loader will be                                                                                                                                    │
+       │ appended to the default kernel command string.                                                                                                                                                    │
+       │                                                                                                                                                                                                   │
+       │ Symbol: CMDLINE_EXTEND [=y]                                                                                                                                                                       │
+       │ Type  : boolean                                                                                                                                                                                   │
+       │ Prompt: Extend bootloader kernel arguments                                                                                                                                                        │
+       │   Location:                                                                                                                                                                                       │
+       │     -> Boot options                                                                                                                                                                               │
+       │       -> Default kernel command string (CMDLINE [=console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait])                                                     │
+       │         -> Kernel command line type (<choice> [=y])                                                                                                                                               │
+       │   Defined at arch/arm/Kconfig:1961                                                                                                                                                                │
+       │   Depends on: <choice>                                                                                                                                                                            │
+       │
+  
+     
+
+
+# compatibility mode for DT booting for old bootloaders not supporting DT 
+
+
+    CONFIG_ARM_APPENDED_DTB:                                                                                                                                                                          │
+      │                                                                                                                                                                                                   │
+      │ With this option, the boot code will look for a device tree binary                                                                                                                                │
+      │ (DTB) appended to zImage                                                                                                                                                                          │
+      │ (e.g. cat zImage <filename>.dtb > zImage_w_dtb).                                                                                                                                                  │
+      │                                                                                                                                                                                                   │
+      │ This is meant as a backward compatibility convenience for those                                                                                                                                   │
+      │ systems with a bootloader that can't be upgraded to accommodate                                                                                                                                   │
+      │ the documented boot protocol using a device tree.                                                                                                                                                 │
+      │                                                                                                                                                                                                   │
+      │ Beware that there is very little in terms of protection against                                                                                                                                   │
+      │ this option being confused by leftover garbage in memory that might                                                                                                                               │
+      │ look like a DTB header after a reboot if no actual DTB is appended                                                                                                                                │
+      │ to zImage.  Do not leave this option active in a production kernel                                                                                                                                │
+      │ if you don't intend to always append a DTB.  Proper passing of the                                                                                                                                │
+      │ location into r2 of a bootloader provided DTB is always preferable                                                                                                                                │
+      │ to this option.                                                                                                                                                                                   │
+      │                                                                                                                                                                                                   │
+      │ Symbol: ARM_APPENDED_DTB [=n]                                                                                                                                                                     │
+      │ Type  : bool                                                                                                                                                                                      │
+      │ Prompt: Use appended device tree blob to zImage (EXPERIMENTAL)                                                                                                                                    │
+      │   Location:                                                                                                                                                                                       │
+      │     -> Boot options                                                                                                                                                                               │
+      │   Defined at arch/arm/Kconfig:1890                                                                                                                                                                │
+      │   Depends on: OF [=y]                                                                                                                                                                             │
+      │   Selected by [n]:                                                                                                                                                                                │
+      │   - ARCH_GEMINI [=n] && ARCH_MULTI_V4 [=n]                                                                                                                                                        │
+      │
+
+
+    CONFIG_ARM_ATAG_DTB_COMPAT:                                                                                                                                                                       │
+      │                                                                                                                                                                                                   │
+      │ Some old bootloaders can't be updated to a DTB capable one, yet                                                                                                                                   │
+      │ they provide ATAGs with memory configuration, the ramdisk address,                                                                                                                                │
+      │ the kernel cmdline string, etc.  Such information is dynamically                                                                                                                                  │
+      │ provided by the bootloader and can't always be stored in a static                                                                                                                                 │
+      │ DTB.  To allow a device tree enabled kernel to be used with such                                                                                                                                  │
+      │ bootloaders, this option allows zImage to extract the information                                                                                                                                 │
+      │ from the ATAG list and store it at run time into the appended DTB.                                                                                                                                │
+      │                                                                                                                                                                                                   │
+      │ Symbol: ARM_ATAG_DTB_COMPAT [=y]                                                                                                                                                                  │
+      │ Type  : bool                                                                                                                                                                                      │
+      │ Prompt: Supplement the appended DTB with traditional ATAG information                                                                                                                             │
+      │   Location:                                                                                                                                                                                       │
+      │     -> Boot options                                                                                                                                                                               │
+      │       -> Use appended device tree blob to zImage (EXPERIMENTAL) (ARM_APPENDED_DTB [=y])                                                                                                           │
+      │   Defined at arch/arm/Kconfig:1910                                                                                                                                                                │
+      │   Depends on: ARM_APPENDED_DTB [=y]                                                                                                                                                               │
+      │
+
+    choice between
+     CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER:                                                                                                                                               │
+      │                                                                                                                                                                                                   │
+      │ Uses the command-line options passed by the boot loader instead of                                                                                                                                │
+      │ the device tree bootargs property. If the boot loader doesn't provide                                                                                                                             │
+      │ any, the device tree bootargs property will be used.                                                                                                                                              │
+      │                                                                                                                                                                                                   │
+      │ Symbol: ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER [=y]                                                                                                                                          │
+      │ Type  : bool                                                                                                                                                                                      │
+      │ Prompt: Use bootloader kernel arguments if available                                                                                                                                              │
+      │   Location:                                                                                                                                                                                       │
+      │     -> Boot options                                                                                                                                                                               │
+      │       -> Use appended device tree blob to zImage (EXPERIMENTAL) (ARM_APPENDED_DTB [=y])                                                                                                           │
+      │         -> Supplement the appended DTB with traditional ATAG information (ARM_ATAG_DTB_COMPAT [=y])                                                                                               │
+      │           -> Kernel command line type (<choice> [=y])                                                                                                                                             │
+      │   Defined at arch/arm/Kconfig:1926                                                                                                                                                                │
+      │   Depends on: <choice>                                                                                                                                                                            │
+      │
+  
+  
+      CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND:                                                                                                                                                        │
+        │                                                                                                                                                                                                   │
+        │ The command-line arguments provided by the boot loader will be                                                                                                                                    │
+        │ appended to the the device tree bootargs property.                                                                                                                                                │
+        │                                                                                                                                                                                                   │
+        │ Symbol: ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND [=n]                                                                                                                                                   │
+        │ Type  : bool                                                                                                                                                                                      │
+        │ Prompt: Extend with bootloader kernel arguments                                                                                                                                                   │
+        │   Location:                                                                                                                                                                                       │
+        │     -> Boot options                                                                                                                                                                               │
+        │       -> Use appended device tree blob to zImage (EXPERIMENTAL) (ARM_APPENDED_DTB [=y])                                                                                                           │
+        │         -> Supplement the appended DTB with traditional ATAG information (ARM_ATAG_DTB_COMPAT [=y])                                                                                               │
+        │           -> Kernel command line type (<choice> [=y])                                                                                                                                             │
+        │   Defined at arch/arm/Kconfig:1933                                                                                                                                                                │
+        │   Depends on: <choice>                                                                                                                                                                            │
+        │
+
+
+

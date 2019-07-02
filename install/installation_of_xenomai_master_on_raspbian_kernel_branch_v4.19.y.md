@@ -1,6 +1,6 @@
 [TOC]
 
-2019 june 25 
+2019 june 27 
 
 Installation of xenomai master branch on mainline kernel branch v4.19.y from kernel.org  
 ============================================
@@ -13,12 +13,13 @@ Installation of xenomai master branch on mainline kernel branch v4.19.y from ker
     export XENOMAI_VERSION=master-7b5c53d
     export XENOMAI_GIT_REPO=https://gitlab.denx.de/Xenomai/xenomai.git
 
-    
-    export KERNEL_BRANCH=rpi-4.19.y
+ 
     # after cloning the kernel source you will get the real kernel
-    # version with 'make kernelversion'
-    export KERNEL_VERSION=4.19.56  
+    # version with 'make kernelversion'   
+    export KERNEL_VERSION=4.19.56 
+    export KERNEL_BRANCH=rpi-4.19.y
     export KERNEL_GIT_REPO=https://github.com/raspberrypi/linux.git
+    # for which defconfig to use see: https://github.com/raspberrypi/linux/wiki/Upstreaming
     export KERNEL_DEFCONFIG=bcm2709_defconfig
     # when kernel is build it adds the kernel version as suffix
     # but you can add an extra local version
