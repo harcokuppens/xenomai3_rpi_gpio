@@ -1,0 +1,404 @@
+<<<<<<< Local Changes
+plan maken vakantie
+  -> statemachinelib 
+       - basic efsm
+       - testing algorithm
+  -> tomte refactor : efficient
+  
+  
+
+TODO: 
+
+write report rotating clock
+
+
+
+
+       
+read article petra!  read haskell book
+
+
+
+
+https://superuser.com/questions/970594/extremely-slow-speed-when-writing-to-usb-fat32-drive-in-linux
+sudo umount /dev/sdb1; sudo mount -o async,flush /dev/sdb1 /media/usb
+
+
+
+
+  
+GOAL :
+- good rpi 4.9 kernel with xenomai 3.0.8  
+    => xenomai gpio working, howver need fix linux gpio! => usable as it is now in des!
+- rpi 4.19 kernel with xenomai on rpi4 with xenomai 3.0.10 (now master)
+   or else vanilla 4.19 kernel
+    => for now not feasible!!
+
+STATUS:  
+ - 4.9 rpi xenomai kernel:
+    xenomai gpio working, howver need fix linux gpio!
+    => waiting for xenomai mailing list
+ - 4.19 xenomai kernel on rpi4      
+    * need master branch of xenomai otherwise 4.19.33 kernel not even booting!
+    * first try to get 4.19.33 working on rpi3 (later on rpi4)   
+       - 4.19.33 vanilla xenomai master  boots -> gpio broken, wrong numbering => try to fix pinctrl
+       - 4.19.33 rpi xenomai master  boots -> doesn't boot   :  REGISTER DUMP!  => unclear cause!!
+    * cannot support rpi4 
+        - vanilla kernel:  no dt for rpi4 yet
+        - rpi kernel : 4.19.33 rpi xenomai master doesn't boot
+   => so for now  not feasible
+      wait for 
+       - better ipipe patch
+       - device tree for rpi4 in mainline kernel 
+    
+TODO:
+  - cleanup configs 
+  - improve descriptions
+     4.9 install  -> REDO using  4.19 install
+     4.19 install  => FINISHED
+       installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio__improved_enh.md
+       
+  - build rpi kernel for rpi4 without xenomai with bcm2711_defconfig => see if it works 
+     `-> no description needed
+ 
+  - installation_of_xenomai_master_on_raspbian_kernel_branch_v4.19.y.md
+     -> document that it doesn't boot!!
+     
+ 
+LATER TODO:  
+      => 4.19 is needed for rpi4, but for that to work we need rpi4 dt file for mainline kernel, or better ipipe patch for rpi 4.19 kernel (currenlty hangs!)     
+      => for rpi3b+ 4.9 kernel is fine for now!
+         so therefore do this later
+  - 4.19 vanilla do fix gpio fix pinctrl!! 
+           vanilla 4.19.33
+           vanilla 4.19.33 ipipe patched
+       
+          compare  
+           vanilla 4.19.33
+           rpi 4.19.y 
+       
+          compare:  
+           rpi 4.19.y 
+           rpi 4.19.y  with ipipe patched
+           rpi 4.19.y with my special 4.09 patch applied.....
+       
+  
+           
+referenced in mailinglist:
+
+    rpi 4.9 install , xenomai 3.0.8 => problem linux gpio
+     https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/install_xenomai-3.0.8_on_rpi2_3_3B%2B.txt
+
+   
+    mainline 4.9 install, xenomai 3.0.8 => problem linux gpio
+     https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
+
+
+    mainline 4.19 install , xenomai master branch => problem linux gpio
+      https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio.md
+
+
+  => if problems are solved, then move then in their own failure dir -> don't care breaking links in mailing list
+     because i will post working install in mailing list!!
+
+BEST: 
+    =>not referenced in mailinglist : improved/enhanced install:
+       installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio__IMPROVED.md
+
+
+==========================================================================================
+
+
+defconfigs
+-----------
+
+https://forum.manjaro.org/t/raspberry-pi-4-announced/92325/16
+  arch/arm64/configs/bcm2711_defconfig
+  
+  
+  $ ff defconfig |grep bcm
+  
+  ./linux/arch/arm64/configs/bcm2711_defconfig   64 bit
+  ./linux/arch/arm64/configs/bcmrpi3_defconfig
+  
+                                                  32bit 
+  ./linux/arch/arm/configs/bcm2835_defconfig    => kernel.org version 
+  ./linux/arch/arm/configs/bcmrpi_defconfig    pi1 
+  ./linux/arch/arm/configs/bcm2709_defconfig   pi2/3
+    `-> CONFIG_LOCALVERSION="-v7"
+  ./linux/arch/arm/configs/bcm2711_defconfig     pi4
+    `-> CONFIG_LOCALVERSION="-v7l"
+
+
+
+  =>  for kernel.org use :  multi_v7_defconfig
+ 
+kernels and  versions
+---------------------
+
+kernel.img -> pi1           
+
+kernel7.img -> pi2/pi3   -> pi4 does not boot
+ `-> experiment:
+      in /boot/config.txt
+        kernel=kernel7.img   => boost on pi2,pi3  but not on pi4  
+  
+
+kernel7l.img -> pi2/pi3/p4  => not sure everything ok??  => probably for p4, and kernel7.img for pi2/pi3
+ `-> experiment:
+      in /boot/config.txt
+        kernel=kernel7l.img   => boost on pi2,pi3,pi4   (kernel7.img boots on 2/3 but not on 4)
+  
+
+new defconfig for pi 4 : bcm2711_defconfig  with CONFIG_LOCALVERSION="-v7l" => kernelv7l
+----------------------------------------------------------------------------------------
+
+$ for f in `ff defconfig |grep bcm |grep arm/`; do printf "$f  : "; head -1 $f;done
+./linux/arch/arm/configs/bcm2835_defconfig  : # CONFIG_LOCALVERSION_AUTO is not set
+./linux/arch/arm/configs/bcm2711_defconfig  : CONFIG_LOCALVERSION="-v7l"
+./linux/arch/arm/configs/bcmrpi_defconfig  : # CONFIG_LOCALVERSION_AUTO is not set
+./linux/arch/arm/configs/bcm2709_defconfig  : CONFIG_LOCALVERSION="-v7"
+
+
+
+https://en.wikipedia.org/wiki/Raspberry_Pi#Specifications 
+BCM2835                         ARM 1176JZF-S  Processor: single-core 
+BCM2836                         ARM Cortex-A7   Processor: Quad-core Cortex-A7
+BCM2837/BCM2837B0(higher freq)  ARM Cortex A53  Processor: Quad-core Cortex-A53 (ARM v8) 64-bit SoC @ 1.2GHz
+BCM2711                         ARM Cortex-A72  Processor: Quad-core Cortex-A72 (ARM v8) 64-bit SoC @ 1.5 GHz
+
+
+https://www.raspberrypi.org/documentation/glossary/
+
+Armv6 – The instruction set architecture used on the first Raspberry Pi (Pi 1) and the Pi Zero range.
+Armv7 – The instruction set architecture used on the Raspberry Pi 2 range.
+Armv8 – The instruction set architecture used on the Raspberry Pi 3 range; very similar to Armv7 in 32-bit mode.
+
+https://en.wikipedia.org/wiki/ARM_architecture#Cores
+ https://en.wikipedia.org/wiki/Comparison_of_ARMv7-A_cores
+   https://en.wikipedia.org/wiki/ARM_Cortex-A7
+   
+ https://en.wikipedia.org/wiki/Comparison_of_ARMv8-A_cores
+   https://en.wikipedia.org/wiki/ARM_Cortex-A53    big/LITTLE
+   https://en.wikipedia.org/wiki/ARM_Cortex-A72    big 
+
+https://askubuntu.com/questions/928227/is-armv7l-32-or-64-bit
+  
+  armv7l is 32 bit processor.
+  
+
+  ARMv8 is 64-bit. With 32-bit compatibility.
+
+      The ARMv8 architecture introduces 64-bit support to the ARM architecture with a focus on power-efficient
+      implementation while maintaining compatibility with existing 32-bit software. By adopting a clean approach
+      ARMv8-A processors extend the performance range available while maintaining the low power consumption
+      characteristics of the ARM processors that will power tomorrow's most innovative and efficient devices. ARM has 3
+      different product tiers supporting the ARMv8-A architecture: High Performance, High Efficiency, and Ultra-High
+      Efficiency.
+
+      ARMv8-A introduces 64-bit architecture support to the ARM architecture and includes:
+
+          64-bit general purpose registers, SP (stack pointer) and PC (program counter)
+          64-bit data processing and extended virtual addressing
+
+      Two main execution states:
+
+          AArch64 - The 64-bit execution state including exception model, memory -model, programmers' model and instruction set support for that state
+          AArch32 - The 32-bit execution state including exception model, memory model, programmers' model and instruction set support for that state
+
+  Anything lower (like ARMv7) is 32-bit.
+  
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=140572
+  when running in Aarch32 mode it acts like an ARMv7 with some missing instructions, so it makes perfect since that it
+  is reported as an ARMv7
+  
+
+
+  In 64-bit mode lscpu reports "Architecture: aarch64"
+  
+  in 32bit mode
+     $ lscpu
+     Architecture: armv7l
+
+ https://unix.stackexchange.com/questions/136407/is-my-linux-arm-32-or-64-bit
+   
+   There are several gradations, since you can run a 32-bit or mixed operating system on a 64-bit-capable CPU. See 64-bit kernel, but all 32-bit ELF executable running processes, how is this? for a detailed discussion (written for x86, but most of it applies to arm as well).
+
+   You can find the processor model in /proc/cpuinfo. For example:
+
+   $ cat /proc/cpuinfo
+   Processor       : ARMv7 Processor rev 10 (v7l)
+
+   ARMv7 (and below) is 32-bit. ARMv8 introduces the 64-bit instruction set.
+
+   If you want to see whether your system supports 64-bit binaries, check the kernel architecture:
+
+   $ uname -m
+   armv7l
+
+   On a 64-bit processor, you'd see armv8 (or above).
+   
+   
+ https://community.arm.com/developer/ip-products/processors/b/processors-ip-blog/posts/arm-fundamentals-introduction-to-understanding-arm-processors
+   
+   => details of arm
+   
+   
+     
+         
+
+
+building debian package
+------------------------
+
+linux/Makefile targets:
+
+  kernelrelease   - Output the release version string (use with make -s)
+  kernelversion   - Output the version stored in Makefile (use with make -s)
+  image_name      - Output the image name (use with make -s)
+  
+  
+  deb-pkg             - Build both source and binary deb kernel packages
+  bindeb-pkg          - Build only the binary kernel deb package
+  
+
+  example:
+  
+     $ make kernelrelease
+     4.19.56-rpi-xeno-master7b5c53d+           KERNELRELEASE  
+     $ make kernelversion
+     4.19.56
+
+linux/Makefile contains:
+
+     KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
+     KERNELVERSION = $(VERSION)$(if $(PATCHLEVEL),.$(PATCHLEVEL)$(if $(SUBLEVEL),.$(SUBLEVEL)))$(EXTRAVERSION)
+     export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
+
+     kernelrelease:
+         @echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+
+     kernelversion:
+         @echo $(KERNELVERSION)
+    
+    example: 
+         $ scripts/setlocalversion
+         -rpi-xeno-master7b5c53d+
+
+         note: + is added if you made changes to original code of git repo 
+         note: that we did ipipe patch for xenomai so we get an +
+
+     
+
+    $ cat include/config/kernel.release
+    4.19.56-rpi-xeno-master7b5c53d+
+    
+    
+
+
+linux/scripts/package/Makefile
+    deb-pkg: FORCE
+        $(MAKE) clean
+        $(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
+        $(call cmd,src_tar,$(KDEB_SOURCENAME))
+        origversion=$$(dpkg-parsechangelog -SVersion |sed 's/-[^-]*$$//');\
+            mv $(KDEB_SOURCENAME).tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
+        +dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) -i.git -us -uc
+
+    bindeb-pkg: FORCE
+        $(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
+        +dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) -b -nc -uc
+    
+
+scripts/package/mkdebian
+   # Simple script to generate a debian/ directory for a Linux kernel.
+   
+man dpkg-buildpackage
+   dpkg-buildpackage is a program that automates the process of building a Debian package.
+ 
+ 
+ 
+
+
+
+debian package naming
+---------------------
+
+https://askubuntu.com/questions/330018/what-is-the-standard-for-naming-deb-file-name
+
+
+If you've used Debian for any amount of time, you might have noticed that Debian package files all follow certain
+naming conventions. Every Debian binary package should have a filename that follows this format:
+
+    packagename_version_arch.deb, 
+
+where 
+  "packagename" is the name of the package, 
+  "version" is the package version with major, minor, and revision numbers, and 
+  "arch" is the architecture for the package. <..>
+
+eg.  foo_1.0.0-1_all.deb
+         ^^^^^^^
+          `-> revision
+
+
+
+
+
+building a package
+------------------
+
+https://www.debian.org/doc/debian-policy/ch-controlfields.html#binary-package-control-files-debian-control
+
+  The DEBIAN/control file contains the most vital (and version-dependent) information about a binary package. It consists of a single paragraph.
+
+  The fields in this file are:
+
+      Package (mandatory)     => only the name of the package   => for kernels this contains also kernelrelease number
+      Source
+      Version (mandatory)     => version of the package 
+      Section (recommended)
+      Priority (recommended)
+      Architecture (mandatory)
+      Essential
+      Depends et al
+      Installed-Size
+      Maintainer (mandatory)
+      Description (mandatory)
+      Homepage
+      Built-Using
+  
+  
+
+https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-version
+
+  The version number of a package. 
+  The format is: 
+  
+     [epoch:]upstream_version[-debian_revision].
+
+
+https://askubuntu.com/questions/793270/how-to-make-deb-package-version-2
+
+create control file inside DEBIAN with below content (modify it as your package)
+
+  Package: mypackage   \,-> together gives name
+  Version: 1.0-1       /
+  Section: base
+  Priority: optional
+  Architecture: i386
+  Depends: libsomethingorrather (>= 1.2.13), anotherDependency (>= 1.2.6)
+  Maintainer: Your Name <you@email.com>
+  Description: my Package
+   When you need some sunshine, just run this
+   small program!
+   (the space before each line in the description is important)
+  
+Code: 
+  dpkg-deb --build mypackage_1.0-1
+
+
+
+
+
