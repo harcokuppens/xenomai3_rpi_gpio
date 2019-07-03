@@ -1,114 +1,244 @@
+
+
+2019 juli 3
+
 [TOC]
 
-2019 june 20 
-
-Installation of xenomai 'master' branch on mainline kernel branch v4.19.33 from kernel.org  
+Installation of xenomai master branch on mainline kernel branch v4.19.y from kernel.org  
 ============================================
 
+**IMPORTANT**: This mainline kernel installation is not correct. The gpio pins have the wrong numbers.
+We try to bring stuff from the rpi kernel to improve, however not success full so far, but we note down these trials in appendix B.
+
+### Terminology 
+
+The raspberry pi project has its own downstream version of the official upstream kernel at kernel.org which are also known under the alias mainline or vanilla.
+
+    mainline = upstream   = vanilla      https://git.kernel.org/
+    rpi     =  downstream                https://github.com/raspberrypi/linux/
+
+In this document we use the the term `mainline` and `rpi`.
+
+### Versions
+
+```bash
+export XENOMAI_BRANCH=master
+# after cloning use the first 7 letters of the hash as part of version
+export XENOMAI_VERSION=master-4b3a3ab
+export XENOMAI_GIT_REPO=https://gitlab.denx.de/Xenomai/xenomai.git
+
+# after cloning the kernel source you will get the real kernel
+# version with 'make kernelversion'
+export KERNEL_VERSION=4.19.33  
+export KERNEL_BRANCH=v${KERNEL_VERSION}
+export KERNEL_GIT_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+    
+# for which defconfig to use see: 
+#    https://github.com/raspberrypi/linux/wiki/Upstreaming
+export KERNEL_DEFCONFIG=multi_v7_defconfig
+
+# When a kernel is build it adds the kernel version as suffix
+# but you can add an extra local version.
+# In this local version  we must mark rpi kernels by adding the "rpi" label
+# otherwise we assume it is a mainline kernel.
+export KERNEL_LOCALVERSION="-xeno-$XENOMAI_VERSION"
+export KERNEL_FULLVERSION=${KERNEL_VERSION}${KERNEL_LOCALVERSION}
+# note: whether KERNEL_FULLVERSION contains "rpi" is used to
+#       decide which device tree files are used in the installation.
+    
+#note: the raspbian kernel package is called: raspberrypi-kernel 
+#note: "xeno" in the version label marks it a kernel with xenomai support   
+export PACKAGENAME=raspberrypi-kernel
+export PACKAGEVERSION=${KERNEL_FULLVERSION}
+export PACKAGEFILE=${PACKAGENAME}-${PACKAGEVERSION}_armhf.deb
+    
+export IPIPE_PATCH=ipipe-core-4.19.33-arm-2.patch 
+export IPIPE_REPO_URL=https://www.xenomai.org/downloads/ipipe/v4.x/arm/
+    
+export NUMCORES=4
+export ARCH=arm 
+export CROSS_COMPILE=arm-linux-gnueabihf-
+```    
 
 ### Download the ingredients
  
-    # get xenomai 'master' branch
-    git clone --depth=50 --branch=master https://github.com/xenomai-ci/xenomai.git  xenomai-master
+ 
+```bash 
+# get xenomai       
+git clone --depth=1 --branch=$XENOMAI_BRANCH $XENOMAI_GIT_REPO xenomai
     
-    # get kernel branch v4.14.110  from kernel.org
-    git clone -b v4.19.33 --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git linux
+# get kernel 
+git clone -b $KERNEL_BRANCH --depth 1 $KERNEL_GIT_REPO linux
+   
+# get ipipe patch for kernel
+wget $IPIPE_REPO_URL/$IPIPE_PATCH
+```
+    
+#### Note down the specific version details for future rebuilds
 
-    # get ipipe patch for kernel
-    wget https://www.xenomai.org/downloads/ipipe/v4.x/arm/ipipe-core-4.19.33-arm-2.patch
+```bash    
+cd linux
+make kernelversion 
+# output: 4.19.33 
+git rev-parse HEAD
+# output: 4b3a3ab00fa7a951eb1d7568c71855e75fd5af85
+cd -  
+    
+cd xenomai
+git rev-parse HEAD
+# output: 2692220a5d55a5f36ebaee3bfde5e926f168447c
+cd -
+```
 
 
 ### Configuring
     
 Patch the kernel with the ipipe patch
     
-    xenomai-master/scripts/prepare-kernel.sh  --linux=linux/  --arch=arm  --ipipe=ipipe-core-4.19.33-arm-2.patch 
+```bash
+xenomai/scripts/prepare-kernel.sh  --linux=linux/  --arch=$ARCH  --ipipe=$IPIPE_PATCH 
+```
+ 
+ 
+Configure the kernel
+ 
+```bash    
+cd linux
+make $KERNEL_DEFCONFIG
+```
+        
 
+#### Change config via menu 
+    
+Start menuconfig 
  
- Configure the kernel
+```bash    
+make menuconfig
+```
  
-    cd linux
-    make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig
-    make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
- 
- Within menuconfig choose the following options:
- 
+and choose the following options: 
+
+     General setup  --->
+        Local version - append to kernel release
+         -> set string in popup window to: "${KERNEL_LOCALVERSION}"
+        [ ] Initial RAM filesystem and RAM disk (initramfs/initrd) support (CONFIG_BLK_DEV_INITRD) 
      CPU Power Management  --->
-       CPU Frequency scaling  --->
-         [ ] CPU Frequency scaling
+       CPU Frequency scaling  --->  
+         [ ] CPU Frequency scaling (CONFIG_CPU_FREQ)
        CPU idle  --->
-         [ ] CPU idle PM support
+         [ ] CPU idle PM support (CONFIG_CPU_IDLE)
+     Memory management options    
+         [ ] Allow for memory compaction (CONFIG_COMPACTION)
+         [ ] Contiguous Memory Allocation  (CONFIG_CMA)         
      Kernel Hacking  --->
-         [ ] KGDB: kernel debugger
-     Boot options  --->
-         Kernel command line type --->
-             [X] Extend bootloader kernel arguments
-
+         [ ] KGDB: kernel debugger (CONFIG_KGDB)
+ 
      Xenomai Cobalt --->
           Drivers  --->
                   Real-time GPIO drivers  --->
-                     <*> GPIO controller                          => with " [M] Support for BCM2835 GPIOs   " instead it builds directly in kernel, then no need to load module anymore!
-                     [M]   Support for BCM2835 GPIOs                 `-> however we stick to default and just build it as module and load it at boot in /etc/rc.local
+                     <*> GPIO controller (CONFIG_XENO_DRIVERS_GPIO)                                              
+                     [M]   Support for BCM2835 GPIOs (CONFIG_ XENO_DRIVERS_GPIO_BCM2835)                                     
                      [ ]   Enable GPIO core debugging features
 
+     note: in above  [ ]  means disable,  [X]  means enable in kernel, [M] means build as external module for kernel
+     
+     => we could also build support for BCM2835 GPIOs directly in kernel however we prefer the modular approach
 
-     note: in above  [ ]  means disable,  [X]  means enable
+
+##### initrd  
+
+We disable `initrd` by disabling the option "Initial RAM filesystem and RAM disk (initramfs/initrd) support (CONFIG_BLK_DEV_INITRD)".  We disable `initrd`  because the raspberry pi doesn't use it on boot. If you would leave it enabled then when installing the kernel debian package it would create an `initrd` file in `/boot` which is never used.  
 
 
+##### kernel arguments  
+
+Finally in older installation descriptions often in "Boot options" we had to enable an option "Extend bootloader kernel arguments". However with the new bootloader in raspbian the kernel arguments can be configured in `/boot/cmdline.txt` which is read by the bootloader. 
+
+For specific kernel arguments see:  
+
+    https://www.raspberrypi.org/documentation/configuration/cmdline-txt.md 
+
+For detailed explanation how the bootloader reads the kernel arguments  from `/boot/cmdline.txt`  and how it sets them in the device tree see:
+
+[`kernel_config__extend_bootloader_kernel_arguments.txt`](kernel_config__extend_bootloader_kernel_arguments.txt). 
 
 
-Note I didn't disable CONFIG_MIGRATION because didn't know how:
+#### Change config using commands
     
-	    for older kernels we had    
-	         Kernel Features  --->
-	             [ ] Contiguous Memory Allocator
-	             [ ] Allow for memory compaction
-	    changed into 
-	         Memory management options    (below default values)
-	             [*] Allow for memory compaction    (CONFIG_COMPACTION)
-	              * Contiguous Memory Allocato  (CONFIG_CMA) => couldn't disable this!!! Unclear why not???
-	            => needed to disable for  CONFIG_MIGRATION (because Page migration may increase latency)
-	               
-	       => so decided to leave both on and thus CONFIG_MIGRATION on and thus have bigger latecny!
+The same configuration using the menu can also be reached with the commands
 
-
-Note the same configuration can be reached with the commands
-
-    scripts/config -d CPU_FREQ -d CPU_IDLE -d CMA -d COMPACTION -d KGDB \
-                   -e ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND \
-                   -e XENO_DRIVERS_GPIO -m XENO_DRIVERS_GPIO_BCM2835
+```bash
+scripts/config --set-str LOCALVERSION "${KERNEL_LOCALVERSION}" -d BLK_DEV_INITRD\
+   -d CPU_FREQ -d CPU_IDLE -d CMA -d COMPACTION -d KGDB\
+   -e XENO_DRIVERS_GPIO -m XENO_DRIVERS_GPIO_BCM2835
+```
     
-    # run 'make olddefconfig' to fix all relations within config
-    # because scripts/config doesn't check the validity of the .config file.
-    # This is done at next time a make command is run.
-    make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
+Then run 'make olddefconfig' to fix all relations within config
+because scripts/config doesn't check the validity of the .config file.
 
-You can verify these options with the command
+```bash
+make olddefconfig
+```
 
-    scripts/config -s CPU_FREQ -s CPU_IDLE -s CMA -s COMPACTION -s KGDB \
-                   -s ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND \
-                   -s XENO_DRIVERS_GPIO -s XENO_DRIVERS_GPIO_BCM2835
+Finally you can verify the set options with the command
 
+```bash
+for OPTION in LOCALVERSION BLK_DEV_INITRD\
+  CPU_FREQ CPU_IDLE CMA COMPACTION KGDB \
+  XENO_DRIVERS_GPIO XENO_DRIVERS_GPIO_BCM2835 MIGRATION 
+do 
+   echo "${OPTION}: $(scripts/config -s ${OPTION})"   
+done   
+```
 
-Note that CONFIG_CMA is enabled again.
+We also check status of MIGRATION because it is needed to decrease latency. The config option MIGRATION is disabled indirectly by disabling CMA and COMPACTION. Note that if you enable either of them then 'make menuconfig' gives the warning:
 
-make distribution dir where we store our build packages
-    
-    cd ..
-    mkdir dist/
+    *** WARNING! Page migration (CONFIG_MIGRATION) may increase latency. ***    
  
+
+We finally get:
+
+```bash
+$ for OPTION in LOCALVERSION BLK_DEV_INITRD\
+>   CPU_FREQ CPU_IDLE CMA COMPACTION KGDB \
+>   XENO_DRIVERS_GPIO XENO_DRIVERS_GPIO_BCM2835 MIGRATION
+> do
+>    echo "${OPTION}: $(scripts/config -s ${OPTION})"
+> done
+LOCALVERSION: -xeno-master-4b3a3ab
+BLK_DEV_INITRD: n
+CPU_FREQ: n
+CPU_IDLE: n
+CMA: n
+COMPACTION: n
+KGDB: n
+XENO_DRIVERS_GPIO: y
+XENO_DRIVERS_GPIO_BCM2835: m
+MIGRATION: undef
+```
+
+Make a distribution dir where we store our build packages
+ 
+```bash    
+cd ..
+mkdir dist/
+```
+
 ### Build kernel into a debian package
  
-    cd linux 
-    export NUMCORES=4  
-    time make -j $NUMCORES ARCH=arm  CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_DEBARCH=armhf deb-pkg
-    # does first : make clean
-    # also does : make zImage modules dtbs   to finally build debian package
-
-    # store debian package in distribution directory
-    cd ../
-    mv linux-image-*.deb dist/
-
+```bash 
+cd linux   
+    
+time make -j $NUMCORES KBUILD_DEBARCH=armhf deb-pkg
+# does first : make clean
+# also does : make zImage modules dtbs to finally build debian package
+# builds debian packages: 
+#   linux-image*.deb linux-headers*.deb linux-libc-dev*.deb
+    
+# store debian package in distribution directory
+cd ../
+mv linux-image-*.deb linux-headers*.deb linux-libc-dev*.deb dist/
+```
 
  
 ### Build xenomai user-space libraries and tools
@@ -116,138 +246,208 @@ make distribution dir where we store our build packages
 
 For Configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
 
-    export DESTDIR=$PWD/xenomai-build 
+```bash
+export DESTDIR=$PWD/xenomai-build 
     
-	cd xenomai-master
-	./scripts/bootstrap 
-	./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
+ cd xenomai
+ ./scripts/bootstrap 
+ ./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
 	
-	make install
-		
-	cd ..
-	tar -C $DESTDIR -czvf dist/xenomai-master-binaries.tgz .
-	# cleanup with:  rm -rf $DESTDIR
-
+ make install
+	
+ cd ..
+ tar -C $DESTDIR -czvf dist/xenomai-binaries.tgz .
+ # cleanup with:  
+ rm -rf $DESTDIR
+```
    
-    
-
-### Installing distribution files
+### Installing manually
 
 Now in the dist/ directory we have
  
-    $ ls -1 dist
-    linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
-    xenomai-master-binaries.tgz
+```bash 
+$ ls -1 dist
+linux-image-${KERNEL_FULLVERSION}*_armhf.deb
+xenomai-binaries.tgz
+``` 
+
+#### Installing the distribution files on the mounted sdcard of the Raspberry pi 
+    
+```bash    
+# become root with preserving the environment
+sudo -E su -p
+    
+# mount sdcard
+export MOUNTPOINT=/media/sdcard 
+export SDCARD=/dev/sdb
+mkdir ${MOUNTPOINT}
+mount ${SDCARD}2 ${MOUNTPOINT}
+mount ${SDCARD}1 ${MOUNTPOINT}/boot
+ 
+# backup original /boot for optional recovery
+/bin/cp -a ${MOUNTPOINT}/boot ${MOUNTPOINT}/boot_backup
+ 
+# install kernel, modules and device tree files
+# 1) extract the debian kernel package on the sdcard
+dpkg-deb -xv linux-image-*.deb ${MOUNTPOINT}
+# 2) install the newly installed kernel as the default kernel to boot
+/bin/mv ${MOUNTPOINT}/boot/vmlinuz-${KERNEL_FULLVERSION}* ${MOUNTPOINT}/boot/kernel7.img
+# 3) install device tree files
+cd ${MOUNTPOINT}/usr/lib/linux-image-${KERNEL_FULLVERSION}/
+if [[ "$KERNEL_FULLVERSION" == *rpi* ]]
+then 
+    # for rpi kernel use the raspbian specific bcm27 device tree files
+    /bin/cp bcm27*.dtb ${MOUNTPOINT}/boot
+    # for rpi also copy the overlay files into /boot/overlays
+    /bin/cp -a overlays ${MOUNTPOINT}/boot
+else
+    # for mainline kernel use the bcm28 files, however give
+    # them the names the raspbian bootloader expect (that is
+    # the  raspbian specific bcm27 names)
+    /bin/cp bcm2836-rpi-2-b.dtb   ${MOUNTPOINT}/boot/bcm2709-rpi-2-b.dtb
+    /bin/cp bcm2837-rpi-3-b.dtb   ${MOUNTPOINT}/boot/bcm2710-rpi-3-b.dtb
+    /bin/cp bcm2837-rpi-3-b-plus.dtb   ${MOUNTPOINT}/boot/bcm2710-rpi-3-b-plus.dtb
+    # note: kernel.org doesn't yet have dts file for rpi-4; just released
+fi  
+cd -  
+  
+# install xenomai user-space libraries and tools
+tar -C ${MOUNTPOINT} -xzvf xenomai-binaries.tgz
+ 
+# umount
+umount ${MOUNTPOINT}/boot ${MOUNTPOINT}/
+```
+
+For details how we installed the device tree files see [Appendix A: Details about device tree files](#Appendix-A:-Details-about-device-tree-files).
+
+#### Installing the distribution files on the Raspberry pi itself
+
 
 Copy the distribution files over to raspberry pi running raspbian. There are multiple ways to do this, but I let your figure it out yourself.
 
 
 Install on the raspberry pi the distribution files:
 
-     # become root
-     sudo su -
-     
-     # install kernel 
-     # 1) install the debian kernel package
-     dpkg -i linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
-     # 2) move the original kernel away (as backup)
-     mv /boot/kernel7.img /boot/kernel7.orig.img 
-     # 3) install the newly installed kernel as the default kernel to boot
-     mv /boot/vmlinuz-4.19.33-dirty /boot/kernel7.img
-     
-     # install xenomai 3.0.8 user-space libraries and tools
-     tar -C / -xzvf xenomai-master-binaries.tgz
-      
-
-### Setting device tree
-
-Finally you have to set the right device tree description file for your specific raspberry pi hardware board so that the linux kernel is informed of that hardware.
-
-All raspberry pi device tree files are build into the linux-image-*.deb package inside the /usr/lib/linux-image-.. dir. We can list them with the following command:
-
-    dpkg -c linux-image-*.deb |egrep 'bcm28.*.dtb'
-    -rw-r--r-- root/root     12518 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-b-rev2.dtb
-    -rw-r--r-- root/root     13445 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2837-rpi-3-b.dtb
-    -rw-r--r-- root/root     12428 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-a-plus.dtb
-    -rw-r--r-- root/root     12434 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-b.dtb
-    -rw-r--r-- root/root     12838 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-zero-w.dtb
-    -rw-r--r-- root/root     12312 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-a.dtb
-    -rw-r--r-- root/root      7933 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm28155-ap.dtb
-    -rw-r--r-- root/root     12914 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2836-rpi-2-b.dtb
-    -rw-r--r-- root/root     12348 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-zero.dtb
-    -rw-r--r-- root/root     12642 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-b-plus.dtb
-    -rw-r--r-- root/root     12510 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2835-rpi-cm1-io1.dtb
-    -rw-r--r-- root/root     13637 2019-06-20 14:43 ./usr/lib/linux-image-4.19.33-dirty/bcm2837-rpi-3-b-plus.dtb
-
-    
-
-Note that the raspbian kernel and the mainline kernel use different naming conventions for the device tree files for the different raspberry pi hardware boards:
+```bash
+# become root
+sudo -E su -p
  
-- for rpi we have : bcm27\*.dtb and overlays/*  
-- for vanilla(kernel.org) kernel we have no overlays, we only have bcm283\*.dtb <br>
-
-The device tree file must be located in /boot to let the bootcode load it from the FAT /boot partition to give it to kernel. Therefore we have to copy all the device tree files from the place where the kernel installed them to /boot:
-
-     # copy the device tree files for raspberry pi into /boot
-     cp /usr/lib/linux-image-4.19.33-dirty/bcm283*.dtb /boot
-     
-With a text editor you can then set the device tree to boot your specific raspberry pi by adding that pi's device tree file to the end of the file in /boot/config.txt. 
-
-Eg. for the raspberry pi 3b the following line should be added:
+# backup original /boot for optional recovery
+/bin/cp -a /boot /boot_backup
  
-     device_tree=bcm2837-rpi-3-b.dtb   
-  
-But the bootcode used by the raspberry can also automatically load the right device tree description file without specify it in /boot/config.txt. However it requires the files to have specific names, which follows the naming convention within raspbian. So to get the loading working automatically do the following:
- 
-      cd /boot
-      cp bcm2836-rpi-2-b.dtb	    bcm2709-rpi-2-b.dtb
-      cp bcm2837-rpi-3-b.dtb	    bcm2710-rpi-3-b.dtb
-      cp bcm2837-rpi-3-b-plus.dtb   bcm2710-rpi-3-b-plus.dtb
-      # important: uncomment any device_tree= option in /boot/config.txt
-
-Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
-For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](../notes/device_tree_files_automatic_loading_on_raspbian_image.txt).
- 
- 
-### Make a single debian package
-
-The approach we use is to take the build kernel package and modify it so that it install also the xenomai libraries/tools and that it installs the kernel and the device tree description files for the different hardware type of raspberry pi boards into /boot. It also copies the original /boot folder to /boot_<timestamp> folder so that we always can easily recover in case the installation may fail.
-
-    cd dist/
-    # extract 
-    
-    package=linux-image-4.19.33-dirty_4.19.33-dirty-1_armhf.deb
-    
-    # extract debian package
-    dpkg-deb -R $package extracted/
-    
-    # add xenomai user-space libraries and tools
-    tar -C extracted/ -xzvf xenomai-master-binaries.tgz
-    
-    # add post install code to install kernel and device tree files in /boot
-    cat << EOF > extracted/etc/kernel/postinst.d/xenomai
-    #!/bin/bash
-    # get arguments 
-    kernelversion="\$1"
-    kernelimagefile="\$2"
-    # backup original /boot for optional recovery
-    /bin/cp -a /boot /boot_backup_\$(date +%s)
-    # install kernel image file
-    /bin/mv \$kernelimagefile /boot/kernel7.img
-    # install device tree files for all rpi 2 and 3
-    cd /usr/lib/linux-image-\${kernelversion}/
+# install kernel, modules and device tree files
+# 1) extract the debian kernel package on the sdcard
+dpkg -i linux-image-*.deb     
+# 2) install the newly installed kernel as the default kernel to boot
+/bin/mv /boot/vmlinuz-${KERNEL_FULLVERSION}* /boot/kernel7.img
+# 3) install device tree files
+cd /usr/lib/linux-image-${KERNEL_FULLVERSION}/
+if [[ "$KERNEL_FULLVERSION" == *rpi* ]]
+then 
+    # for rpi kernel use the raspbian specific bcm27 device tree files
+    /bin/cp bcm27*.dtb /boot
+    # for rpi also copy the overlay files into /boot/overlays
+    /bin/cp -a overlays /boot
+else
+    # for mainline kernel use the bcm28 files, however give
+    # them the names the raspbian bootloader expect (that is
+    # the  raspbian specific bcm27 names)
     /bin/cp bcm2836-rpi-2-b.dtb   /boot/bcm2709-rpi-2-b.dtb
     /bin/cp bcm2837-rpi-3-b.dtb   /boot/bcm2710-rpi-3-b.dtb
     /bin/cp bcm2837-rpi-3-b-plus.dtb   /boot/bcm2710-rpi-3-b-plus.dtb
-    cd -
-    EOF
-    chmod a+x extracted/etc/kernel/postinst.d/xenomai
+    # note: kernel.org doesn't yet have dts file for rpi-4; just released
+fi  
+cd - 
+  
+# install xenomai user-space libraries and tools
+tar -C / -xzvf xenomai-binaries.tgz
+```      
+
+
+
+
+
+### Easy installation
+
+#### Make a single debian package for easy installation
+
+Instead of installing the distribution files as described in the step above and doing the device tree setup manually, it would be much easier if all of this would be done by a single debian package we just have to download and install. In this section we are going to build such a debian package.
+  
+The approach we use is to take the build kernel package and modify it so that it install also the xenomai libraries/tools and that it installs the kernel and the device tree description files for the different hardware type of raspberry pi boards into /boot. It also copies the original /boot folder to /boot_<timestamp> folder so that we always can easily recover in case the installation may fail.
+
+
+```bash
+cd dist/
     
-    # rebuild package
-    # first make root owner of all files
-    sudo chown -R root:root extracted/  
-    dpkg-deb -b extracted  xenomai_$package
+# extract debian package
+dpkg-deb -R linux-image-*.deb extracted/
+    
+# add xenomai user-space libraries and tools
+tar -C extracted/ -xzvf xenomai-binaries.tgz
+    
+# add post install code to install kernel and device tree files in /boot
+cat << EOF > extracted/etc/kernel/postinst.d/xenomai
+#!/bin/bash
+    
+# get arguments 
+kernelversion="\$1"
+kernelimagefile="\$2"
+    
+# backup original /boot for optional recovery
+/bin/cp -a /boot /boot_backup_\$(date +%s)
+    
+# install kernel image file
+/bin/mv \$kernelimagefile /boot/kernel7.img
+    
+# install device tree files for all rpi 2 and 3
+# by copying the device tree files for raspberry pi into /boot
+# for rpi kernel use the raspbian specific bcm27 device tree files
+#/bin/cp /usr/lib/linux-image-\${kernelversion}/bcm27*.dtb /boot
+
+# install device tree files for all rpi 2 and 3
+# by copying the device tree files for raspberry pi into /boot
+cd /usr/lib/linux-image-\${kernelversion}/
+if [[ "\$kernelversion" == *rpi* ]]
+then 
+    # for rpi kernel use the raspbian specific bcm27 device tree files
+    /bin/cp bcm27*.dtb /boot
+    # for rpi also copy the overlay files into /boot/overlays
+    /bin/cp -a overlays /boot
+else
+    # for mainline kernel use the bcm28 files, however give
+    # them the names the raspbian bootloader expect (that is
+    # the  raspbian specific bcm27 names)
+    /bin/cp bcm2836-rpi-2-b.dtb   /boot/bcm2709-rpi-2-b.dtb
+    /bin/cp bcm2837-rpi-3-b.dtb   /boot/bcm2710-rpi-3-b.dtb
+    /bin/cp bcm2837-rpi-3-b-plus.dtb   /boot/bcm2710-rpi-3-b-plus.dtb
+    # note: kernel.org doesn't yet have dts file for rpi-4; just released
+fi    
+
+EOF
+    
+# make executable
+chmod a+x extracted/etc/kernel/postinst.d/xenomai
+    
+# change package name and version in debian control file
+sed -i "s/^Package:.*/Package: $PACKAGENAME/" extracted/DEBIAN/control
+sed -i "s/^Version:.*/Version: $PACKAGEVERSION/" extracted/DEBIAN/control   
+    
+# rebuild package
+# first make root owner of all files
+sudo chown -R root:root extracted/  
+dpkg-deb -b extracted  $PACKAGEFILE
+```
  
+#### Installation
+
+Just download the debian package we build in the previous onto the raspberry pi, and then just run:
+
+```bash 
+sudo dpkg -i $PACKAGEFILE
+```   
+ 
+ 
+
 Test code
 =========
 
@@ -265,7 +465,7 @@ It describes the following test code:
 
         The easiest way to download this folder is with the subversion command:
         
-          svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/linux/wiringpi_examples
+          svn export https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/linux/wiringpi_examples
           
 
         With the default raspbian kernel these examples work. 
@@ -285,7 +485,7 @@ It describes the following test code:
 
         The easiest way to download this folder is with the subversion command:
         
-            svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs
+            svn export https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs
           
         These examples should only work with a xenomai3 patched linux kernel.    
         You also must have the rtdm driver for realtime driver support for gpio pins loaded:
@@ -298,20 +498,142 @@ It describes the following test code:
            ./button_toggles_led/   # press button to toggle led  , test both interrupt from button and  output
            ./output_driven_irq/    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
  
+
+Appendices
+==========
      
-Problems
-========
- 
- 
-  * no network module loaded on the raspberry pi 3b+ boardHowever if we use the on raspberry 3b board the network works! So probably because  device tree description not right for 3b+ (yet).          
-  * gpio pins not working (same for 3b+ as 3b boards)
- 
-    - in /dev/rtdm  the gpio pins are numbered from 1994 to 2047 but should be from 0 to 53
+Appendix A:  Details about device tree files
+--------------------------------------------
+
+
+###  Device file naming and auto loading by raspbian bootloader
     
-    - also wiringpi gpio examples don't work 
-         * blink program doesn't work
-         * isr program with interrupts doesn't work. Gives as error that it cannot open /sys/class/gpio/gpio23/value   => no such file.
-         
-    - though command "gpio readall" seems to work 
+With a text editor you can then set the device tree to boot your specific raspberry pi by adding that pi's device tree file to the end of the file in /boot/config.txt. 
+
+Eg. for the raspberry pi 3b the following line should be added:
  
+     device_tree=bcm2837-rpi-3-b.dtb   
+  
+But the boot code used by the raspberry can also automatically load the right device tree description file without specify it in `/boot/config.txt` as long as the device tree files follow the naming convention of the rpi kernel.
+That's why we copied for mainline kernel the device tree files to the `/boot` directory with the rpi name and didn't set any `device_tree=` option in `/boot/config.txt`.
+
+For more information see [`../notes/device_tree_files_automatic_loading_on_raspbian_image.txt`](../notes/device_tree_files_automatic_loading_on_raspbian_image.txt). 
+
+
+
+### Detailed explanation how to install device tree files
+
+So you have to set the right device tree description file for your specific raspberry pi hardware board so that the linux kernel is informed of that hardware.
+
+All raspberry pi device tree files are build into the linux-image-*.deb package inside the /usr/lib/linux-image-.. dir. We can list them with the following command:
+
+```bash
+$ dpkg -c linux-image-*.deb |egrep '/bcm.*.dtb'
+```
+
+Note that the raspbian kernel and the mainline kernel use different naming conventions for the device tree files for the different raspberry pi hardware boards:
  
+- for rpi kernel: `bcm27*.dtb` and `overlays/*`  
+- for mainline kernel: `bcm283*.dtb` (no overlays)<br>
+
+The device tree file must be located in /boot to let the boot code load it from the FAT /boot partition to give it to kernel. Therefore we have to copy all the device tree files from the place where the kernel installed them to /boot:
+
+* for the rpi kernel
+
+    ```bash
+     # copy the device tree files for raspberry pi into /boot
+     /bin/cp /usr/lib/linux-image-*/bcm27*.dtb /boot
+     # copy the overlay files into /boot/overlays
+     /bin/cp -a /usr/lib/linux-image-*/overlays /boot
+    ```
+* for the mainline kernel
+     
+    ```bash 
+     # copy the device tree files for raspberry pi into /boot
+     cd /usr/lib/linux-image-*/
+     /bin/cp bcm2836-rpi-2-b.dtb   /boot/bcm2709-rpi-2-b.dtb
+     /bin/cp bcm2837-rpi-3-b.dtb   /boot/bcm2710-rpi-3-b.dtb
+     /bin/cp bcm2837-rpi-3-b-plus.dtb   /boot/bcm2710-rpi-3-b-plus.dtb
+     # note: kernel.org doesn't yet have dts file for rpi-4; the rpi-4 is just released
+     cd -
+     ```
+
+Important: uncomment any `device_tree=` option in /boot/config.txt.
+
+Then reboot and linux with xenomai should be up and running for any raspberry pi 2 or 3 board!! 
+
+
+
+
+Appendix B:  Hacks
+-------------------
+
+This mainline kernel installation is not correct. The gpio pins have the wrong numbers.
+We try to bring stuff from the rpi kernel to improve, however not success full so far, but we note down these trials.
+
+Reason that these trials don't work because the defconfig and device tree files are really specificly adapted to the adaptions to the  rasbpian kernel.
+
+So my conclusion: stick to mainline defconfig and device tree files.
+Means that for the rpi4 we cannot yet build a mainline kernel yet, because the mainline does not yet have a device tree description for that hardware board because it is just released.
+
+### Hack 1: use defconfig from rpi kernel  on mainline kernel 
+
+
+Change in build: 
+
+```bash 
+export KERNEL_DEFCONFIG=bcm2709_defconfig
+
+#get enhanced defconfig bcm2709_defconfig from rpi kernel  
+export BASE_URL_DEFCONFIG=https://raw.githubusercontent.com/raspberrypi/linux/rpi-4.19.y/arch/arm/configs
+wget -O linux/arch/arm/configs/$KERNEL_DEFCONFIG $BASE_URL_DEFCONFIG/$KERNEL_DEFCONFIG
+# or
+#export BASE_URL_DEFCONFIG=https://github.com/raspberrypi/linux/branches/rpi-4.19.y/arch/arm/configs/ 
+#svn export $BASE_URL_DEFCONFIG/$KERNEL_DEFCONFIG linux/arch/arm/configs/
+```
+
+**Conclusion:** doesn't work: get waiting on root device on boot! (kernel does boot but something wrong in mounting root device)  
+
+
+### Hack 2: use dt files from rpi kernel on mainline kernel 
+ 
+Change in build:
+    
+```bash    
+# get enhanced device tree file from rpi kernel
+mv linux/arch/arm/boot/dts .
+svn export https://github.com/raspberrypi/linux/branches/rpi-4.19.y/arch/arm/boot/dts linux/arch/arm/boot/dts    
+   
+mv linux/include/dt-bindings .
+svn export https://github.com/raspberrypi/linux/branches/rpi-4.19.y/include/dt-bindings  linux/include/dt-bindings
+
+#IMPORTANT: disable overlays     
+#PROBLEM: with compiling overlays
+#  $ time make -j 1 KBUILD_DEBARCH=armhf dtbs
+#  ....         
+#  make[2]: *** No rule to make target `arch/arm/boot/dts/overlays/adau1977-adc.dtbo', needed by `__build'.  Stop.
+#  make[1]: *** [arch/arm/boot/dts/overlays] Error 2
+#  make: *** [dtbs] Error 2
+##  => think .dtbo is  specific for overlays in rpi kernel
+#FIX: disable overlays in makefile
+#https://www.raspberrypi.org/documentation/configuration/device-tree.md
+# says  these optional elements are called "overlays"
+# optional so we can skip it!!
+# in in arch/arm/boot/dts/Makefile
+# uncomment : 
+# subdir-y    := overlays
+# => no building overlays which are somehow problematic
+```
+  
+  
+**Conclusion:** doesn't work: get rainbow screen on boot! (kernel doesn't boot)  
+ 
+ Reason maybe that: 
+ 
+    The current implementation is not a pure Device Tree system – there is still
+    board support code that creates some platform devices – but the external 
+    interfaces (I2C, I2S, SPI), and the audio devices that use them, must now be 
+    instantiated using a Device Tree Blob (DTB) passed to the kernel by the 
+    loader (start.elf).
+    
+ src: https://www.raspberrypi.org/documentation/configuration/device-tree.md
