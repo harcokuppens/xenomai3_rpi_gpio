@@ -499,6 +499,25 @@ It describes the following test code:
            ./output_driven_irq/    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
  
 
+
+Problems
+========
+ 
+ 
+  * no network module loaded on the raspberry pi 3b+ boardHowever if we use the on raspberry 3b board the network works! So probably because  device tree description not right for 3b+ (yet).          
+  * gpio pins not working (same for 3b+ as 3b boards)
+ 
+    - in /dev/rtdm  the gpio pins are numbered from 1994 to 2047 but should be from 0 to 53
+    
+    - also wiringpi gpio examples don't work 
+         * blink program doesn't work
+         * isr program with interrupts doesn't work. Gives as error that it cannot open /sys/class/gpio/gpio23/value   => no such file.
+         
+    - though command "gpio readall" seems to work 
+ 
+ 
+
+
 Appendices
 ==========
      
