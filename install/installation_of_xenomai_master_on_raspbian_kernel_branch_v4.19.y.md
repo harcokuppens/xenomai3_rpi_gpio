@@ -2,7 +2,7 @@
 
 2019 june 27 
 
-Installation of xenomai master branch on mainline kernel branch v4.19.y from kernel.org  
+Installation of xenomai master branch on rpi kernel branch v4.19.y from kernel.org  
 ============================================
 
 

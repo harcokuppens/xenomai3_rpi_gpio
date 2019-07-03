@@ -4,7 +4,7 @@
 
 [TOC]
 
-Installation of xenomai master branch on mainline kernel branch v4.19.y from kernel.org  
+Installation of xenomai 3.08 on rpi kernel v4.9.y from raspberrypi github site  
 ============================================
 
 **IMPORTANT**: This mainline kernel installation is not correct. The gpio pins have the wrong numbers.
@@ -21,29 +21,42 @@ The raspberry pi project has its own downstream version of the official upstream
 
 In this document we use the the term `mainline` and `rpi`.
 
+
+
+### Specialities for this build
+
+
+- the official ipipe patch needed a simple fix : repair for shifting lines and small context changes, and we remove the patches 
+  for pinctrl-bcm2835.c 
+- because we use a new patch for pinctrl-bcm2835.c for raspbian 4.9 kernel : pinctrl-bcm2835.c.rpi-4.9.patch
+  for details how derived this patch see: 
+    
+        https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt
+
+
 ### Versions
 
 ```bash
-export XENOMAI_BRANCH=master
-# after cloning use the first 7 letters of the hash as part of version
-export XENOMAI_VERSION=master-4b3a3ab
+
+export XENOMAI_VERSION=3.0.8
+export XENOMAI_BRANCH=v$XENOMAI_VERSION
 export XENOMAI_GIT_REPO=https://gitlab.denx.de/Xenomai/xenomai.git
 
 # after cloning the kernel source you will get the real kernel
 # version with 'make kernelversion'
-export KERNEL_VERSION=4.19.33  
-export KERNEL_BRANCH=v${KERNEL_VERSION}
-export KERNEL_GIT_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+export KERNEL_VERSION=4.9.80  
+export KERNEL_BRANCH=rpi-4.9.y
+export KERNEL_GIT_REPO=https://github.com/raspberrypi/linux.git
     
 # for which defconfig to use see: 
 #    https://github.com/raspberrypi/linux/wiki/Upstreaming
-export KERNEL_DEFCONFIG=multi_v7_defconfig
+export KERNEL_DEFCONFIG=bcm2709_defconfig
 
 # When a kernel is build it adds the kernel version as suffix
 # but you can add an extra local version.
 # In this local version  we must mark rpi kernels by adding the "rpi" label
 # otherwise we assume it is a mainline kernel.
-export KERNEL_LOCALVERSION="-xeno-$XENOMAI_VERSION"
+export KERNEL_LOCALVERSION="-rpi-xeno-$XENOMAI_VERSION"
 export KERNEL_FULLVERSION=${KERNEL_VERSION}${KERNEL_LOCALVERSION}
 # note: whether KERNEL_FULLVERSION contains "rpi" is used to
 #       decide which device tree files are used in the installation.
@@ -54,8 +67,15 @@ export PACKAGENAME=raspberrypi-kernel
 export PACKAGEVERSION=${KERNEL_FULLVERSION}
 export PACKAGEFILE=${PACKAGENAME}-${PACKAGEVERSION}_armhf.deb
     
-export IPIPE_PATCH=ipipe-core-4.19.33-arm-2.patch 
-export IPIPE_REPO_URL=https://www.xenomai.org/downloads/ipipe/v4.x/arm/
+
+# official ipipe patch needed a simple fix
+#export IPIPE_PATCH=ipipe-core-4.9.51-arm-4.patch
+#export IPIPE_REPO_URL=https://www.xenomai.org/downloads/ipipe/v4.x/arm/
+
+# this simple fix, shifting lines and small context changes, we can download from
+export IPIPE_PATCH=ipipe-core-4.9.51-arm-4.fixedforrasbian-4.9.80.patch 
+export IPIPE_REPO_URL=https://raw.githubusercontent.com/harcokuppens/xenomai3_rpi_gpio/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/
+
     
 export NUMCORES=4
 export ARCH=arm 
@@ -74,6 +94,10 @@ git clone -b $KERNEL_BRANCH --depth 1 $KERNEL_GIT_REPO linux
    
 # get ipipe patch for kernel
 wget $IPIPE_REPO_URL/$IPIPE_PATCH
+
+# we use a new patch for pinctrl-bcm2835.c for raspbian 4.9 kernel : pinctrl-bcm2835.c.rpi-4.9.patch
+wget $IPIPE_REPO_URL/pinctrl-bcm2835.c.rpi-4.9.patch
+# for details how derived this patch see: https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/how_pinctrl-bcm2835_patch_for_rpi-4.9_is_derived/__README__.txt
 ```
     
 #### Note down the specific version details for future rebuilds
@@ -81,18 +105,18 @@ wget $IPIPE_REPO_URL/$IPIPE_PATCH
 ```bash    
 cd linux
 make kernelversion 
-# output: 4.19.33 
+# output: 4.9.80 
 git rev-parse HEAD
-# output: 4b3a3ab00fa7a951eb1d7568c71855e75fd5af85
+# output: 7f9c648dad6473469b4133898fa6bb8d818ecff9
 cd -  
     
 cd xenomai
 git rev-parse HEAD
-# output: 2692220a5d55a5f36ebaee3bfde5e926f168447c
+# output: fbc3271096c63b21fe895c66ba20b1d10d72ff48
 cd -
 ```
 
-### Patch kernel with the ipipe patch
+### Patch kernel with the ipipe patch and pinctrl-bcm2835.c.rpi-4.9.patch
 
 Patch the kernel with the ipipe patch
     
@@ -100,6 +124,13 @@ Patch the kernel with the ipipe patch
 xenomai/scripts/prepare-kernel.sh  --linux=linux/  --arch=$ARCH  --ipipe=$IPIPE_PATCH 
 ```
 
+Patch linux/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+
+```bash
+cd linux/drivers/pinctrl/bcm/
+patch   -p1  <  ../../../../pinctrl-bcm2835.c.rpi-4.9.patch
+cd -
+```
 
 ### Configuring
     
@@ -121,62 +152,11 @@ Then start menuconfig
 make menuconfig
 ```
  
-The default configuration was made to fit multiple of different systems under the label "ARMv7 based platforms". However enabling to build for all these platforms makes it impossible to disable "Contiguous Memory Allocation  (`CONFIG_CMA`)" because one of the platforms requires it somehow.
-So we have to disable all platforms except "Broadcom SoC Support" which we need for the rasbperry pi. So the menu should look like:
+The default configuration was made to fit specifically for the 
+Broadcom BCM2835 chip. (config options `CONFIG_ARCH_BCM=y` and 
+`CONFIG_ARCH_BCM2835=y`).
 
-    System Type  --->
-      Multiple platform selection  ---> 
-          *** CPU Core family selection ***                                                                                                                                                                                                                       
-          [ ] ARMv6 based platforms (ARM11)
-          [*] ARMv7 based platforms (Cortex-A, PJ4, Scorpion, Krait)
-    [*] MMU-based Paged Memory Management Support                                                                                                                                                                                                                           
-        ARM system type (Allow multiple platforms to be selected)  --->                                                                                                                                                                                                
-        Multiple platform selection  --->                                                                                                                                                                                                                             
-    [ ] Dummy Virtual Machine                                                                                                                                                                                                                                         
-    [ ] Actions Semi SoCs  ----                                                                                                                                                                                                                                      
-    [ ] Annapurna Labs Alpine platform                                                                                                                                                                                                                               
-    [ ] Axis Communications ARM based ARTPEC SoCs  ----                                                                                                                                                                                                              
-    [ ] AT91/Microchip SoCs  ----                                                                                                                                                                                                                                    
-    [*] Broadcom SoC Support  --->                                                                                                                                                                                                                                    
-    [ ] Marvell Berlin SoCs  ----                                                                                                                                                                                                                                    
-    [ ] Conexant Digicolor SoC Support                                                                                                                                                                                                                               
-    [ ] Samsung EXYNOS  ----                                                                                                                                                                                                                                         
-    [ ] Calxeda ECX-1000/2000 (Highbank/Midway)                                                                                                                                                                                                                      
-    [ ] Hisilicon SoC Support                                                                                                                                                                                                                                        
-    [ ] Freescale i.MX family  ----                                                                                                                                                                                                                                   
-    [ ] Texas Instruments Keystone Devices                                                                                                                                                                                                                            
-    [ ] MediaTek SoC Support  ----                                                                                                                                                                                                                                   
-    [ ] Amlogic Meson SoCs  ----                                                                                                                                         
-    [ ] Marvell PXA168/910/MMP2  ----                                                                                                                                                                                                                                
-    [ ] Marvell Engineering Business Unit (MVEBU) SoCs  ----                                                                                                                                                                                                           
-    [ ] Nuvoton NPCM Architecture  ----                                                                                                                                                                                                                                            
-          TI OMAP Common Features  --->                                                                                                                                                                                                                                    
-          TI OMAP/AM/DM/DRA Family  --->                                                                                                                                                                                                                                
-    [ ] CSR SiRF  ----                                                                                                                                                                                                                                               
-    [ ] Qualcomm Support  ----                                                                                                                                                                                                                                      
-    [ ] ARM Ltd. RealView family  ----                                                                                                                                                                                                                               
-    [ ] Rockchip RK2928 and RK3xxx SOCs                                                                                                                                                                                                                              
-    [ ] Samsung S5PV210/S5PC110                                                                                                                                                                                                                                       
-    [ ] Renesas ARM SoCs  ----                                                                                                                                                                                                                                         
-    [ ] Altera SOCFPGA family  ----                                                                                                                                                                                                                                   
-    [ ] ST SPEAr Family  ----                                                                                                                                                                                                                                         
-    [ ] STMicroelectronics Consumer Electronics SOCs  ----                                                                                                                                                                                                            
-    [ ] STMicroelectronics STM32 family  ----                                                                                                                                                                                                                        
-    [ ] Allwinner SoCs  ----                                                                                                                                                                                                                                         
-    [ ] Sigma Designs Tango4 (SMP87xx)                                                                                                                                                                                                                                 
-    [ ] NVIDIA Tegra  ----                                                                                                                                                                                                                                           
-    [ ] Socionext UniPhier SoCs                                                                                                                                                                                                                                       
-    [ ] ST-Ericsson U8500 Series  ----                                                                                                                                                                                                                                
-    [ ] ARM Ltd. Versatile Express family  ----                                                                                                                                                                                                                      
-    [ ] WonderMedia WM8850                                                                                                                                                                                                                                           
-    [ ] ZTE ZX family  ----                                                                                                                                                                                                                                            
-    [ ] Xilinx Zynq ARM Cortex A9 Platform                                                                                                                                                                                                                               
-    *** Processor Type ***                                                                                                                                                                                                                                         
-    *** Processor Features ***                                                                                                                                       
-    
-
-
-then we can configure for realtime behavior by choosing the following options: 
+We can configure for realtime behavior by choosing the following options: 
 
      General setup  --->
         Local version - append to kernel release
@@ -234,18 +214,6 @@ cd linux
 make $KERNEL_DEFCONFIG
 ```
 
-First disable all unneeded platforms from build:
-
-```bash 
-for ARCHTYPE in VIRT ALPINE ARTPEC AT91 BERLIN DIGICOLOR\
-       EXYNOS HIGHBANK HISI MXC KEYSTONE MEDIATEK\
-       MESON MVEBU SIRF QCOM ROCKCHIP RENESAS\
-       SOCFPGA  STI STM32 SUNXI TEGRA UNIPHIER\
-       U8500 VEXPRESS WM8850 ZYNQ  
-do 
-   scripts/config -d CONFIG_ARCH_${ARCHTYPE}  
-done  
-```
 
 Then configure kernel for realtime support:
 
@@ -288,7 +256,7 @@ $ for OPTION in LOCALVERSION BLK_DEV_INITRD\
 > do
 >    echo "${OPTION}: $(scripts/config -s ${OPTION})"
 > done
-LOCALVERSION: -xeno-master-4b3a3ab
+LOCALVERSION: -rpi-xeno-3.0.8
 BLK_DEV_INITRD: n
 CPU_FREQ: n
 CPU_IDLE: n
@@ -334,17 +302,17 @@ mv linux-image-*.deb linux-headers*.deb linux-libc-dev*.deb dist/
 #### Build xenomai user-space libraries and tools
  
 
-For Configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring
-
+For Configure details see : https://xenomai.org/installing-xenomai-3-x/#_configuring   
+    
 ```bash
 export DESTDIR=$PWD/xenomai-build 
     
-cd xenomai
-./scripts/bootstrap 
-./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
+ cd xenomai
+ ./scripts/bootstrap 
+ ./configure CFLAGS="-march=armv7-a  -mfloat-abi=hard -mfpu=neon -ffast-math" --host=arm-linux-gnueabihf --enable-smp --with-core=cobalt
 	
-sudo make DESTDIR=$DESTDIR install
-	
+sudo make DESTDIR=$DESTDIR install	
+   		
 cd ..
 tar -C $DESTDIR -czvf dist/xenomai-binaries.tgz .
 # cleanup with:  
@@ -749,3 +717,4 @@ svn export https://github.com/raspberrypi/linux/branches/rpi-4.19.y/include/dt-b
     loader (start.elf).
     
  src: https://www.raspberrypi.org/documentation/configuration/device-tree.md
+
