@@ -358,55 +358,10 @@ Just download the debian package we build in the previous onto the raspberry pi,
     dpkg -i $package
    
  
-Test code
-=========
+Problem
+========
 
-On the following page we have a description of how I tested the new xenomai installation: 
-  
-    https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/test_xenomai_installation_and_test_gpio_pins_are_working_correct.txt
-
-It describes the following test code:
-
- * linux gpio test example code: 
-
-        The example code is in a github repository at:
-        
-           https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/linux/wiringpi_examples
-
-        The easiest way to download this folder is with the subversion command:
-        
-          svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/linux/wiringpi_examples
-          
-
-        With the default raspbian kernel these examples work. 
-        However with a xenomai patched kernel the linux based examples should also still work!
-
-          cd wiringpi_examples/
-          make
-          ./blink                # test gpio output
-          ./button_toggles_led   # press button to toggle led  , test both interrupt from button and  output
-          ./output_driven_irq    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
-
-* xenomai gpio test example code:  
-       
-        The example code is in a github repository at:
-        
-            https://github.com/harcokuppens/xenomai3_rpi_gpio/tree/master/examples/xenomai3/userspace_programs
-
-        The easiest way to download this folder is with the subversion command:
-        
-            svn checkout https://github.com/harcokuppens/xenomai3_rpi_gpio.git/trunk/examples/xenomai3/userspace_programs
-          
-        These examples should only work with a xenomai3 patched linux kernel.    
-        You also must have the rtdm driver for realtime driver support for gpio pins loaded:
-       
-            modprobe xeno_gpio_bcm2835
-     
-        We have the same examples as for linux but now in realtime mode:
-       
-           ./blink/                # test gpio output
-           ./button_toggles_led/   # press button to toggle led  , test both interrupt from button and  output
-           ./output_driven_irq/    # test both  gpio output and gpio interrupt (latter driven by feeding output line with voltage divider to an input port -> no switch needed, just blinking of led toggles also interrupt)
- 
-     
-
+* starts booting, but halfway boot it hangs
+  different errors, sometimes it says "waiting for root device"
+  but sometimes some other place  
+* seems random, but  "waiting for root device" happens often

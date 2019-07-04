@@ -1,27 +1,72 @@
 
-main references  (best descriptions in markdown and )
- 
-   * rpi 4.9 : gpio working in xenomai,  but gpio not working in linux   => used in course for supporing rpi3b+
-   
-       => installation_of_xenomai-3.0.8_on_rpi2_3_3Bplus_on_raspbian_kernel_branch_v4.9.y__problem_linux_gpio.md
+
+
+TODO:  wait for xenomai mailing list for fix for linux gpio problem
+      thing xenomai gpio is ok => good enough for des course!
+      
+      where we use  mainline kernel 4.9 with xenomai 3.0.8
+      
+        rpi3bplus_mainline_v4.9.51_xenomai308/       =>  4.9 mainling same build as previous but then with mainline kernel (for xenomai mailing list, because they want  mainline kernel build)         
+                                             https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
+                                             `->THE insall description to debug for xenomai mailing list (because using mainline kernel)
      
-   * rpi 4.19 : gpio wrong numbers in xenomai    => needed in future for supporting rpi4
+      => send remember mail to xenomai group
+      
+      
+===================
+
+LATER TODO:  
+      => 4.19 is needed for rpi4, but for that to work we need :
+             a) rpi4 dt file for mainline kernel, or   (xenomai with mainline kernel  on rpi4)
+             b) ipipe patch for rpi 4.19 kernel (currently xenomai on rpi 3.19 kernel hangs!)    (xenomai on rpi kernel on rpi4)
+          SO we can conclude that currently we cannot build xenomai for rpi4!!    
+      => for rpi3b+ 4.9 kernel is fine for now!
+         so therefore we do this later
+ 
+  - build rpi kernel for rpi4 without xenomai with bcm2711_defconfig => see if it works 
+       => build later because we cannot build a xenomai for now we have 4.9 version for rpi3
+       =>  
+       
+  - 4.19 vanilla do fix gpio fix pinctrl!! 
+           vanilla 4.19.33
+           vanilla 4.19.33 ipipe patched
+       
+          compare  
+           vanilla 4.19.33
+           rpi 4.19.y 
+       
+          compare:  
+           rpi 4.19.y 
+           rpi 4.19.y  with ipipe patched
+           rpi 4.19.y with my special 4.09 patch applied.....
+       
+  
+
+==========================================================================
+
+
+The best descriptions done in markdown (with bash code highlighting) : 
+ 
+   * rpi kernel 4.9 xenomai 3.0.8 : gpio working in xenomai,  but gpio not working in linux   => used in course for supporing rpi3b+
+   
+       => install_xenomai-3.0.8_on_rpi_kernel_v4.9.y_4.9.80__for_rpi_2till3bplus.md
+     
+   * mainline kernel 4.19 xenomai master: gpio wrong numbers in xenomai    => needed in future for supporting rpi4
                                                    note: boots on rpi3b+ with gpio number problem which probably can
                                                          be fixed by correcting pinctrl.c
                                                          However does not boot on rpi4!   
    
       => installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio.md
     
-      note: suffix "__problem_linux_gpio" is misleading because for 4.19 also in xenomai gpio pins not working
-            however the problem is fully describe correctly in this file itself
-            
+         note: suffix "__problem_linux_gpio" is misleading because for 4.19 also in xenomai gpio pins not working
+               however the problem is fully describe correctly in this file itself
+             
 ==========================================================================
 
-https://superuser.com/questions/970594/extremely-slow-speed-when-writing-to-usb-fat32-drive-in-linux
-sudo umount /dev/sdb1; sudo mount -o async,flush /dev/sdb1 /media/usb
 
-
-
+faster write when mounting fat on cup :
+    https://superuser.com/questions/970594/extremely-slow-speed-when-writing-to-usb-fat32-drive-in-linux
+    sudo umount /dev/sdb1; sudo mount -o async,flush /dev/sdb1 /media/usb
 
   
 GOAL :
@@ -51,88 +96,58 @@ STATUS:
 
 
 
- 
-TODO:  
+builds in /data/rpi on cup:
 
+    $ ls -1 /data/rpi
 
-       I did  make an improved description for   install_xenomai-3.0.8_on_rpi2_3_3B+.md
-        result at:
-         
-           installation_of_xenomai-3.0.8_on_rpi2_3_3Bplus_on_raspbian_kernel_branch_v4.9.y__problem_linux_gpio.md
-           
-        this installation is build at : /data/rpi/rpi3bplus_rpi_v4.9.51_xenomai308/dist/
- 
-        TODO: => verify these installation files
-                 and put them with this new  description on the lab stie
-            
-            
+    # 4.9 builds : both have xenomai gpio working fine, but in linux gpio not working  => wait for xenomai maiing list for solution
+    rpi3bplus_rpi_v4.9.51_xenomai308/  => 4.9 rpi  
+                                           install_xenomai-3.0.8_on_rpi_kernel_v4.9.y_4.9.80__for_rpi_2till3bplus.md
+                                          using improved installation
+                                             install_xenomai-3.0.8_on_rpi_kernel_v4.9.y_4.9.80__for_rpi_2till3bplus.md
+                                         
 
-  - cleanup installations 
- 
-      * installation_of_xenomai_master_on_raspbian_kernel_branch_v4.19.y.md
-        -> document that it doesn't boot!!   => think I didn't finish this description
-
-
+    rpi3bplus_mainline_v4.9.51_xenomai308/       =>  4.9 mainling same build as previous but then with mainline kernel (for xenomai mailing list, because they want  mainline kernel build)         
+                                           https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
+                                           `->THE insall description to debug for xenomai mailing list (because using mainline kernel)
+                                       
+                                       
+                                       
+    # 4.19 builds; 
+    rpi3bplus_mainline_4.19.33_xenomai_master/ => 4.19 mainline 
+                                                installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio.md    
+                                                   -> problem with xenomai gpio pins 
+    rpi3bplus_rpi_v4.19_xenomai_master/                     => 4.19 rpi kernel  
+                         installation_of_xenomai_master_on_rpi_v4.19_kernel___problem_kernel_hangs_during_boot.md
+                                                   -> problem kernel hangs halfway during  boot
   
 
-
-
-
-
-
-
-LATER TODO:  
-      => 4.19 is needed for rpi4, but for that to work we need :
-             a) rpi4 dt file for mainline kernel, or   (xenomai with mainline kernel  on rpi4)
-             b) ipipe patch for rpi 4.19 kernel (currently xenomai on rpi 3.19 kernel hangs!)    (xenomai on rpi kernel on rpi4)
-          SO we can conclude that currently we cannot build xenomai for rpi4!!    
-      => for rpi3b+ 4.9 kernel is fine for now!
-         so therefore we do this later
- 
-  - build rpi kernel for rpi4 without xenomai with bcm2711_defconfig => see if it works 
-       => build later because we cannot build a xenomai for now we have 4.9 version for rpi3
-       =>  
-       
-  - 4.19 vanilla do fix gpio fix pinctrl!! 
-           vanilla 4.19.33
-           vanilla 4.19.33 ipipe patched
-       
-          compare  
-           vanilla 4.19.33
-           rpi 4.19.y 
-       
-          compare:  
-           rpi 4.19.y 
-           rpi 4.19.y  with ipipe patched
-           rpi 4.19.y with my special 4.09 patch applied.....
-       
-  
-           
 referenced in mailinglist:
 
     rpi 4.9 install , xenomai 3.0.8 => problem linux gpio
      https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/install_xenomai-3.0.8_on_rpi2_3_3B%2B.txt
       => gpio xenomai working fine,  however gpio in linux not working
+        
+         this USED for DES
   
     mainline 4.9 install, xenomai 3.0.8 => problem linux gpio
      https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
       => gpio xenomai working fine,  however gpio in linux not working
+      `->THE insall description to debug for xenomai mailing list (because using mainline kernel)
+          (to debug previous DES version with rpi kernel)
 
     mainline 4.19 install , xenomai master branch => problem linux gpio
       https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio.md
-       note: suffix "__problem_linux_gpio" is misleading because for 4.19 also  xenomai not working
-       
+       note: suffix "__problem_linux_gpio" is misleading because for 4.19 also  xenomai not working      
+      => for FUTURE  rpi4 support (because 4.19 rpi kernel is the first one supporting rpi4 (with dts for it, and bcm2011_defconfig))
 
   => if problems are solved, then move then in their own failure dir -> don't care breaking links in mailing list
      because i will post working install in mailing list!!
+    
 
-BEST: 
-    => referenced in mailinglist :
-          installation_of_xenomai_master_on_mainline_kernel_branch_v4.19.33_from_kernel.org__problem_linux_gpio.md
-        note: suffix "__problem_linux_gpio" is misleading because for 4.19 also  xenomai not working
-              -> still need pinctrl patch  from rpi kernel
-              
-              
+
+           
+          
 
 ==========================================================================================
 

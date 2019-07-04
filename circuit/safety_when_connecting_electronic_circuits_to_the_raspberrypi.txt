@@ -1,3 +1,32 @@
+
+  question:    is it safe to connect/shortcut an irq input to 
+       0V?
+       3.3V?
+  answer:       
+       yes, but it is better to add a 1K resistor!!   
+       note: we assume here the input voltage is driven by some other GPIO
+       output pin which can be programmatically set to low (0V) or hight (3.3V)
+      
+      however If you have a physical switch  which must switch between an high
+      or low input to drive the input signal then
+      I prefer to have a pull down/up circuit where its voltage source 
+      is the data output 
+           pull down: output +3,3V  when switch closed, output 0V is when switch open (pull down to 0V is default when switch by default open)
+           pull up: output 0V  when switch closed, output +3.3V  when switch open (pull up to 3.3V is default when switch by default open)
+      note: you can also program an internal pull up or pull down resistor in the rpi,
+            however by default this pull/up down resistor is not activated  and
+            in the input line floats around when nothing is connected!!
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            => programming the internal pull up/down resistor is not safe for students which could make programming errors
+               so rather have a external pull up/down circuit on the input line.
+            => we need the pull up/down circuit to fix the input voltage !!
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                   ^^^
+
+
+
+
+
 safety when connecting electronic circuits to the raspberry pi
 ==============================================================
 

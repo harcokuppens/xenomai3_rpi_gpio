@@ -3,8 +3,9 @@
            Electronic drawing and simulator tools
 ==========================================================================================================
 
-Fritzing circuit drawing and pcb design (free)
+Fritzing circuit drawing and pcb design (free)    -> to draw realistic circuit connected to a board
 ==============================================
+macos: Fritzing.app
 
 http://fritzing.org
 
@@ -17,8 +18,10 @@ http://fritzing.org
 
  => great tool to draw a realistic circuit on a raspberry pi
 
-falstad free circuit similator (free)
+falstad free circuit similator (free)    ->  to draw an electronic scheme and simulate it
 ===============================
+  -> application is called 'circuit'
+   macos: CircuitFalstad.app
 
   src: http://www.falstad.com/circuit/
   
@@ -52,8 +55,9 @@ multiple versions available :
  
     
 
-iCircuit similator (commercial, but cheap)
+iCircuit similator (commercial, but cheap)  ->  to draw an electronic scheme and simulate it
 =================
+macos: iCircuit.app
 
 http://icircuitapp.com/
 
