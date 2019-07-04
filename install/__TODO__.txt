@@ -2,16 +2,14 @@
 
 
 TODO:  wait for xenomai mailing list for fix for linux gpio problem
-      thing xenomai gpio is ok => good enough for des course!
+       thing xenomai gpio is ok => good enough for des course!
       
-      where we use  mainline kernel 4.9 with xenomai 3.0.8
-      
-        rpi3bplus_mainline_v4.9.51_xenomai308/       =>  4.9 mainling same build as previous but then with mainline kernel (for xenomai mailing list, because they want  mainline kernel build)         
-                                             https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
-                                             `->THE insall description to debug for xenomai mailing list (because using mainline kernel)
-     
-      => send remember mail to xenomai group
-      
+       our image uses 
+           rpi kernel 4.9 with xenomai 3.0.8 
+      however I did same install with mainline kernel        
+          mainline kernel 4.9 with xenomai 3.0.8
+      reason: xenomai people can debug better with mainline kernel
+
       
 ===================
 
@@ -107,7 +105,7 @@ builds in /data/rpi on cup:
                                              install_xenomai-3.0.8_on_rpi_kernel_v4.9.y_4.9.80__for_rpi_2till3bplus.md
                                          
 
-    rpi3bplus_mainline_v4.9.51_xenomai308/       =>  4.9 mainling same build as previous but then with mainline kernel (for xenomai mailing list, because they want  mainline kernel build)         
+    /data/rpi/rpi3bplus_rpi_v4.9.y_4.9.80_xenomai308/      =>  4.9 mainling same build as previous but then with mainline kernel (for xenomai mailing list, because they want  mainline kernel build)         
                                            https://github.com/harcokuppens/xenomai3_rpi_gpio/blob/master/install/installation_of_xenomai_3.0.8_on_mainline_kernel_branch_v4.9.51_from_kernel.org__problem_linux_gpio.md
                                            `->THE insall description to debug for xenomai mailing list (because using mainline kernel)
                                        
